@@ -27,5 +27,5 @@
 **Outcome:** COMPLETE
 **Blockers logged to memory:** no
 **PR opened:** no
-**Commit hash:** 074a9cb
+**Commit hash:** 6943d06
 **Notes:** Main/research/fallback models set to provider `lmstudio`, `qwen3.5-4b`, baseURL `http://localhost:1234/v1`. If LM Studio shows a different model string, align `modelId` or re-run `task-master models --set-main "<id>" --lmstudio --baseURL http://localhost:1234/v1`.
