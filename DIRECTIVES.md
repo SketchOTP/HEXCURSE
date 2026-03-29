@@ -6,7 +6,7 @@
 ---
 
 ## ✅ Completed
-- D000: Governance + MCP scaffold (repo initialization) ✓ 2026-03-29 0b2d89a
+- D000: Governance + MCP scaffold (repo initialization) ✓ 2026-03-29 bef73ac
 
 ---
 
