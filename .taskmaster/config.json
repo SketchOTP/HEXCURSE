@@ -1,22 +1,25 @@
 {
   "models": {
     "main": {
-      "provider": "anthropic",
-      "modelId": "claude-sonnet-4-20250514",
-      "maxTokens": 64000,
-      "temperature": 0.2
+      "provider": "lmstudio",
+      "modelId": "qwen3.5-4b",
+      "maxTokens": 8192,
+      "temperature": 0.2,
+      "baseURL": "http://localhost:1234/v1"
     },
     "research": {
-      "provider": "perplexity",
-      "modelId": "sonar",
-      "maxTokens": 8700,
-      "temperature": 0.1
+      "provider": "lmstudio",
+      "modelId": "qwen3.5-4b",
+      "maxTokens": 4096,
+      "temperature": 0.1,
+      "baseURL": "http://localhost:1234/v1"
     },
     "fallback": {
-      "provider": "anthropic",
-      "modelId": "claude-3-7-sonnet-20250219",
-      "maxTokens": 120000,
-      "temperature": 0.2
+      "provider": "lmstudio",
+      "modelId": "qwen3.5-4b",
+      "maxTokens": 8192,
+      "temperature": 0.2,
+      "baseURL": "http://localhost:1234/v1"
     }
   },
   "global": {

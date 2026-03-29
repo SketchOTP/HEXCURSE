@@ -3,9 +3,7 @@
 # Companion file: CURSOR_AGENT_SETUP_PROMPT_V2.md  (that file is for the AI)
 # ─────────────────────────────────────────────────────────────────────────────
 
-This repository implements the **HexCurse** stack. Pilot work used the codename
-**Hearth**; day-to-day identity is **HexCurse** (`hexcurse`). Follow
-`CURSOR_AGENT_SETUP_PROMPT_V2.md` for setup and session prompts.
+**HexCurse default:** Taskmaster (CLI + MCP) is configured for **LM Studio** with **qwen3.5-4b** at `http://localhost:1234/v1` (OpenAI-compatible API). Use `.env.example` and `.taskmaster/config.json`; keep LM Studio’s local server running when using `task-master parse-prd` or MCP task generation. If your model’s identifier in LM Studio differs from `qwen3.5-4b`, run `task-master models --set-main "<exact-id>" --lmstudio --baseURL http://localhost:1234/v1`.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 WHAT THIS SYSTEM IS AND WHAT YOUR JOB IS
@@ -47,7 +45,7 @@ Before you start, make sure you have:
   □ Node.js 18 or higher — check with: node --version
   □ Python 3.10 or higher — check with: python --version
   □ Git installed — check with: git --version
-  □ An Anthropic API key — get one at console.anthropic.com
+  □ LM Studio — lmstudio.ai — enable Local Server (default `http://localhost:1234`), load **qwen3.5-4b** (or whatever matches `modelId` in `.taskmaster/config.json`)
   □ A GitHub Personal Access Token — github.com → Settings → Developer Settings
     → Personal Access Tokens → Fine-grained → create with repo read/write
 
@@ -82,7 +80,8 @@ Location:
   Mac/Linux: ~/.cursor/mcp.json
 
 Create that file (or open it if it already exists) and paste in the entire
-block below. Replace the two placeholder values with your real keys:
+block below. For **taskmaster-ai**, use OpenAI-compatible env vars pointing at
+LM Studio (below). Replace the GitHub placeholder with your real PAT.
 
 ────────────────────────────────────────────────────────────────────────────
 {
@@ -92,7 +91,8 @@ block below. Replace the two placeholder values with your real keys:
       "command": "npx",
       "args": ["-y", "--package=task-master-ai", "task-master-ai"],
       "env": {
-        "ANTHROPIC_API_KEY": "YOUR_ANTHROPIC_API_KEY_HERE"
+        "OPENAI_API_KEY": "lm-studio",
+        "OPENAI_BASE_URL": "http://localhost:1234/v1"
       }
     },
 
@@ -111,7 +111,7 @@ block below. Replace the two placeholder values with your real keys:
       "args": [
         "--from", "git+https://github.com/oraios/serena",
         "serena-mcp-server",
-        "--project", "${workspaceFolder}"
+        "--project-root", "${workspaceFolder}"
       ]
     },
 

@@ -16,4 +16,16 @@
 **Blockers logged to memory:** no
 **PR opened:** no
 **Commit hash:** e2de453 (scaffold: bef73ac; hash sync: e2de453)
-**Notes:** Run `task-master parse-prd .taskmaster/docs/prd.txt` after adding keys to `.env` to regenerate tasks if desired. Seed memory MCP from `docs/MEMORY_SEED.md`. First executable directive: **D001** (Taskmaster task 1). Replace `YOUR_GITHUB_PAT_HERE` in `%USERPROFILE%\.cursor\mcp.json` if using GitHub MCP.
+**Notes:** Run `task-master parse-prd .taskmaster/docs/prd.txt` with LM Studio running to regenerate tasks if desired. Seed memory MCP from `docs/MEMORY_SEED.md`. First executable directive: **D001** (Taskmaster task 1). Replace `YOUR_GITHUB_PAT_HERE` in `%USERPROFILE%\.cursor\mcp.json` if using GitHub MCP.
+
+### Session S-002 — 2026-03-29
+**Directive:** (ad hoc) — Switch Taskmaster to LM Studio + qwen3.5-4b
+**Taskmaster Task ID:** n/a
+**Branch:** n/a
+**Files modified:** `.taskmaster/config.json`, `.env.example`, `.cursor/rules/base.mdc`, `docs/ARCHITECTURE.md`, `docs/MEMORY_SEED.md`, `.taskmaster/tasks/tasks.json`, `CURSOR_SYSTEM_USER_GUIDE.md`, `CURSOR_AGENT_SETUP_PROMPT_V2.md`, `docs/PART0_MCP_TEMPLATE.json`
+**Files created:** none
+**Outcome:** COMPLETE
+**Blockers logged to memory:** no
+**PR opened:** no
+**Commit hash:** 074a9cb
+**Notes:** Main/research/fallback models set to provider `lmstudio`, `qwen3.5-4b`, baseURL `http://localhost:1234/v1`. If LM Studio shows a different model string, align `modelId` or re-run `task-master models --set-main "<id>" --lmstudio --baseURL http://localhost:1234/v1`.

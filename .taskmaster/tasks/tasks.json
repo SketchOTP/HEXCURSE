@@ -28,8 +28,8 @@
       {
         "id": 3,
         "title": "Configure .env for Taskmaster AI providers",
-        "description": "Add ANTHROPIC_API_KEY and optional PERPLEXITY_API_KEY for parse-prd and research.",
-        "details": "Never commit .env; use .env.example as template.",
+        "description": "Set OPENAI_API_KEY and OPENAI_BASE_URL for LM Studio (see .env.example). Start LM Studio with qwen3.5-4b loaded.",
+        "details": "Never commit .env; modelId in .taskmaster/config.json must match the model name LM Studio exposes.",
         "testStrategy": "",
         "status": "pending",
         "dependencies": [],
@@ -38,9 +38,9 @@
       },
       {
         "id": 4,
-        "title": "Re-run parse-prd when API keys available",
+        "title": "Re-run parse-prd when LM Studio is available",
         "description": "Run task-master parse-prd .taskmaster/docs/prd.txt to refresh task graph.",
-        "details": "Replace or merge generated tasks per human preference.",
+        "details": "LM Studio must be running; replace or merge generated tasks per human preference.",
         "testStrategy": "",
         "status": "pending",
         "dependencies": [

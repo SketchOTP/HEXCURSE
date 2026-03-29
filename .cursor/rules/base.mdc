@@ -16,6 +16,7 @@ alwaysApply: true
 ## Tech Stack
 - Governance: Cursor rules (`.mdc`), Markdown docs, Taskmaster (`task-master` CLI + `.taskmaster/`), Git.
 - Tooling: Node.js 18+, MCP servers (taskmaster-ai, context7, repomix, serena, gitmcp, sequential-thinking, memory, github).
+- Taskmaster LLM: **LM Studio** (OpenAI-compatible API, default `http://localhost:1234/v1`), model **`qwen3.5-4b`** — server must be running with that model loaded; `modelId` in `.taskmaster/config.json` must match LM Studio’s model identifier if different.
 - Application code: TBD — confirm before implementing.
 
 ## Out of Scope

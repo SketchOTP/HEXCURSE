@@ -4,7 +4,8 @@
       "command": "npx",
       "args": ["-y", "--package=task-master-ai", "task-master-ai"],
       "env": {
-        "ANTHROPIC_API_KEY": "YOUR_ANTHROPIC_API_KEY_HERE"
+        "OPENAI_API_KEY": "lm-studio",
+        "OPENAI_BASE_URL": "http://localhost:1234/v1"
       }
     },
     "context7": {

@@ -9,12 +9,8 @@
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
-## HexCurse system (this repository)
 
-This repo is the **HexCurse** governed agentic stack. Early scaffolding used the
-codename **Hearth** as a pilot; the product identity is **HexCurse** (`hexcurse`).
-PART 1 STEP 1 lists the minimum layout; this project also keeps **`governance/`**
-for `PROJECT_SPEC.md`, `ARTIFACT_HASHES.sha256`, and `DECISION_LOG.md` (SC-04).
+
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PART 0 — PRE-SETUP  (YOU do this — not the AI — before running Part 1)
@@ -38,22 +34,15 @@ Then add to your Cursor MCP config at:  ~/.cursor/mcp.json
         "command": "npx",
         "args": ["-y", "--package=task-master-ai", "task-master-ai"],
         "env": {
-          "ANTHROPIC_API_KEY": "YOUR_ANTHROPIC_API_KEY_HERE"
+          "OPENAI_API_KEY": "lm-studio",
+          "OPENAI_BASE_URL": "http://localhost:1234/v1"
         }
       }
     }
   }
 
-**Alternative — LM Studio / OpenAI-compatible local server** (used in this repo):
-use the same `taskmaster-ai` block but replace `env` with:
-
-        "env": {
-          "OPENAI_API_KEY": "lm-studio",
-          "OPENAI_BASE_URL": "http://localhost:1234/v1"
-        }
-
-Align `.taskmaster/config.json` `modelId` and `baseURL` with the model LM Studio
-shows on the Local Server tab.
+  (HexCurse uses local LM Studio + qwen3.5-4b. For cloud Anthropic instead, use
+  `ANTHROPIC_API_KEY` in this block and configure `.taskmaster/config.json` accordingly.)
 
 What it does: Breaks your PRD into a dependency-aware task graph. Tells the
 agent exactly what task to work on next with no ambiguity. Up to 90% fewer
@@ -288,11 +277,6 @@ source code — only governance and documentation files.
   AGENTS.md                 ← rules of engagement for every AI session
   SESSION_LOG.md            ← per-session audit trail
 
-  governance/               ← optional extension (this repo): full spec + hashes
-    PROJECT_SPEC.md         ← canonical technical specification
-    ARTIFACT_HASHES.sha256  ← SC-04 governed file hashes
-    DECISION_LOG.md         ← decision record
-
 ═══════════════════════════════════════════════════════════════════════════════
 STEP 2 — POPULATE .cursor/rules/base.mdc
 ═══════════════════════════════════════════════════════════════════════════════
@@ -410,7 +394,7 @@ AUTOMATIC: Before writing any line of code that calls an external library —
   invoke context7 to fetch current documentation for that library.
   This fires even if you are confident you know the API.
   Training data is stale. context7 is not. context7 always wins.
-AUTOMATIC: The trigger is built into your behavior — you do not need
+AUTOMATIC: The trigger phrase is built into your behavior — you do not need
   the human to say "use context7." You invoke it yourself before every
   library call you are about to write.
 HARD RULE: Writing a library function call from memory without first
@@ -826,9 +810,7 @@ without skipping steps and without waiting to be asked:
   1. Query memory MCP for all stored project facts — do it now.
   2. Call Taskmaster get_tasks — identify active task and next queued.
   3. Read DIRECTIVES.md — confirm it matches Taskmaster state.
-  4. If this is the first session on this codebase, or the directive touches
-     modules you have not already seen this session: run repomix --compress
-     and use the output as your structural map (see AGENTS.md / mcp-usage.mdc).
+  4. Run repomix --compress automatically — build your structural map.
   5. Invoke sequential-thinking — produce a numbered implementation plan
      with file paths and symbol names for the active directive.
   6. Report to me: active directive, next queued, and the full plan.

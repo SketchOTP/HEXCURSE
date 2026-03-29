@@ -8,6 +8,7 @@ HexCurse is a project workspace that uses Cursor agent governance, Taskmaster or
 |-------|-----------|--------|
 | Editor / agent host | Cursor | Primary IDE and MCP client |
 | Task graph | Taskmaster (`task-master` CLI, `.taskmaster/`) | Dependency-aware directive chain |
+| Taskmaster LLM | LM Studio → `qwen3.5-4b` at `http://localhost:1234/v1` | Local inference; OpenAI-compatible `.env` (`OPENAI_API_KEY` + `OPENAI_BASE_URL`). No Anthropic/Perplexity required for this project. |
 | Docs | Markdown | Human-readable architecture, directives, logs |
 | VCS | Git | History, branches, PRs (via GitHub MCP when remote exists) |
 | Code intelligence | Serena MCP | Symbol-level navigation when source tree exists |
@@ -57,6 +58,7 @@ HexCurse/
 ## External Dependencies & MCP Coverage
 | Dependency | Documentation MCP |
 |------------|-------------------|
+| LM Studio (local LLM server) | Not MCP — must match `.taskmaster/config.json` `modelId` + `baseURL` |
 | Taskmaster / task-master-ai | taskmaster-ai MCP + CLI `--help` |
 | General libraries (once chosen) | context7 |
 | Niche GitHub SDKs / firmware (when used) | gitmcp (per-repo URL entries) |
