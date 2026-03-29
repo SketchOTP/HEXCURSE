@@ -1,0 +1,25 @@
+---
+description: Governance artifact rules for HexCurse
+globs: ["AGENTS.md", "DIRECTIVES.md", "SESSION_LOG.md", ".cursor/rules/**/*.mdc"]
+alwaysApply: false
+---
+
+# Governance Artifact Standards
+
+## Patterns to Always Use
+- Keep `DIRECTIVES.md` in sync with Taskmaster `tasks.json` after each session close.
+- Reference `docs/ARCHITECTURE.md` for system truth; mark unknowns as `TBD — confirm before implementing`.
+- Session start: follow `AGENTS.md` sequence exactly; session close: full checklist.
+
+## Patterns to Never Use
+- Marking more than one directive as In Progress in `DIRECTIVES.md`.
+- Omitting Taskmaster task IDs from in-progress directive blocks when tasks exist.
+
+## File Naming Convention
+- Fixed names at repo root: `AGENTS.md`, `DIRECTIVES.md`, `SESSION_LOG.md`.
+
+## Testing Requirement
+- None automated; verify manually that Taskmaster state matches `DIRECTIVES.md` when closing a session.
+
+## Context7 Library IDs (add "use context7" when using these)
+- Not applicable unless editing scripts that call external CLIs.

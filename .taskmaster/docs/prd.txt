@@ -1,0 +1,48 @@
+<context>
+# Overview
+HexCurse is a software project workspace that operates under strict Cursor agent governance. The repository holds the governance kit (Cursor rules, directives, session logs), system documentation, and will grow to hold application code once the product stack is confirmed. Primary users are the project owner and AI implementation agents following AGENTS.md.
+
+# Core Features
+- Governed AI sessions: MCP-driven workflow (Taskmaster, memory, Serena, context7, repomix, gitmcp, GitHub, sequential-thinking).
+- Living documentation: ARCHITECTURE.md, DIRECTIVES.md, SESSION_LOG.md kept in sync with Taskmaster tasks.json.
+- Task graph: Dependency-aware directives parsed from this PRD via Taskmaster.
+
+# User Experience
+- Human confirms scope once per directive; agent executes tooling, branches, PRs, and logging automatically per AGENTS.md.
+</context>
+<PRD>
+# Technical Architecture
+- Repo root: N:\HexCurse (Windows path; portable relative paths in docs).
+- Governance: `.cursor/rules/*.mdc` (alwaysApply + glob rules), `AGENTS.md`, `DIRECTIVES.md`, `docs/ARCHITECTURE.md`, `SESSION_LOG.md`.
+- Task orchestration: `.taskmaster/` (prd.txt, tasks/tasks.json, state.json).
+- Serena: `.serena/memories/` for cross-session code intelligence (auto-populated).
+- Application implementation stack: TBD — confirm before implementing (no framework locked).
+
+# Development Roadmap
+## Phase A — Governance scaffold (MVP for this PRD)
+- Establish Cursor rules (base, mcp-usage, language/domain rules).
+- Populate ARCHITECTURE, DIRECTIVES, AGENTS, SESSION_LOG with HexCurse-specific content.
+- Initialize Taskmaster task graph from PRD; keep DIRECTIVES.md aligned with tasks.json.
+
+## Phase B — Product foundation (after stack confirmation)
+- Add source tree, build tooling, and tests per chosen stack.
+- Extend ARCHITECTURE and rules with real module contracts.
+
+## Phase C — Features
+- Deferred until product purpose and stack are confirmed.
+
+# Logical Dependency Chain
+1. Finalize governance files and MCP usage rules (foundation for all future work).
+2. Parse PRD → tasks.json; sync DIRECTIVES.md human-readable layer.
+3. Record setup session in SESSION_LOG.md.
+4. Only after Phase A is complete: begin application code per future directive.
+
+# Risks and Mitigations
+- Missing API keys for Taskmaster parse-prd: use `.env` from `.env.example`; document fallback manual task list.
+- MCP servers inactive: verify global `mcp.json`; document in ARCHITECTURE.
+- Scope creep: sacred constraint — one directive per session; backlog for new ideas.
+
+# Appendix
+- Companion docs: `CURSOR_SYSTEM_USER_GUIDE.md`, `CURSOR_AGENT_SETUP_PROMPT_V2.md`.
+- Critical external tooling: task-master-ai CLI, repomix, uv (for Serena), Node 18+.
+</PRD>

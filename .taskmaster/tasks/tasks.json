@@ -1,0 +1,129 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Verify and freeze governance rules",
+        "description": "Confirm .cursor/rules align with HexCurse.",
+        "details": "Review alwaysApply flags.",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Sync DIRECTIVES.md with Taskmaster",
+        "description": "Populate Queued section from tasks.json IDs; document sync policy.",
+        "details": "Mirror task IDs D001+ to Taskmaster numeric ids.",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          1
+        ],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Configure .env for Taskmaster AI providers",
+        "description": "Add ANTHROPIC_API_KEY and optional PERPLEXITY_API_KEY for parse-prd and research.",
+        "details": "Never commit .env; use .env.example as template.",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Re-run parse-prd when API keys available",
+        "description": "Run task-master parse-prd .taskmaster/docs/prd.txt to refresh task graph.",
+        "details": "Replace or merge generated tasks per human preference.",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          3
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Seed memory MCP from docs/MEMORY_SEED.md",
+        "description": "Write project constants via memory MCP when Cursor session has memory enabled.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Verify MCP servers show green in Cursor",
+        "description": "Cross-check Settings > MCP against docs/PART0_MCP_TEMPLATE.json.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Commit governance scaffold to Git",
+        "description": "Single logical commit with message D001: Governance scaffold | verified clean.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          2
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Confirm product stack and update ARCHITECTURE",
+        "description": "Replace TBD sections with chosen language, framework, and module map.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "low",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Add application source tree (post-stack confirmation)",
+        "description": "Scaffold src/, tests, and build per confirmed stack.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          8
+        ],
+        "priority": "low",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Optional: tm rules --setup for Cursor integration",
+        "description": "Run task-master rules setup if recommended by Taskmaster version.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "low",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2026-03-29T19:41:27.414Z",
+      "updated": "2026-03-29T19:42:10.864Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

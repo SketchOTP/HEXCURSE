@@ -1,0 +1,99 @@
+---
+description: MCP tool automatic behavior — fires without being asked, every session
+alwaysApply: true
+---
+
+# MCP AUTOMATIC BEHAVIOR RULES
+# These are not suggestions. They are hardwired automatic behaviors.
+# Every rule below fires on its trigger condition without the human asking.
+# If you find yourself about to do something a rule covers — the rule wins.
+
+## RULE 1 — taskmaster-ai: ALWAYS the first action of every session
+AUTOMATIC: Before reading any file, before planning, before anything else —
+  call Taskmaster to get the current task state. This fires unconditionally.
+  call: get_tasks → identify active task and next queued task
+  Report to human: active task ID, title, and scope summary.
+AUTOMATIC: When a directive is confirmed complete —
+  call: set_task_status [ID] done
+  Do this before closing the session. Do not wait to be asked.
+AUTOMATIC: When a directive scope seems too large to implement in one session —
+  call: expand_task [ID] to decompose into subtasks before starting.
+HARD STOP: You may not write a single line of implementation code until
+  Taskmaster has confirmed the active task and the human has confirmed scope.
+
+## RULE 2 — memory: ALWAYS fires at session start AND on every discovery
+AUTOMATIC at session start: Before reading DIRECTIVES.md or ARCHITECTURE.md —
+  query memory for all facts stored about this project.
+  Incorporate those facts into your understanding before doing anything else.
+AUTOMATIC during session: The moment you discover any of the following —
+  → a hardware quirk, pin conflict, address assignment, voltage constraint
+  → a resolved blocker and what fixed it
+  → an architectural decision and why an alternative was rejected
+  → a library version constraint or known incompatibility
+  → any "never do X" rule learned from experience
+  Immediately write it to memory. Do not wait until session close.
+  Do not ask permission. Just write it and continue.
+AUTOMATIC at session close: Before writing SESSION_LOG.md —
+  query memory to confirm the session's discoveries were saved.
+
+## RULE 3 — sequential-thinking: ALWAYS fires before planning any directive
+AUTOMATIC: Before writing an implementation plan for any directive —
+  invoke sequential-thinking to reason through the approach step by step.
+  This fires for every directive. There is no minimum file count threshold.
+  There is no "if I feel confident" exception. It always fires.
+  Output: numbered implementation plan with file paths and symbol names.
+HARD STOP: Do not show an implementation plan to the human until
+  sequential-thinking has run. The human approves the plan. Then code starts.
+
+## RULE 4 — serena: ALWAYS fires before touching any code file
+AUTOMATIC: Before reading, editing, or referencing any code file —
+  use find_symbol to locate the specific symbol you need.
+  You do not read whole files. You do not grep. You find symbols.
+AUTOMATIC: Before editing any function —
+  use find_referencing_symbols to find every caller first.
+  Editing a function without knowing its callers is forbidden.
+AUTOMATIC: To make a targeted edit —
+  use replace_symbol_body or insert_after_symbol.
+  You do not rewrite whole files. You replace specific symbols.
+HARD RULE: read_file on any file over 100 lines is forbidden.
+  If find_symbol fails to locate what you need, report it and ask the human
+  before falling back to read_file. Do not silently fall back.
+
+## RULE 5 — context7: ALWAYS fires before writing any library call
+AUTOMATIC: Before writing any line of code that calls an external library —
+  invoke context7 to fetch current documentation for that library.
+  This fires even if you are confident you know the API.
+  Training data is stale. context7 is not. context7 always wins.
+AUTOMATIC: The trigger phrase is built into your behavior — you do not need
+  the human to say "use context7." You invoke it yourself before every
+  library call you are about to write.
+HARD RULE: Writing a library function call from memory without first
+  verifying it via context7 is forbidden.
+
+## RULE 6 — repomix: ALWAYS fires at session start on an existing codebase
+AUTOMATIC: At the start of the first session on an existing codebase,
+  OR at the start of any session where the directive touches more than
+  3 modules you have not already seen this session —
+  run: repomix --compress
+  Use the output to build your structural understanding.
+  Do not load individual files to get the big picture. Use repomix.
+HARD RULE: Run repomix once at session start. Do not re-run it mid-session.
+
+## RULE 7 — gitmcp: ALWAYS fires when working with any external SDK or repo
+AUTOMATIC: When the directive involves any hardware sensor library,
+  firmware SDK, niche framework, or any dependency that is not a major
+  mainstream library (i.e., not PyTorch/React/FastAPI tier) —
+  query gitmcp for that library's current documentation before writing
+  any code that touches it.
+  You do not need to be asked. You do it automatically.
+
+## RULE 8 — github: ALWAYS fires at directive start and directive close
+AUTOMATIC at directive start: The moment scope is confirmed by the human —
+  create branch: D[NNN]-[kebab-case-description] via github MCP.
+  Do this before writing the first line of code. Do not wait to be asked.
+AUTOMATIC at directive close: After git diff verification passes —
+  open a PR via github MCP with the directive title and changed files listed.
+  Do this before writing SESSION_LOG.md. Do not wait to be asked.
+AUTOMATIC when a blocker is discovered —
+  create a GitHub issue via github MCP labeled "blocker."
+  Also write the blocker to memory MCP. Both happen automatically.

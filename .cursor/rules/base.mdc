@@ -1,0 +1,46 @@
+---
+description: Global governance rules — loaded in every session
+alwaysApply: true
+---
+
+# PROJECT: HexCurse
+# PURPOSE: Governed Cursor workspace for HexCurse development, documentation, and task-orchestrated implementation (application stack TBD until confirmed).
+
+## Sacred Constraints (NEVER violate these)
+- Never commit secrets, API keys, or tokens; use `.env` (gitignored) and machine-level MCP env only.
+- Never bypass or weaken alwaysApply MCP rules in `mcp-usage.mdc` / `AGENTS.md`.
+- One directive per session; if scope must change, stop and get explicit human confirmation.
+- Do not install dependencies or add frameworks without stating why and waiting for approval.
+- Application architecture and primary language choice remain TBD until the human confirms — do not assume a stack.
+
+## Tech Stack
+- Governance: Cursor rules (`.mdc`), Markdown docs, Taskmaster (`task-master` CLI + `.taskmaster/`), Git.
+- Tooling: Node.js 18+, MCP servers (taskmaster-ai, context7, repomix, serena, gitmcp, sequential-thinking, memory, github).
+- Application code: TBD — confirm before implementing.
+
+## Out of Scope
+- Hosting, CI/CD, and production operations until an application directive explicitly includes them.
+- Replacing Taskmaster with ad-hoc task tracking for in-repo work.
+- Storing long-lived credentials inside the repository.
+
+## Code Behavior Rules
+- One task per session. Scope is fixed at confirmation. It does not expand.
+- Serena find_symbol fires before touching any code file. read_file on files
+  over 100 lines is forbidden. This is not conditional.
+- context7 fires before writing any library call. Training data is stale.
+  This is not conditional. It fires every time.
+- sequential-thinking fires before every implementation plan. Every directive.
+  No threshold. No exceptions.
+- memory is queried at session start and written on every discovery.
+  Discoveries are not saved "later." They are saved immediately.
+- Taskmaster is called first. Before files. Before planning. Before anything.
+- GitHub branch is created automatically when scope is confirmed.
+  GitHub PR is opened automatically at session close.
+- Never create files outside the established directory structure without asking.
+- Never install a new dependency without stating why and waiting for approval.
+- Every function gets a one-line contract comment above it.
+- If uncertain: STOP and ask. Do not guess. Do not proceed on assumptions.
+
+## Commit Convention
+Format: "D[NUMBER]: [description] | [status]"
+Example: "D003: VL53L0X I2C bring-up | verified clean"

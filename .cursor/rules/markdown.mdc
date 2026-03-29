@@ -1,0 +1,28 @@
+---
+description: Markdown and documentation rules for HexCurse
+globs: ["**/*.md"]
+alwaysApply: false
+---
+
+# Markdown / Documentation Standards
+
+## Patterns to Always Use
+- One H1 per file (`# Title`); use `##` / `###` for sections.
+- Fenced code blocks with language tags where applicable.
+- Relative links to repo files; full URLs for external references.
+- Append-only policy for `SESSION_LOG.md` (never rewrite past entries).
+- Keep line length readable (~100–120 chars soft wrap in prose).
+
+## Patterns to Never Use
+- Committing secrets, tokens, or personal paths that are not portable.
+- Deleting or rewriting historical session log entries.
+- Using HTML entities in fenced code or inline code (use literal characters).
+
+## File Naming Convention
+- `SCREAMING_SNAKE` or `PascalCase` for top-level guide filenames as established (`AGENTS.md`, `DIRECTIVES.md`); kebab-case acceptable for optional docs under `docs/`.
+
+## Testing Requirement
+- Documentation changes: human review; link check when adding many URLs.
+
+## Context7 Library IDs (add "use context7" when using these)
+- Cursor / Taskmaster CLI docs as needed via context7 when writing automation that depends on their APIs.
