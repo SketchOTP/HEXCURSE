@@ -40,4 +40,4 @@
 **Blockers logged to memory:** no (noted: no GitHub remote — tooling observation stored in memory graph)
 **PR opened:** no — `git remote` empty; add `origin` before GitHub MCP PR flow
 **Commit hash:** 48f08a8
-**Notes:** Reviewed `.cursor/rules/base.mdc` and `mcp-usage.mdc` (`alwaysApply: true`); aligned with `AGENTS.md` SESSION START. **Change:** STEP 3 now defers Taskmaster/DIRECTIVES bookkeeping drift to D002 when it does not block the active directive. Next queued directive: **D002** (Taskmaster task 2).
+**Notes:** Reviewed `.cursor/rules/base.mdc` and `mcp-usage.mdc` (`alwaysApply: true`); aligned with `AGENTS.md` SESSION START. **Change:** STEP 3 now defers Taskmaster/DIRECTIVES bookkeeping drift to D002 when it does not block the active directive. Follow-up commits on this branch repaired SESSION_LOG after a case-insensitive PowerShell `-replace` accident. Next queued directive: **D002** (Taskmaster task 2).
