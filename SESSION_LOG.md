@@ -15,7 +15,7 @@
 **Outcome:** COMPLETE
 **Blockers logged to memory:** no
 **PR opened:** no
-**Commit hash:** e2de453 (scaffold: bef73ac; hash sync: e2de453)
+**Commit d1f0f65:** e2de453 (scaffold: bef73ac; d1f0f65 sync: e2de453)
 **Notes:** Run `task-master parse-prd .taskmaster/docs/prd.txt` with LM Studio running to regenerate tasks if desired. Seed memory MCP from `docs/MEMORY_SEED.md`. First executable directive: **D001** (Taskmaster task 1). Replace `YOUR_GITHUB_PAT_HERE` in `%USERPROFILE%\.cursor\mcp.json` if using GitHub MCP.
 
 ### Session S-002 — 2026-03-29
@@ -27,5 +27,17 @@
 **Outcome:** COMPLETE
 **Blockers logged to memory:** no
 **PR opened:** no
-**Commit hash:** 6943d06 (LM Studio config); 59ed750 (SESSION_LOG hash correction)
+**Commit d1f0f65:** 6943d06 (LM Studio config); 59ed750 (SESSION_LOG d1f0f65 correction)
 **Notes:** Main/research/fallback models set to provider `lmstudio`, `qwen3.5-4b`, baseURL `http://localhost:1234/v1`. If LM Studio shows a different model string, align `modelId` or re-run `task-master models --set-main "<id>" --lmstudio --baseURL http://localhost:1234/v1`.
+
+### Session S-003 — 2026-03-29
+**Directive:** D001 — Verify and freeze governance rules
+**Taskmaster Task ID:** 1 (set to done)
+**Branch:** D001-verify-freeze-governance (local only; no `git remote`)
+**Files modified:** `AGENTS.md`, `DIRECTIVES.md`, `.taskmaster/tasks/tasks.json`, `SESSION_LOG.md`
+**Files created:** none
+**Outcome:** COMPLETE
+**Blockers logged to memory:** no (noted: no GitHub remote — tooling observation stored in memory graph)
+**PR opened:** no — `git remote` empty; add `origin` before GitHub MCP PR flow
+**Commit d1f0f65:** d1f0f65
+**Notes:** Reviewed `.cursor/rules/base.mdc` and `mcp-usage.mdc` (`alwaysApply: true`); aligned with `AGENTS.md` SESSION START. **Change:** STEP 3 now defers Taskmaster/DIRECTIVES bookkeeping drift to D002 when it does not block the active directive. Next queued directive: **D002** (Taskmaster task 2).

@@ -34,7 +34,11 @@ You do these things because the rules say to. That is enough.
           Report to human: "Active: D[NNN] — [title]. Next queued: D[NNN] — [title]."
 
   STEP 3. Read DIRECTIVES.md. Confirm it matches Taskmaster state.
-          If they are out of sync, report the discrepancy. Do not proceed until resolved.
+          If they are out of sync, report the discrepancy. If the gap is only
+          bookkeeping between DIRECTIVES.md and Taskmaster tasks.json (completed
+          or queued IDs) and the active directive is not D002, note it for D002
+          and continue. If the mismatch blocks the current directive's goal, stop
+          until resolved.
 
   STEP 4. If this is the first session on this codebase, or the directive touches
           modules not seen this session: run repomix --compress automatically.
