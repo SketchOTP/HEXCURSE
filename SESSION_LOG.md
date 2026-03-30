@@ -27,7 +27,7 @@
 **Outcome:** COMPLETE
 **Blockers logged to memory:** no
 **PR opened:** no
-**Commit d1f0f65:** 6943d06 (LM Studio config); 59ed750 (SESSION_LOG d1f0f65 correction)
+**Commit hash:** 6943d06 (LM Studio config); 59ed750 (SESSION_LOG hash correction)
 **Notes:** Main/research/fallback models set to provider `lmstudio`, `qwen3.5-4b`, baseURL `http://localhost:1234/v1`. If LM Studio shows a different model string, align `modelId` or re-run `task-master models --set-main "<id>" --lmstudio --baseURL http://localhost:1234/v1`.
 
 ### Session S-003 — 2026-03-29
@@ -39,5 +39,5 @@
 **Outcome:** COMPLETE
 **Blockers logged to memory:** no (noted: no GitHub remote — tooling observation stored in memory graph)
 **PR opened:** no — `git remote` empty; add `origin` before GitHub MCP PR flow
-**Commit d1f0f65:** d1f0f65
+**Commit hash:** 48f08a8
 **Notes:** Reviewed `.cursor/rules/base.mdc` and `mcp-usage.mdc` (`alwaysApply: true`); aligned with `AGENTS.md` SESSION START. **Change:** STEP 3 now defers Taskmaster/DIRECTIVES bookkeeping drift to D002 when it does not block the active directive. Next queued directive: **D002** (Taskmaster task 2).

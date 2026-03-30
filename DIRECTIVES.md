@@ -7,7 +7,7 @@
 
 ## ✅ Completed
 - D000: Governance + MCP scaffold (repo initialization) ✓ 2026-03-29 bef73ac
-- D001: Verify and freeze governance rules ✓ 2026-03-29 d1f0f65
+- D001: Verify and freeze governance rules ✓ 2026-03-29 48f08a8
 
 ---
 
