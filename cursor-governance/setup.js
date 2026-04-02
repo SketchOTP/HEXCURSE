@@ -3149,6 +3149,21 @@ Taskmaster uses **\`.taskmaster/**\` at the repository root. Serena memories def
 `;
 }
 
+/** Subpackage AGENTS.md pointer when a top-level folder has its own package.json (existing-repo installs). */
+function subAgentsPointerMd(projectName, subdir) {
+  const s = String(subdir || 'package').trim();
+  const p = String(projectName || 'Project').trim();
+  return `# Agent Instructions — ${s}
+
+This package is part of **${p}**.
+Global governance rules: see root \`AGENTS.md\` → \`HEXCURSE/AGENTS.md\`.
+
+## Package-specific overrides
+<!-- Add any ${s}-specific agent instructions below.
+     These take precedence over root AGENTS.md for files inside this directory. -->
+`;
+}
+
 function rootAgentsPointerMd(projectName) {
   return `# AI agent rules — pointer
 
@@ -3767,6 +3782,29 @@ async function main() {
     written,
     skipped
   );
+  if (answers.repoKind === 'existing') {
+    let rootEntries;
+    try {
+      rootEntries = fs.readdirSync(cwd, { withFileTypes: true });
+    } catch (_) {
+      rootEntries = [];
+    }
+    for (const ent of rootEntries) {
+      if (!ent.isDirectory()) continue;
+      const n = ent.name;
+      if (n === '.git' || n === 'node_modules' || n === HEXCURSE_ROOT || n.startsWith('.')) continue;
+      const subPkg = path.join(cwd, n, 'package.json');
+      if (fs.existsSync(subPkg)) {
+        await writeFileMaybeSkip(
+          cwd,
+          path.join(n, 'AGENTS.md'),
+          subAgentsPointerMd(answers.projectName.trim(), n),
+          written,
+          skipped
+        );
+      }
+    }
+  }
   const northStarBody =
     answers.northStarDraftMd && String(answers.northStarDraftMd).trim().length > 150
       ? `${String(answers.northStarDraftMd).trim()}\n`
