@@ -1,0 +1,43 @@
+{
+  "name": "cursor-governance",
+  "version": "1.5.0",
+  "description": "One-command installer for Cursor AI governance + MCP pipeline",
+  "main": "setup.js",
+  "bin": {
+    "cursor-governance": "./bin/cursor-governance.js"
+  },
+  "files": [
+    "bin/",
+    "templates/",
+    "setup.js",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "INSTALL.md"
+  ],
+  "scripts": {
+    "test": "node --check setup.js && node --check bin/cursor-governance.js",
+    "test:hexcurse": "node test/hexcurse-pack.test.js",
+    "test:north-star": "node test/north-star-existing-repo.test.js",
+    "test:all": "npm run test && npm run test:hexcurse && npm run test:north-star",
+    "prepublishOnly": "npm run test:all",
+    "smoke:readline": "node test-input.js",
+    "doctor": "node setup.js --doctor",
+    "pack:check": "npm pack --dry-run 2>&1"
+  },
+  "keywords": [
+    "cursor",
+    "mcp",
+    "governance",
+    "taskmaster"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "fs-extra": "^11.2.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
