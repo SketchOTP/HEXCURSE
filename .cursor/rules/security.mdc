@@ -1,0 +1,29 @@
+---
+description: Automatically run Semgrep security scan on any generated or modified code before committing. Required for all non-trivial code changes.
+alwaysApply: false
+globs: "**/*.{ts,tsx,js,jsx,py,go,java,rb,php,rs,cs}"
+---
+
+# RULE: Security Gate (Semgrep)
+
+## Trigger
+Any time you generate new code, modify existing code, or complete a task that involves writing to source files.
+
+## Required Actions
+
+1. After writing code to disk, invoke the `semgrep` MCP tool `security_check` on the modified files.
+2. If Semgrep returns findings of severity HIGH or CRITICAL:
+   - Do NOT proceed to commit.
+   - Report findings inline in the session.
+   - Propose specific fixes for each finding before moving forward.
+3. If Semgrep returns MEDIUM findings:
+   - Log them in SESSION_LOG.md under a `## Security Notes` subsection.
+   - Proceed only after acknowledging the finding.
+4. LOW / INFO findings: log only, do not block.
+
+## Forbidden
+- Committing code that has unresolved HIGH or CRITICAL Semgrep findings.
+- Skipping this check because the change "looks small."
+
+## Example invocation
+Use the `semgrep_scan` tool with the list of modified file paths. Pass `auto` as the config string to use community rules.

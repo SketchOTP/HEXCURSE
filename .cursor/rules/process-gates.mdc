@@ -1,0 +1,21 @@
+---
+description: Short non-negotiable process gates for HexCurse implementation chats
+alwaysApply: true
+---
+
+# PROCESS GATES (HexCurse — implementation agent)
+
+Full MCP stack, session timeline, and rule mapping: **`docs/MCP_COORDINATION.md`** (pack: **`HEXCURSE/docs/MCP_COORDINATION.md`**). Binding detail: **`mcp-usage.mdc`**. If anything here conflicts, the **stricter** requirement wins.
+
+1. **Memory then Taskmaster:** Query **memory** at session start (before DIRECTIVES / ARCHITECTURE); then **get_tasks** before planning or implementing — or **`DEGRADED_MODE: <mcp> — <reason>`** if a server is missing or red.
+2. **Structural map:** **repomix --compress** once at session start on an existing codebase — or **DEGRADED_MODE** if repomix is unavailable.
+2b. **Indexed code map (local):** **jcodemunch** — **`resolve_repo`** / **`index_folder`** on the workspace root after repomix when code work is in scope; **`get_repo_outline`** / **`suggest_queries`** as needed; use **`search_symbols`**, **`get_context_bundle`**, **`get_blast_radius`**, **`find_references`**, etc., during work — or **DEGRADED_MODE** (**mcp-usage.mdc** RULE 10).
+3. **Plans:** **sequential-thinking** before non-trivial implementation plans — or **DEGRADED_MODE**.
+4. **Code:** **jcodemunch** for discovery/impact + **Serena** symbol tools for edits — before broad reads/edits when applicable — or **DEGRADED_MODE** / explicit human approval for large reads per **mcp-usage.mdc**.
+5. **Libraries:** **context7** before external library/API calls when relevant — or **DEGRADED_MODE**.
+6. **Niche SDKs:** **gitmcp** for firmware / niche GitHub deps not covered as mainstream library docs — or **DEGRADED_MODE**.
+7. **Local git & disk:** Work branches with **local git** after scope confirm (**mcp-usage.mdc** RULE 8). **github** MCP is optional (remote PR/issue only). **Source of truth** is the workspace on disk — not GitHub.
+8. **Continual learning:** **agents-memory-updater** per **RULE 9** — human request; **governance** paths touched (no debounce); or **parent transcript delta** vs index with **debounce** via **continual-learning.json** `lastMemoryUpdaterRunDateUtc`. Optional `node cursor-governance/setup.js --learning-rollup` when **lastRollupAt** is stale (appends to **`HEXCURSE/docs/ROLLING_CONTEXT.md`** or legacy **`docs/ROLLING_CONTEXT.md`**). See **`docs/CONTINUAL_LEARNING.md`** (pack: **`HEXCURSE/docs/CONTINUAL_LEARNING.md`**).
+9. **Memory vs repo:** **Memory** does not override Taskmaster, DIRECTIVES, ARCHITECTURE, or the live tree.
+
+If any required MCP is missing or red in Cursor, announce **`DEGRADED_MODE`** and what you will not assume — do not silently skip.

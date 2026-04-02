@@ -4,7 +4,15 @@ alwaysApply: true
 ---
 
 # PROJECT: HexCurse
-# PURPOSE: Governed Cursor workspace for HexCurse development, documentation, and task-orchestrated implementation (application stack TBD until confirmed).
+# PURPOSE: HexCurse is a project workspace that uses Cursor agent governance, Taskmaster orchestration, and MCP-backed tooling so implementation work stays scoped, documented, and traceable. The repository currently centers on governance artifacts and guides; the executable product’s shape and stack are **TBD — confirm before implementing**.  **Single source of truth (machinery):** **`docs/PROJECT_OVERVIEW.md`** — exhaustive, code-derived description of **cursor-governance** (`setup.js`), installer outputs, CLI modes, MCP merge, tests, and CI. This **`ARCHITECTURE.md`** stays the shorter system summary and product/TBD notes.
+
+## How this system runs (agent-first)
+- **Nothing runs unattended.** Governance works when the **Cursor agent** is aware of it: `alwaysApply` rules load here, but you must still execute session start from **`AGENTS.md`** or **`HEXCURSE/AGENTS.md`** (memory → Taskmaster → DIRECTIVES → repomix → **jcodemunch** index/outline → sequential-thinking → confirm → **local git branch**) every implementation chat — use whichever layout **this** repo has.
+- **Humans prime each chat** by pasting **`docs/SESSION_START_PROMPT.md`** or **`HEXCURSE/SESSION_START_PROMPT.md`** (or `@` the paths listed there; pack repos also have **`HEXCURSE/PATHS.json`**). Unprimed chats may skip MCP and Taskmaster — that is a **workflow gap**, not a missing daemon.
+- **Session priming:** If the human has not pasted the session-start block (or `@` its files) and you are about to plan or implement, **ask once**: run the SESSION START sequence from **`AGENTS.md`** / **`HEXCURSE/AGENTS.md`**, or did they intend to skip?
+- **Governance artifacts:** When editing directives, session log, or **`AGENTS.md`** (root or under **`HEXCURSE/**`), apply **`governance.mdc`** standards (Taskmaster sync, single In Progress, IDs).
+- **Continual learning:** Run **agents-memory-updater** per **mcp-usage.mdc RULE 9** and **`docs/CONTINUAL_LEARNING.md`** / **`HEXCURSE/docs/CONTINUAL_LEARNING.md`** — human request; governance paths touched (no debounce); or parent transcript delta + debounce via **`continual-learning.json`**. Optional **`setup.js --learning-rollup`** when rollup is stale.
+- **When:** every new implementation session; after major scope changes; **Architect** is **external** (not Cursor)—see **`docs/CURSOR_MODES.md`** or **`HEXCURSE/docs/CURSOR_MODES.md`**.
 
 ## Sacred Constraints (NEVER violate these)
 - Never commit secrets, API keys, or tokens; use `.env` (gitignored) and machine-level MCP env only.
@@ -14,19 +22,26 @@ alwaysApply: true
 - Application architecture and primary language choice remain TBD until the human confirms — do not assume a stack.
 
 ## Tech Stack
-- Governance: Cursor rules (`.mdc`), Markdown docs, Taskmaster (`task-master` CLI + `.taskmaster/`), Git.
-- Tooling: Node.js 18+, MCP servers (taskmaster-ai, context7, repomix, serena, gitmcp, sequential-thinking, memory, github).
-- Taskmaster LLM: **LM Studio** (OpenAI-compatible API, default `http://localhost:1234/v1`), model **`qwen3.5-4b`** — server must be running with that model loaded; `modelId` in `.taskmaster/config.json` must match LM Studio’s model identifier if different.
-- Application code: TBD — confirm before implementing.
+| Layer | Technology | Reason |
+|-------|-----------|--------|
+| Editor / agent host | Cursor | Primary IDE and MCP client |
+| Task graph | Taskmaster (`task-master` CLI, `.taskmaster/`) | Dependency-aware directive chain |
+| Taskmaster LLM | LM Studio → `qwen3.5-2b` (~8k ctx) at `http://100.80.17.40:1234/v1` | OpenAI-compatible `.env` (`OPENAI_API_KEY` + `OPENAI_BASE_URL`); `maxTokens` ~2800; set **`HEXCURSE_LM_STUDIO_MAX_CONTEXT=8000`** on fresh installs. |
+| Docs | Markdown | Human-readable architecture, directives, logs |
+| VCS | Git | History, branches, PRs (via GitHub MCP when remote exists) |
+| Code intelligence | Serena MCP | Symbol-level navigation and edits when source tree exists |
+| Indexed exploration | jcodemunch MCP (`jcodemunch-mcp`) | Tree-sitter index, outlines, ranked retrieval, references, blast radius — local workspace |
+| Snapshot | Repomix | Compressed repo overview for large codebases |
+| Application runtime | TBD — confirm before implementing | Not yet selected |
 
 ## Out of Scope
-- Hosting, CI/CD, and production operations until an application directive explicitly includes them.
-- Replacing Taskmaster with ad-hoc task tracking for in-repo work.
-- Storing long-lived credentials inside the repository.
+- Production deployment and operations until explicitly in scope.
+- Committing secrets or tokens to the repo.
+- Choosing the application framework/language without human confirmation.
 
 ## Code Behavior Rules
 - One task per session. Scope is fixed at confirmation. It does not expand.
-- Serena find_symbol fires before touching any code file. read_file on files
+- **jcodemunch** (RULE 10) indexes and retrieves local code; **Serena** `find_symbol` fires before touching any code file for edits. read_file on files
   over 100 lines is forbidden. This is not conditional.
 - context7 fires before writing any library call. Training data is stale.
   This is not conditional. It fires every time.
@@ -34,9 +49,9 @@ alwaysApply: true
   No threshold. No exceptions.
 - memory is queried at session start and written on every discovery.
   Discoveries are not saved "later." They are saved immediately.
-- Taskmaster is called first. Before files. Before planning. Before anything.
-- GitHub branch is created automatically when scope is confirmed.
-  GitHub PR is opened automatically at session close.
+- Taskmaster **get_tasks** runs immediately after memory, before planning or implementation.
+- MCP coordination map: **docs/MCP_COORDINATION.md** or **HEXCURSE/docs/MCP_COORDINATION.md**; binding triggers: **mcp-usage.mdc**.
+- Local **git** branch is created when scope is confirmed (RULE 8). **Git push** / optional PR are human-driven; **github** MCP is not required for governance.
 - Never create files outside the established directory structure without asking.
 - Never install a new dependency without stating why and waiting for approval.
 - Every function gets a one-line contract comment above it.
@@ -44,4 +59,4 @@ alwaysApply: true
 
 ## Commit Convention
 Format: "D[NUMBER]: [description] | [status]"
-Example: "D003: VL53L0X I2C bring-up | verified clean"
+Example: "D003: sensor pipeline bring-up | verified clean"
