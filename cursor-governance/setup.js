@@ -3860,12 +3860,18 @@ async function runMultiAgentSetup(cwd) {
 
 /**
  * Fetches bundled .mdc templates from a raw GitHub URL and updates .cursor/rules/ when content differs.
- * Remote base URL: HEXCURSE_RULES_REMOTE_URL or placeholder default (override in CI/consumers).
+ * Remote base URL: HEXCURSE_RULES_REMOTE_URL (required — no implicit placeholder; avoids silent 404 sync).
  */
 async function syncRemoteRules(cwd, { dryRun = false } = {}) {
-  const rawBase =
-    String(process.env.HEXCURSE_RULES_REMOTE_URL || '').trim() ||
-    'https://raw.githubusercontent.com/YOUR_ORG/hexcurse/main/cursor-governance/templates/';
+  const rawBase = String(process.env.HEXCURSE_RULES_REMOTE_URL || '').trim();
+  if (!rawBase) {
+    console.error(
+      chalk.red(
+        'HEXCURSE_RULES_REMOTE_URL is required. Set it to the raw GitHub base URL for cursor-governance/templates/ (trailing slash optional). Example: https://raw.githubusercontent.com/org/repo/main/cursor-governance/templates/'
+      )
+    );
+    process.exit(1);
+  }
   const normalized = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
   const names = [
     'base.mdc',
@@ -3924,20 +3930,22 @@ async function syncRemoteRules(cwd, { dryRun = false } = {}) {
     updated += 1;
   }
 
-  const statePath = path.join(cwd, '.cursor', 'hooks', 'state', 'continual-learning.json');
-  const iso = new Date().toISOString();
-  let state = {};
-  if (fs.existsSync(statePath)) {
-    try {
-      state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-    } catch (_) {
-      state = {};
+  if (failed === 0) {
+    const statePath = path.join(cwd, '.cursor', 'hooks', 'state', 'continual-learning.json');
+    const iso = new Date().toISOString();
+    let state = {};
+    if (fs.existsSync(statePath)) {
+      try {
+        state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+      } catch (_) {
+        state = {};
+      }
     }
+    state.version = state.version || 2;
+    state.lastSyncAt = iso;
+    await fs.ensureDir(path.dirname(statePath));
+    await fs.writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
   }
-  state.version = state.version || 2;
-  state.lastSyncAt = iso;
-  await fs.ensureDir(path.dirname(statePath));
-  await fs.writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
 
   console.log('');
   console.log(
@@ -3946,6 +3954,9 @@ async function syncRemoteRules(cwd, { dryRun = false } = {}) {
       ? chalk.dim(`would update ${wouldUpdate}, up-to-date ${upToDate}, failed ${failed}`)
       : chalk.dim(`updated ${updated}, up-to-date ${upToDate}, failed ${failed}`)
   );
+  if (failed > 0) {
+    process.exit(1);
+  }
 }
 
 async function main() {

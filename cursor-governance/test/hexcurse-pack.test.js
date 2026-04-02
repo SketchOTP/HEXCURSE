@@ -98,6 +98,29 @@ function testRollingUsesExistingHexFile() {
   assert.strictEqual(resolveRollingContextPathForRollup(cwd), hexRoll);
 }
 
+function testSyncRulesRequiresRemoteUrl() {
+  const cwd = mkTmp();
+  fs.mkdirSync(path.join(cwd, '.cursor', 'rules'), { recursive: true });
+  const env = { ...process.env };
+  delete env.HEXCURSE_RULES_REMOTE_URL;
+  try {
+    execFileSync(process.execPath, [setupJs, '--sync-rules'], {
+      cwd,
+      env,
+      stdio: 'pipe',
+      encoding: 'utf8',
+    });
+    assert.fail('expected sync-rules to exit 1 when HEXCURSE_RULES_REMOTE_URL is unset');
+  } catch (e) {
+    assert.strictEqual(e.status, 1, String(e.stdout || '') + String(e.stderr || ''));
+    const out = `${e.stdout || ''}${e.stderr || ''}`;
+    assert.ok(
+      out.includes('HEXCURSE_RULES_REMOTE_URL'),
+      'stderr should name HEXCURSE_RULES_REMOTE_URL'
+    );
+  }
+}
+
 function testMcpNpmPackagesLinearAndPampaExist() {
   execSync('npm view @mseep/linear-mcp name', { encoding: 'utf8', stdio: 'pipe', shell: true });
   execSync('npm view pampa name', { encoding: 'utf8', stdio: 'pipe', shell: true });
@@ -163,6 +186,7 @@ function run() {
     ['sessionLog fallback root', testSessionLogFallsBackRoot],
     ['rolling default path when HEX dir exists', testRollingPrefersHexWhenBothMissingButHexDirExists],
     ['rolling prefers existing hex file', testRollingUsesExistingHexFile],
+    ['sync-rules requires HEXCURSE_RULES_REMOTE_URL', testSyncRulesRequiresRemoteUrl],
     ['MCP npm packages linear + pampa exist', testMcpNpmPackagesLinearAndPampaExist],
     ['quick install preset other', testQuickInstallPresetOther],
     ['learning rollup integration', testLearningRollupWritesToHexPack],
