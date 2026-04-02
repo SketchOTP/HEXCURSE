@@ -1,3 +1,5 @@
+# Compares npm cursor-governance version to ./cursor-governance/package.json and opens a PR on drift.
+# For raw rule sync elsewhere, set repository variable HEXCURSE_RULES_REMOTE_URL (optional).
 name: HexCurse Rules Auto-Update
 
 on:

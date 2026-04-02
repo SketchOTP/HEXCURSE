@@ -1,3 +1,5 @@
+# Optional: set repository secret HEXCURSE_RULES_REMOTE_URL to override the raw templates base
+# (defaults to this repo via github.repository below).
 name: HexCurse PR Review
 
 on:
@@ -66,4 +68,6 @@ jobs:
       - name: Check for stale rules
         run: node cursor-governance/setup.js --sync-rules --dry-run
         env:
-          HEXCURSE_RULES_REMOTE_URL: 'https://raw.githubusercontent.com/YOUR_ORG/hexcurse/main/cursor-governance/templates/'
+          # Same repo’s default branch (main). Override via repository Actions variable or secret
+          # HEXCURSE_RULES_REMOTE_URL if you sync from another org/fork.
+          HEXCURSE_RULES_REMOTE_URL: 'https://raw.githubusercontent.com/${{ github.repository }}/main/cursor-governance/templates/'
