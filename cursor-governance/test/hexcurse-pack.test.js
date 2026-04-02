@@ -98,6 +98,22 @@ function testRollingUsesExistingHexFile() {
   assert.strictEqual(resolveRollingContextPathForRollup(cwd), hexRoll);
 }
 
+function testQuickInstallPresetOther() {
+  const prev = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
+  process.env.GITHUB_PERSONAL_ACCESS_TOKEN = 'ghp_test_token_minimum_len_ok_xxxxxxxx';
+  try {
+    const { buildQuickInstallAnswers } = setupMain.hexcurseQuickInstallTestHooks;
+    const cwd = mkTmp();
+    const a = buildQuickInstallAnswers(cwd, 'other');
+    assert.strictEqual(a.provider, 'other');
+    assert.deepStrictEqual(a.taskmasterEnv, {});
+    assert.ok(String(a.github || '').length > 10);
+  } finally {
+    if (prev === undefined) delete process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
+    else process.env.GITHUB_PERSONAL_ACCESS_TOKEN = prev;
+  }
+}
+
 function testLearningRollupWritesToHexPack() {
   const cwd = mkTmp();
   const hexDir = path.join(cwd, HEXCURSE_ROOT, 'docs');
@@ -142,6 +158,7 @@ function run() {
     ['sessionLog fallback root', testSessionLogFallsBackRoot],
     ['rolling default path when HEX dir exists', testRollingPrefersHexWhenBothMissingButHexDirExists],
     ['rolling prefers existing hex file', testRollingUsesExistingHexFile],
+    ['quick install preset other', testQuickInstallPresetOther],
     ['learning rollup integration', testLearningRollupWritesToHexPack],
   ];
   let failed = 0;

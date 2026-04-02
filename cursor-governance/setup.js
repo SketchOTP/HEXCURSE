@@ -3652,12 +3652,7 @@ function buildQuickInstallAnswers(cwd, preset) {
     );
     process.exit(1);
   }
-  if (preset === 'other') {
-    console.error(
-      chalk.red('Quick install does not support --preset=other. Use interactive install or lmstudio|anthropic|openai.')
-    );
-    process.exit(1);
-  }
+  // Preset "other": skip Taskmaster model alignment (same as interactive "Other" provider).
 
   const base = path.basename(path.resolve(cwd));
   const projectName = String(process.env.HEXCURSE_PROJECT_NAME || base || 'Project').trim();
@@ -4345,6 +4340,11 @@ main.hexcursePaths = {
 /** Test-only: existing-repo NORTH_STAR draft (repomix snapshot + install-time LLM). See test/north-star-existing-repo.test.js */
 main.hexcurseInstallTestHooks = {
   generateNorthStarFromExistingRepo,
+};
+
+/** Test-only: quick-install answer shape. See test/hexcurse-pack.test.js */
+main.hexcurseQuickInstallTestHooks = {
+  buildQuickInstallAnswers,
 };
 
 if (require.main === module) {
