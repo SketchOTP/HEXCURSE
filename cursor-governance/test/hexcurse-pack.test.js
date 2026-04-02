@@ -10,7 +10,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execFileSync } = require('child_process');
+const { execFileSync, execSync } = require('child_process');
 
 const setupMain = require('../setup.js');
 const {
@@ -98,6 +98,11 @@ function testRollingUsesExistingHexFile() {
   assert.strictEqual(resolveRollingContextPathForRollup(cwd), hexRoll);
 }
 
+function testMcpNpmPackagesLinearAndPampaExist() {
+  execSync('npm view @mseep/linear-mcp name', { encoding: 'utf8', stdio: 'pipe', shell: true });
+  execSync('npm view pampa name', { encoding: 'utf8', stdio: 'pipe', shell: true });
+}
+
 function testQuickInstallPresetOther() {
   const prev = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
   process.env.GITHUB_PERSONAL_ACCESS_TOKEN = 'ghp_test_token_minimum_len_ok_xxxxxxxx';
@@ -158,6 +163,7 @@ function run() {
     ['sessionLog fallback root', testSessionLogFallsBackRoot],
     ['rolling default path when HEX dir exists', testRollingPrefersHexWhenBothMissingButHexDirExists],
     ['rolling prefers existing hex file', testRollingUsesExistingHexFile],
+    ['MCP npm packages linear + pampa exist', testMcpNpmPackagesLinearAndPampaExist],
     ['quick install preset other', testQuickInstallPresetOther],
     ['learning rollup integration', testLearningRollupWritesToHexPack],
   ];

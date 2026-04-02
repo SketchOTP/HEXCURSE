@@ -1265,7 +1265,7 @@ function runDoctor(cwd) {
       const mdSkills = fs.readdirSync(skillsDir).filter((f) => f.endsWith('.md')).length;
       if (mdSkills >= 3 && !fs.existsSync(path.join(cwd, '.pampa'))) {
         warn.push(
-          '.cursor/skills has 3+ .md files but no .pampa/ index — run `npx @pampa/mcp-server index .cursor/skills/` or re-run install'
+          '.cursor/skills has 3+ .md files but no .pampa/ index — run `npx -y --package=pampa pampa-mcp index .cursor/skills/` or re-run install'
         );
       }
     } catch (e) {
@@ -2745,14 +2745,14 @@ function buildMcpServers(taskmasterEnv, githubToken) {
     },
     linear: {
       command: 'npx',
-      args: ['-y', '@linear/mcp-server'],
+      args: ['-y', '@mseep/linear-mcp'],
       env: {
         LINEAR_API_KEY: process.env.LINEAR_API_KEY || '',
       },
     },
     pampa: {
       command: 'npx',
-      args: ['-y', '@pampa/mcp-server'],
+      args: ['-y', '--package=pampa', 'pampa-mcp'],
     },
   };
 }
@@ -3378,7 +3378,7 @@ async function tryIndexSkillsWithPampa(cwd) {
     canRun = true;
   } else {
     try {
-      execSync('npx -y @pampa/mcp-server --version', {
+      execSync('npm view pampa version', {
         cwd,
         shell: true,
         stdio: 'pipe',
@@ -3392,12 +3392,12 @@ async function tryIndexSkillsWithPampa(cwd) {
   if (!canRun) {
     console.warn(
       chalk.yellow('⚠'),
-      'PAMPA not on PATH and `npx @pampa/mcp-server --version` failed — skip skill indexing (optional).'
+      'PAMPA not on PATH and `npm view pampa version` failed — skip skill indexing (optional).'
     );
     return;
   }
   try {
-    execSync('npx -y @pampa/mcp-server index .cursor/skills/', {
+    execSync('npx -y --package=pampa pampa-mcp index .cursor/skills/', {
       cwd,
       shell: true,
       stdio: 'inherit',
