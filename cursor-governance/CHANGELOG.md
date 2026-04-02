@@ -2,6 +2,12 @@
 
 All notable changes to **cursor-governance** are documented here.
 
+## [1.5.3] — 2026-04-02
+
+### Fixed
+
+- **`--sync-rules`:** Requires explicit **`HEXCURSE_RULES_REMOTE_URL`** (removed implicit `YOUR_ORG/...` placeholder that caused silent 404s). Writes **`lastSyncAt`** only when every rule fetch succeeds; exits **1** if any fetch fails. Regression: `testSyncRulesRequiresRemoteUrl` in `test/hexcurse-pack.test.js`.
+
 ## [1.5.2] — 2026-04-02
 
 ### Fixed

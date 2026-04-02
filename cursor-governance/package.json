@@ -1,6 +1,6 @@
 {
   "name": "cursor-governance",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "One-command installer for Cursor AI governance + MCP pipeline",
   "main": "setup.js",
   "bin": {
