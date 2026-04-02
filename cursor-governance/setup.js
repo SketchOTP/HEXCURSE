@@ -1221,6 +1221,17 @@ function runDoctor(cwd) {
       if (names.includes('taskmaster-ai')) ok.push('mcp.json defines taskmaster-ai');
       else if (ciRelaxed) warn.push('mcp.json has no taskmaster-ai entry (non-blocking in CI)');
       else bad.push('mcp.json has no taskmaster-ai entry');
+      const mcpOptionalWarn = (id, hint) => {
+        if (names.includes(id)) ok.push(`mcp.json defines ${id} server`);
+        else if (ciRelaxed) warn.push(`mcp.json has no ${id} entry (non-blocking in CI)`);
+        else warn.push(`mcp.json has no ${id} entry (${hint})`);
+      };
+      mcpOptionalWarn('playwright', 'optional — UI / debugging.mdc');
+      mcpOptionalWarn('semgrep', 'recommended — security.mdc');
+      mcpOptionalWarn('sentry', 'optional — error context');
+      mcpOptionalWarn('firecrawl', 'optional — research');
+      mcpOptionalWarn('linear', 'optional — linear-sync.mdc');
+      mcpOptionalWarn('pampa', 'optional — semantic skill search');
     } catch (e) {
       if (ciRelaxed) warn.push(`~/.cursor/mcp.json parse error (non-blocking in CI): ${e.message}`);
       else bad.push(`~/.cursor/mcp.json parse error: ${e.message}`);
@@ -1229,6 +1240,84 @@ function runDoctor(cwd) {
     warn.push('~/.cursor/mcp.json missing (expected on CI runners — configure locally for MCP)');
   } else {
     bad.push('~/.cursor/mcp.json missing');
+  }
+
+  if (fs.existsSync(hexRoot)) {
+    const mcpBudgetDoc = path.join(cwd, HEXCURSE_ROOT, 'docs', 'MCP_TOKEN_BUDGET.md');
+    if (!fs.existsSync(mcpBudgetDoc)) {
+      warn.push('HEXCURSE/docs/MCP_TOKEN_BUDGET.md missing — re-run install or copy from cursor-governance/templates');
+    }
+    const adrLogDoc = path.join(cwd, HEXCURSE_ROOT, 'docs', 'ADR_LOG.md');
+    if (!fs.existsSync(adrLogDoc)) {
+      warn.push('HEXCURSE/docs/ADR_LOG.md missing — re-run install for ADR stub');
+    }
+  }
+
+  for (const ruleName of ['security.mdc', 'adr.mdc', 'memory-management.mdc', 'debugging.mdc']) {
+    const rp = path.join(cwd, '.cursor', 'rules', ruleName);
+    if (!fs.existsSync(rp)) {
+      warn.push(`.cursor/rules/${ruleName} missing — run install or --refresh-rules`);
+    }
+  }
+
+  if (fs.existsSync(skillsDir)) {
+    try {
+      const mdSkills = fs.readdirSync(skillsDir).filter((f) => f.endsWith('.md')).length;
+      if (mdSkills >= 3 && !fs.existsSync(path.join(cwd, '.pampa'))) {
+        warn.push(
+          '.cursor/skills has 3+ .md files but no .pampa/ index — run `npx @pampa/mcp-server index .cursor/skills/` or re-run install'
+        );
+      }
+    } catch (e) {
+      warn.push(`.cursor/skills: could not check PAMPA index (${e.message})`);
+    }
+  }
+
+  try {
+    const rootEnts = fs.readdirSync(cwd, { withFileTypes: true });
+    for (const ent of rootEnts) {
+      if (!ent.isDirectory()) continue;
+      const n = ent.name;
+      if (n.startsWith('.') || n === 'node_modules' || n === HEXCURSE_ROOT) continue;
+      if (n === 'cursor-governance' && sourceRepo) continue;
+      const subPkg = path.join(cwd, n, 'package.json');
+      const subAgents = path.join(cwd, n, 'AGENTS.md');
+      if (fs.existsSync(subPkg) && !fs.existsSync(subAgents)) {
+        warn.push(
+          `Monorepo folder ${n}/ has package.json but no AGENTS.md — add hierarchical AGENTS.md (existing-repo install or copy template)`
+        );
+      }
+    }
+  } catch (e) {
+    warn.push(`Monorepo AGENTS.md scan failed: ${e.message}`);
+  }
+
+  if (fs.existsSync(hexRoot)) {
+    const adrPath = path.join(cwd, HEXCURSE_ROOT, 'docs', 'ADR_LOG.md');
+    if (fs.existsSync(adrPath)) {
+      const sessionLogPath = resolveSessionLogForRollup(cwd);
+      let sessionMd = '';
+      if (fs.existsSync(sessionLogPath)) {
+        try {
+          sessionMd = fs.readFileSync(sessionLogPath, 'utf8');
+        } catch (_) {
+          /* skip */
+        }
+      }
+      const sessionBlocks = (sessionMd.match(/^### Session /gm) || []).length;
+      if (sessionBlocks >= 5) {
+        try {
+          const adrText = fs.readFileSync(adrPath, 'utf8');
+          if (!/###\s+ADR-/m.test(adrText)) {
+            warn.push(
+              'HEXCURSE/docs/ADR_LOG.md has no ADR entries after 5+ session blocks in SESSION_LOG — add ADRs per adr.mdc'
+            );
+          }
+        } catch (_) {
+          /* skip */
+        }
+      }
+    }
   }
 
   try {
