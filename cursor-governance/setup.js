@@ -244,6 +244,7 @@ Options:
   --doctor            Verify governance layout, PATHS.json, task-master, ~/.cursor/mcp.json (from repo root)
   --refresh-rules     Rewrite mcp-usage.mdc, process-gates.mdc, base.mdc (uses AGENTS.md + ARCHITECTURE.md)
   --multi-agent       Enable parallel agent orchestration via git worktrees and swarm-protocol MCP
+  --sync-rules        Fetch latest governance rules from the HexCurse GitHub source and update .cursor/rules/ (optional --dry-run)
   --learning-rollup   Append last N SESSION_LOG blocks to HEXCURSE/docs/ROLLING_CONTEXT.md (or legacy docs/ path; no LLM; optional --sessions=5)
   --run-hexcurse      NORTH_STAR bridge: AI-expand HEXCURSE/NORTH_STAR.md (legacy repo-root file still accepted) → .taskmaster/docs/prd.txt, parse-prd, sync DIRECTIVES Queued
   --run-hexcurse-raw  Same bridge but no AI (north star pasted as PRD body); still parse-prd + DIRECTIVES sync
@@ -276,7 +277,7 @@ Run from your target repository root with no flags to start the interactive inst
 `);
 }
 
-/** Returns 'install' | 'help' | 'version' | 'doctor' | 'refresh-rules' | 'multi-agent' | 'learning-rollup' | 'run-hexcurse' | 'run-hexcurse-raw' | 'preflight-cursor-agent'. */
+/** Returns 'install' | 'help' | 'version' | 'doctor' | 'refresh-rules' | 'multi-agent' | 'sync-rules' | 'learning-rollup' | 'run-hexcurse' | 'run-hexcurse-raw' | 'preflight-cursor-agent'. */
 function parseSetupArgv(argv) {
   const flags = new Set(argv.slice(2).filter((a) => a.startsWith('-')));
   if (flags.has('--help') || flags.has('-h')) return 'help';
@@ -284,11 +285,17 @@ function parseSetupArgv(argv) {
   if (flags.has('--doctor')) return 'doctor';
   if (flags.has('--refresh-rules')) return 'refresh-rules';
   if (flags.has('--multi-agent')) return 'multi-agent';
+  if (flags.has('--sync-rules')) return 'sync-rules';
   if (flags.has('--learning-rollup')) return 'learning-rollup';
   if (flags.has('--preflight-cursor-agent')) return 'preflight-cursor-agent';
   if (flags.has('--run-hexcurse-raw')) return 'run-hexcurse-raw';
   if (flags.has('--run-hexcurse')) return 'run-hexcurse';
   return 'install';
+}
+
+/** True when argv includes --dry-run (for --sync-rules). */
+function argvHasDryRun(argv) {
+  return argv.slice(2).some((a) => a === '--dry-run');
 }
 
 /** Parse --sessions=N from argv (default 5). */
@@ -3740,6 +3747,96 @@ async function runMultiAgentSetup(cwd) {
   );
 }
 
+/**
+ * Fetches bundled .mdc templates from a raw GitHub URL and updates .cursor/rules/ when content differs.
+ * Remote base URL: HEXCURSE_RULES_REMOTE_URL or placeholder default (override in CI/consumers).
+ */
+async function syncRemoteRules(cwd, { dryRun = false } = {}) {
+  const rawBase =
+    String(process.env.HEXCURSE_RULES_REMOTE_URL || '').trim() ||
+    'https://raw.githubusercontent.com/YOUR_ORG/hexcurse/main/cursor-governance/templates/';
+  const normalized = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
+  const names = [
+    'base.mdc',
+    'mcp-usage.mdc',
+    'process-gates.mdc',
+    'governance.mdc',
+    'security.mdc',
+    'adr.mdc',
+    'memory-management.mdc',
+    'debugging.mdc',
+    'multi-agent.mdc',
+    'linear-sync.mdc',
+  ];
+  let updated = 0;
+  let upToDate = 0;
+  let wouldUpdate = 0;
+  let failed = 0;
+  const rulesDir = path.join(cwd, '.cursor', 'rules');
+  await fs.ensureDir(rulesDir);
+
+  for (const name of names) {
+    const url = `${normalized}${name}`;
+    let remoteText;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        console.warn(chalk.yellow('⚠'), `Fetch failed ${url} — HTTP ${res.status}`);
+        failed += 1;
+        continue;
+      }
+      remoteText = await res.text();
+    } catch (e) {
+      console.warn(chalk.yellow('⚠'), `Fetch failed ${url} —`, e.message || String(e));
+      failed += 1;
+      continue;
+    }
+    const remoteHash = crypto.createHash('sha256').update(remoteText, 'utf8').digest('hex');
+    const localPath = path.join(rulesDir, name);
+    let localHash = '';
+    if (fs.existsSync(localPath)) {
+      const localText = fs.readFileSync(localPath, 'utf8');
+      localHash = crypto.createHash('sha256').update(localText, 'utf8').digest('hex');
+    }
+    if (remoteHash === localHash) {
+      console.log(chalk.green('✓'), 'UP TO DATE', chalk.dim(name));
+      upToDate += 1;
+      continue;
+    }
+    if (dryRun) {
+      console.log(chalk.yellow('~'), 'WOULD UPDATE', chalk.dim(name));
+      wouldUpdate += 1;
+      continue;
+    }
+    fs.writeFileSync(localPath, remoteText, 'utf8');
+    console.log(chalk.cyan('↑'), 'UPDATED', chalk.dim(name));
+    updated += 1;
+  }
+
+  const statePath = path.join(cwd, '.cursor', 'hooks', 'state', 'continual-learning.json');
+  const iso = new Date().toISOString();
+  let state = {};
+  if (fs.existsSync(statePath)) {
+    try {
+      state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    } catch (_) {
+      state = {};
+    }
+  }
+  state.version = state.version || 2;
+  state.lastSyncAt = iso;
+  await fs.ensureDir(path.dirname(statePath));
+  await fs.writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+
+  console.log('');
+  console.log(
+    chalk.bold('Rules sync summary:'),
+    dryRun
+      ? chalk.dim(`would update ${wouldUpdate}, up-to-date ${upToDate}, failed ${failed}`)
+      : chalk.dim(`updated ${updated}, up-to-date ${upToDate}, failed ${failed}`)
+  );
+}
+
 async function main() {
   const mode = parseSetupArgv(process.argv);
   if (mode === 'help') {
@@ -3756,6 +3853,10 @@ async function main() {
   }
   if (mode === 'multi-agent') {
     await runMultiAgentSetup(process.cwd());
+    return;
+  }
+  if (mode === 'sync-rules') {
+    await syncRemoteRules(process.cwd(), { dryRun: argvHasDryRun(process.argv) });
     return;
   }
   if (mode === 'refresh-rules') {
