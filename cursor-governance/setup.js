@@ -243,6 +243,7 @@ Options:
   --version, -v       Print package version and exit
   --doctor            Verify governance layout, PATHS.json, task-master, ~/.cursor/mcp.json (from repo root)
   --refresh-rules     Rewrite mcp-usage.mdc, process-gates.mdc, base.mdc (uses AGENTS.md + ARCHITECTURE.md)
+  --multi-agent       Enable parallel agent orchestration via git worktrees and swarm-protocol MCP
   --learning-rollup   Append last N SESSION_LOG blocks to HEXCURSE/docs/ROLLING_CONTEXT.md (or legacy docs/ path; no LLM; optional --sessions=5)
   --run-hexcurse      NORTH_STAR bridge: AI-expand HEXCURSE/NORTH_STAR.md (legacy repo-root file still accepted) → .taskmaster/docs/prd.txt, parse-prd, sync DIRECTIVES Queued
   --run-hexcurse-raw  Same bridge but no AI (north star pasted as PRD body); still parse-prd + DIRECTIVES sync
@@ -275,13 +276,14 @@ Run from your target repository root with no flags to start the interactive inst
 `);
 }
 
-/** Returns 'install' | 'help' | 'version' | 'doctor' | 'refresh-rules' | 'learning-rollup' | 'run-hexcurse' | 'run-hexcurse-raw' | 'preflight-cursor-agent'. */
+/** Returns 'install' | 'help' | 'version' | 'doctor' | 'refresh-rules' | 'multi-agent' | 'learning-rollup' | 'run-hexcurse' | 'run-hexcurse-raw' | 'preflight-cursor-agent'. */
 function parseSetupArgv(argv) {
   const flags = new Set(argv.slice(2).filter((a) => a.startsWith('-')));
   if (flags.has('--help') || flags.has('-h')) return 'help';
   if (flags.has('--version') || flags.has('-v')) return 'version';
   if (flags.has('--doctor')) return 'doctor';
   if (flags.has('--refresh-rules')) return 'refresh-rules';
+  if (flags.has('--multi-agent')) return 'multi-agent';
   if (flags.has('--learning-rollup')) return 'learning-rollup';
   if (flags.has('--preflight-cursor-agent')) return 'preflight-cursor-agent';
   if (flags.has('--run-hexcurse-raw')) return 'run-hexcurse-raw';
@@ -2681,6 +2683,45 @@ function mergeMcpJson(taskmasterEnv, githubToken) {
   return { mcpPath, added, kept };
 }
 
+/** Adds swarm-protocol MCP server to ~/.cursor/mcp.json when missing (non-destructive merge). */
+function mergeSwarmProtocolMcpServerIfMissing() {
+  const mcpPath = path.join(os.homedir(), '.cursor', 'mcp.json');
+  let data = { mcpServers: {} };
+  if (fs.existsSync(mcpPath)) {
+    try {
+      const raw = fs.readFileSync(mcpPath, 'utf8');
+      data = JSON.parse(raw);
+      if (!data.mcpServers || typeof data.mcpServers !== 'object') {
+        data.mcpServers = {};
+      }
+    } catch (e) {
+      console.warn(
+        chalk.yellow(`Could not parse ${mcpPath} — fix mcp.json then re-run --multi-agent.`),
+        chalk.dim(e.message || String(e))
+      );
+      return;
+    }
+  }
+  if (data.mcpServers['swarm-protocol']) {
+    console.log(chalk.dim('~/.cursor/mcp.json already defines swarm-protocol'));
+    return;
+  }
+  data.mcpServers['swarm-protocol'] = {
+    command: 'npx',
+    args: ['-y', 'swarm-protocol-mcp'],
+  };
+  fs.ensureDirSync(path.dirname(mcpPath));
+  fs.writeFileSync(mcpPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+  if (process.platform !== 'win32') {
+    try {
+      fs.chmodSync(mcpPath, 0o600);
+    } catch (e) {
+      /* non-fatal */
+    }
+  }
+  console.log(chalk.green('✓'), 'Added swarm-protocol to ~/.cursor/mcp.json');
+}
+
 /** True when stdin is an interactive TTY (false for pipes — required for readline on Windows). */
 function stdinIsTTY() {
   return process.stdin.isTTY === true;
@@ -3646,6 +3687,59 @@ function printSummary(written, skipped, cwd, mcpResult, answers) {
   console.log('');
 }
 
+/** Appends HEXCURSE_MULTI_AGENT=1 to repo .env when not already set. */
+async function appendHexcurseMultiAgentEnv(cwd) {
+  const dotEnv = path.join(cwd, '.env');
+  const line = 'HEXCURSE_MULTI_AGENT=1';
+  let body = '';
+  if (await fs.pathExists(dotEnv)) {
+    body = await fs.readFile(dotEnv, 'utf8');
+  }
+  const lines = body.split(/\r?\n/);
+  if (lines.some((l) => /^\s*HEXCURSE_MULTI_AGENT\s*=/.test(l))) {
+    console.log(chalk.dim('.env already sets HEXCURSE_MULTI_AGENT'));
+    return;
+  }
+  const prefix = body.length && !body.endsWith('\n') ? '\n' : '';
+  await fs.writeFile(dotEnv, `${body}${prefix}${line}\n`, 'utf8');
+  console.log(chalk.green('✓'), 'Appended HEXCURSE_MULTI_AGENT=1 to .env');
+}
+
+/** Enables multi-agent scaffold: swarm MCP, .env flag, docs, and multi-agent.mdc rules. */
+async function runMultiAgentSetup(cwd) {
+  const hexRoot = path.join(cwd, HEXCURSE_ROOT);
+  if (!(await fs.pathExists(hexRoot))) {
+    console.error(
+      chalk.red('HEXCURSE/ pack not found.'),
+      chalk.dim('Run cursor-governance install in this repository root first.')
+    );
+    process.exit(1);
+  }
+  mergeSwarmProtocolMcpServerIfMissing();
+  await appendHexcurseMultiAgentEnv(cwd);
+  const written = [];
+  const skipped = [];
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'docs', 'MULTI_AGENT.md'),
+    multiAgentMd(),
+    written,
+    skipped
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'docs', 'AGENT_HANDOFFS.md'),
+    agentHandoffsStubMd(),
+    written,
+    skipped
+  );
+  await writeGovernanceRules(cwd, 'multi-agent.mdc', MULTI_AGENT_MDC_TEMPLATE, written, skipped);
+  console.log(
+    chalk.green('Multi-agent mode enabled.'),
+    chalk.dim('Use git worktrees per HEXCURSE/docs/MULTI_AGENT.md.')
+  );
+}
+
 async function main() {
   const mode = parseSetupArgv(process.argv);
   if (mode === 'help') {
@@ -3658,6 +3752,10 @@ async function main() {
   }
   if (mode === 'doctor') {
     runDoctor(process.cwd());
+    return;
+  }
+  if (mode === 'multi-agent') {
+    await runMultiAgentSetup(process.cwd());
     return;
   }
   if (mode === 'refresh-rules') {
