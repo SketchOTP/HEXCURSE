@@ -392,15 +392,36 @@ function extractMarkdownSection(md, heading) {
 
 /** Pulls sacred-constraint lines from an existing base.mdc for --refresh-rules. */
 function extractSacredCsvFromBaseMdc(text) {
-  const i = text.indexOf('## Sacred Constraints');
-  if (i < 0) return null;
-  const j = text.indexOf('\n## ', i + 5);
-  const end = j >= 0 ? j : text.length;
-  const block = text.slice(i, end);
   const parts = [];
-  for (const line of block.split(/\r?\n/)) {
-    const u = line.trim();
-    if (u.startsWith('- ')) parts.push(u.slice(2).trim());
+  const seen = new Set();
+  const push = (s) => {
+    const t = String(s || '').trim();
+    if (!t || seen.has(t)) return;
+    seen.add(t);
+    parts.push(t);
+  };
+  const i = text.indexOf('## Sacred Constraints');
+  if (i >= 0) {
+    const j = text.indexOf('\n## ', i + 5);
+    const end = j >= 0 ? j : text.length;
+    const block = text.slice(i, end);
+    for (const line of block.split(/\r?\n/)) {
+      const u = line.trim();
+      if (u.startsWith('- ')) push(u.slice(2).trim());
+    }
+  }
+  /** Custom bullets appended after the last markdown heading (directive / human pattern). */
+  const lines = text.split(/\r?\n/);
+  let k = lines.length - 1;
+  while (k >= 0 && !lines[k].trim()) k--;
+  while (k >= 0) {
+    const u = lines[k].trim();
+    if (u.startsWith('- ')) {
+      push(u.slice(2).trim());
+      k--;
+      continue;
+    }
+    break;
   }
   return parts.length ? parts.join('\n') : null;
 }
@@ -4356,6 +4377,11 @@ main.hexcurseInstallTestHooks = {
 /** Test-only: quick-install answer shape. See test/hexcurse-pack.test.js */
 main.hexcurseQuickInstallTestHooks = {
   buildQuickInstallAnswers,
+};
+
+/** Test-only: sacred merge for --refresh-rules. See test/hexcurse-pack.test.js */
+main.hexcurseRefreshRulesTestHooks = {
+  extractSacredCsvFromBaseMdc,
 };
 
 if (require.main === module) {

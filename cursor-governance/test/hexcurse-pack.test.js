@@ -98,6 +98,14 @@ function testRollingUsesExistingHexFile() {
   assert.strictEqual(resolveRollingContextPathForRollup(cwd), hexRoll);
 }
 
+function testExtractSacredIncludesTrailingBullets() {
+  const { extractSacredCsvFromBaseMdc } = setupMain.hexcurseRefreshRulesTestHooks;
+  const md = `## Sacred Constraints\n\n- Keep secrets out of git\n\n## Out of Scope\n\nUI\n\n- No TypeScript any types in production code\n`;
+  const csv = extractSacredCsvFromBaseMdc(md);
+  assert.ok(csv.includes('Keep secrets out of git'), csv);
+  assert.ok(csv.includes('No TypeScript any types'), csv);
+}
+
 function testSyncRulesRequiresRemoteUrl() {
   const cwd = mkTmp();
   fs.mkdirSync(path.join(cwd, '.cursor', 'rules'), { recursive: true });
@@ -186,6 +194,7 @@ function run() {
     ['sessionLog fallback root', testSessionLogFallsBackRoot],
     ['rolling default path when HEX dir exists', testRollingPrefersHexWhenBothMissingButHexDirExists],
     ['rolling prefers existing hex file', testRollingUsesExistingHexFile],
+    ['extract sacred CSV includes trailing bullets', testExtractSacredIncludesTrailingBullets],
     ['sync-rules requires HEXCURSE_RULES_REMOTE_URL', testSyncRulesRequiresRemoteUrl],
     ['MCP npm packages linear + pampa exist', testMcpNpmPackagesLinearAndPampaExist],
     ['quick install preset other', testQuickInstallPresetOther],
