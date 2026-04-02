@@ -2,6 +2,12 @@
 
 All notable changes to **cursor-governance** are documented here.
 
+## [1.5.4] — 2026-04-02
+
+### Fixed
+
+- **`--refresh-rules` / sacred merge:** `extractSacredCsvFromBaseMdc` now also picks up **trailing `-` bullets** after the last section (matches common “append a sacred line to `HEXCURSE/rules/base.mdc`” workflows). Regression: `testExtractSacredIncludesTrailingBullets` in `test/hexcurse-pack.test.js`.
+
 ## [1.5.3] — 2026-04-02
 
 ### Fixed
