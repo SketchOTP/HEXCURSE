@@ -1911,6 +1911,15 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
            Run \`get_repo_outline\` and/or \`suggest_queries\` when the codebase is unfamiliar or the directive spans multiple modules.
            Per **mcp-usage.mdc** RULE 10 — do not skip when implementation touches source code.
 
+  STEP 4c — Security baseline
+  If \`SEMGREP_APP_TOKEN\` is set or \`semgrep\` MCP is available, run \`security_check\` on the last 5 git-modified files.
+  Log findings summary in SESSION_LOG.md. Do not proceed to implementation if HIGH/CRITICAL findings exist from a previous session that are unresolved.
+
+  STEP 4d — Linear sync (if LINEAR_API_KEY set)
+  Call \`linear\` MCP \`get_my_issues\` with status \`In Progress\`.
+  Cross-reference with current Taskmaster tasks. Create missing Taskmaster tasks for any Linear issues not yet tracked.
+  Log discrepancies in SESSION_LOG.md.
+
   STEP 5. Invoke sequential-thinking. Reason through the full implementation approach
           for the active directive. Produce a numbered plan with file paths and symbols.
           Do not skip this step. It fires for every directive without exception.
@@ -1985,6 +1994,10 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 
   STEP 8. Produce the final commit message for the human to copy:
           "D[NNN]: [description] | verified clean"
+
+  8b. **ADR check:** Did this session involve any significant architectural decision?
+      If yes, verify an ADR entry was written to \`HEXCURSE/docs/ADR_LOG.md\`.
+      If not, write it now before closing.
 
   STEP 9. MCP utilization report (mandatory): Per **mcp-usage.mdc** and **Mandatory MCP utilization** —
           in the final handoff and **HEXCURSE/SESSION_LOG.md** entry, list which MCP tools were used
