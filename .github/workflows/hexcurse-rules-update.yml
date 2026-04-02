@@ -1,0 +1,38 @@
+name: HexCurse Rules Auto-Update
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'   # Every Monday at 9am UTC
+  workflow_dispatch:
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check for new cursor-governance version
+        id: version_check
+        run: |
+          LATEST=$(npm view cursor-governance version)
+          LOCAL=$(node -e "console.log(require('./cursor-governance/package.json').version)")
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+          echo "local=$LOCAL" >> $GITHUB_OUTPUT
+          if [ "$LATEST" != "$LOCAL" ]; then echo "needs_update=true" >> $GITHUB_OUTPUT; fi
+      - name: Refresh rules from new version
+        if: steps.version_check.outputs.needs_update == 'true'
+        run: node cursor-governance/setup.js --refresh-rules
+      - name: Open PR with updated rules
+        if: steps.version_check.outputs.needs_update == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: 'chore(hexcurse): refresh governance rules to v${{ steps.version_check.outputs.latest }}'
+          title: 'HexCurse: Governance rules updated to v${{ steps.version_check.outputs.latest }}'
+          body: |
+            Automated rules refresh from cursor-governance v${{ steps.version_check.outputs.latest }}.
+            Review the diff carefully — Sacred Constraints have been preserved.
+            **Do not merge without reading the updated .mdc files.**
+          branch: hexcurse/rules-update-${{ steps.version_check.outputs.latest }}
+          labels: hexcurse,automated,governance
