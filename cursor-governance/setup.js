@@ -1511,6 +1511,196 @@ RELATIONSHIP TO **Serena** (RULE 4): jcodemunch is for **AST-rich discovery, ran
 HARD RULE: If jcodemunch is **available** and the session touches **application/source code** (not markdown-only governance with zero code reads), you must **not** skip indexing + at least one retrieval pass that jcodemunch serves better than opening whole files — unless you state **DEGRADED_MODE: jcodemunch — reason** in the handoff.
 `;
 
+const SECURITY_MDC_TEMPLATE = `---
+description: Automatically run Semgrep security scan on any generated or modified code before committing. Required for all non-trivial code changes.
+alwaysApply: false
+globs: "**/*.{ts,tsx,js,jsx,py,go,java,rb,php,rs,cs}"
+---
+
+# RULE: Security Gate (Semgrep)
+
+## Trigger
+Any time you generate new code, modify existing code, or complete a task that involves writing to source files.
+
+## Required Actions
+
+1. After writing code to disk, invoke the \`semgrep\` MCP tool \`security_check\` on the modified files.
+2. If Semgrep returns findings of severity HIGH or CRITICAL:
+   - Do NOT proceed to commit.
+   - Report findings inline in the session.
+   - Propose specific fixes for each finding before moving forward.
+3. If Semgrep returns MEDIUM findings:
+   - Log them in SESSION_LOG.md under a \`## Security Notes\` subsection.
+   - Proceed only after acknowledging the finding.
+4. LOW / INFO findings: log only, do not block.
+
+## Forbidden
+- Committing code that has unresolved HIGH or CRITICAL Semgrep findings.
+- Skipping this check because the change "looks small."
+
+## Example invocation
+Use the \`semgrep_scan\` tool with the list of modified file paths. Pass \`auto\` as the config string to use community rules.
+`;
+
+const ADR_MDC_TEMPLATE = `---
+description: Automatically capture Architecture Decision Records (ADRs) whenever a significant architectural choice is made during a session.
+alwaysApply: false
+globs: "HEXCURSE/docs/ARCHITECTURE.md, **/ARCHITECTURE.md, **/adr/**"
+---
+
+# RULE: Architecture Decision Records (ADR)
+
+## What triggers an ADR
+Any decision that involves:
+- Choosing between two or more approaches for a non-trivial feature
+- Changing a data model, API contract, or module boundary
+- Adding or removing a dependency
+- Choosing a new MCP server, tool, or external service
+- Overriding a constraint in NORTH_STAR.md or DIRECTIVES.md
+
+## Required Format
+When an ADR-triggering decision is made, append to \`HEXCURSE/docs/ADR_LOG.md\` (create if absent):
+
+\`\`\`
+### ADR-{SEQUENCE}: {Short Title}
+**Date:** {ISO date}
+**Status:** Accepted
+**Context:** {1–3 sentences: what problem necessitated this decision}
+**Decision:** {What was chosen and why}
+**Consequences:** {What becomes easier, what becomes harder, any risks}
+**Alternatives considered:** {Brief list of what was rejected and why}
+---
+\`\`\`
+
+## Forbidden
+- Making a significant architectural change without logging an ADR.
+- Deleting or modifying past ADR entries (they are append-only).
+`;
+
+const MEMORY_MANAGEMENT_MDC_TEMPLATE = `---
+description: Intelligent context management — prune stale context, detect architecture drift, and maintain state across session compactions.
+alwaysApply: true
+---
+
+# RULE: Memory & Context Management
+
+## Context Budget Awareness
+- Monitor your active context window. When it exceeds ~70% capacity, begin pruning.
+- Pruning priority (remove first): verbose tool output logs, repeated file reads, superseded plans.
+- Never prune: NORTH_STAR.md content, Sacred Constraints, current task description, file paths of modified files.
+
+## Pattern Recognition
+Actively detect and flag:
+- **Architecture drift:** Implementation diverging from HEXCURSE/docs/ARCHITECTURE.md — log to SESSION_LOG.md immediately.
+- **Code smell accumulation:** Three or more TODO/FIXME comments added in one session without a corresponding Taskmaster task — create tasks automatically.
+- **Scope creep:** Work extending beyond the current Taskmaster task scope — pause and confirm with user before proceeding.
+
+## State Persistence on Compaction
+Before your context is compacted (or when you anticipate it), write a \`## COMPACTION CHECKPOINT\` block to SESSION_LOG.md containing:
+1. Current Taskmaster task ID and status
+2. Files modified this session (list)
+3. Decisions made (summary)
+4. Next immediate action
+
+## Recovery
+When resuming after a compaction, read SESSION_LOG.md and HEXCURSE/docs/ROLLING_CONTEXT.md before any other action.
+`;
+
+const DEBUGGING_MDC_TEMPLATE = `---
+description: Minimize tool call loops during debugging. Use structured hypothesis-driven investigation.
+alwaysApply: false
+globs: "**/*.{ts,tsx,js,jsx,py,go}"
+---
+
+# RULE: Debugging Protocol
+
+## Hypothesis-First
+Before calling any diagnostic tool, state a hypothesis: "I believe the error is caused by X because Y."
+Then select the single tool call most likely to confirm or deny that hypothesis.
+
+## Tool Call Efficiency
+- Maximum 3 consecutive tool calls without updating your hypothesis.
+- After 3 failed tool calls, stop and summarize findings so far in plain language before continuing.
+- Prefer \`semgrep\` MCP \`get_abstract_syntax_tree\` over repeated file reads for structural questions.
+- Use \`sentry\` MCP \`sentry_get_issue\` to fetch real error context before reading source.
+
+## Browser Errors
+Use \`playwright\` MCP to reproduce UI errors before attempting code fixes:
+1. Navigate to the failing page.
+2. Capture the exact error from console/network.
+3. Only then modify source.
+
+## Forbidden
+- Reading the same file more than twice in a single debugging loop without acting on its contents.
+- Running a full test suite to diagnose a single failing test — use targeted test execution only.
+`;
+
+const MULTI_AGENT_MDC_TEMPLATE = `---
+description: Coordination rules for when HexCurse is operating in multi-agent mode with parallel agents in git worktrees.
+alwaysApply: false
+globs: "HEXCURSE/docs/MULTI_AGENT.md, .swarm/**"
+---
+
+# RULE: Multi-Agent Coordination
+
+## Preconditions
+This rule activates only when \`HEXCURSE/docs/MULTI_AGENT.md\` exists and \`HEXCURSE_MULTI_AGENT=1\` is set in the environment.
+
+## Work Claiming Protocol
+1. Before starting any task, claim it via the \`swarm-protocol\` MCP \`claim_work\` tool with your agent ID and task ID.
+2. If claim fails (another agent holds it), select the next unclaimed task from Taskmaster.
+3. Heartbeat every 5 minutes on long-running tasks via \`swarm_heartbeat\`.
+
+## File Conflict Prevention
+- Before writing to any file, call \`swarm_check_conflicts\` with the target file path.
+- If a conflict is detected, pause and notify the orchestrating agent via a SESSION_LOG.md entry tagged \`[CONFLICT]\`.
+- Never force-write over a locked file.
+
+## Handoff Protocol
+When completing a task, write a structured handoff block to \`HEXCURSE/docs/AGENT_HANDOFFS.md\`:
+\`\`\`
+### Handoff — Task {ID} — Agent {AGENT_ID} — {ISO datetime}
+**Completed:** {What was done}
+**Files modified:** {list}
+**Tests added:** {list or "none"}
+**Blocked on:** {any unresolved dependencies}
+**Next agent should:** {specific next action}
+---
+\`\`\`
+
+## Merge Discipline
+- Each agent works in its own git worktree branch: \`hexcurse/agent/{AGENT_ID}/{TASK_ID}\`.
+- Do not merge your own branch — open a PR and let the orchestrator review.
+`;
+
+const LINEAR_SYNC_MDC_TEMPLATE = `---
+description: Keep Linear issues and Taskmaster tasks bidirectionally synchronized during sessions.
+alwaysApply: false
+globs: ".taskmaster/tasks/tasks.json, HEXCURSE/DIRECTIVES.md"
+---
+
+# RULE: Linear ↔ Taskmaster Sync
+
+## On Session Start (if LINEAR_API_KEY is set)
+1. Call \`linear\` MCP \`get_my_issues\` filtered to \`In Progress\`.
+2. For each Linear issue not present in Taskmaster, create a corresponding Taskmaster task using \`task-master add-task\`.
+3. Log any new tasks created in SESSION_LOG.md.
+
+## On Task Completion
+When marking a Taskmaster task \`done\`:
+1. Search Linear for a matching issue by task title or ID.
+2. If found, move the Linear issue to \`Done\` via \`linear\` MCP \`update_issue\`.
+
+## On Session Close
+Ensure all Taskmaster tasks modified this session have a corresponding Linear issue. Create missing issues via \`linear\` MCP \`create_issue\` with:
+- Title = task title
+- Description = task details
+- Labels = \`hexcurse\`, \`ai-generated\`
+
+## Forbidden
+- Manually editing \`.taskmaster/tasks/tasks.json\` to reconcile with Linear — always use the MCP tool.
+`;
+
 function formatConstraintBullets(commaOrNewlineSeparated) {
   const raw = String(commaOrNewlineSeparated || '').trim();
   if (!raw) return '- TBD';
@@ -3449,6 +3639,12 @@ async function main() {
   await writeGovernanceRules(cwd, 'mcp-usage.mdc', MCP_USAGE_TEMPLATE, written, skipped);
   await writeGovernanceRules(cwd, 'process-gates.mdc', PROCESS_GATES_TEMPLATE, written, skipped);
   await writeGovernanceRules(cwd, 'governance.mdc', readBundledGovernanceMdc(), written, skipped);
+  await writeGovernanceRules(cwd, 'security.mdc', SECURITY_MDC_TEMPLATE, written, skipped);
+  await writeGovernanceRules(cwd, 'adr.mdc', ADR_MDC_TEMPLATE, written, skipped);
+  await writeGovernanceRules(cwd, 'memory-management.mdc', MEMORY_MANAGEMENT_MDC_TEMPLATE, written, skipped);
+  await writeGovernanceRules(cwd, 'debugging.mdc', DEBUGGING_MDC_TEMPLATE, written, skipped);
+  await writeGovernanceRules(cwd, 'multi-agent.mdc', MULTI_AGENT_MDC_TEMPLATE, written, skipped);
+  await writeGovernanceRules(cwd, 'linear-sync.mdc', LINEAR_SYNC_MDC_TEMPLATE, written, skipped);
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'PATHS.json'),
