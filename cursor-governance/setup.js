@@ -242,7 +242,7 @@ Options:
   --help, -h          Show this message
   --version, -v       Print package version and exit
   --doctor            Verify governance layout, PATHS.json, task-master, ~/.cursor/mcp.json (from repo root)
-  --refresh-rules     Rewrite mcp-usage.mdc, process-gates.mdc, base.mdc (uses AGENTS.md + ARCHITECTURE.md)
+  --refresh-rules     Rewrite all 10 .mdc rules (mcp-usage, process-gates, base, governance, security, adr, memory-management, debugging, multi-agent, linear-sync; uses AGENTS.md + ARCHITECTURE.md for base)
   --multi-agent       Enable parallel agent orchestration via git worktrees and swarm-protocol MCP
   --sync-rules        Fetch latest governance rules from the HexCurse GitHub source and update .cursor/rules/ (optional --dry-run)
   --learning-rollup   Append last N SESSION_LOG blocks to HEXCURSE/docs/ROLLING_CONTEXT.md (or legacy docs/ path; no LLM; optional --sessions=5)
@@ -1252,6 +1252,16 @@ function runDoctor(cwd) {
   }
 }
 
+/** Overwrites one .mdc in .cursor/rules and HEXCURSE/rules when the pack exists (always-on refresh). */
+async function writeGovernanceRuleForceful(cwd, basename, content, hasHexDir) {
+  await fs.ensureDir(path.join(cwd, '.cursor', 'rules'));
+  await fs.writeFile(path.join(cwd, '.cursor', 'rules', basename), content, 'utf8');
+  if (hasHexDir) {
+    await fs.ensureDir(path.join(cwd, HEXCURSE_ROOT, 'rules'));
+    await fs.writeFile(path.join(cwd, HEXCURSE_ROOT, 'rules', basename), content, 'utf8');
+  }
+}
+
 /** Overwrites rule files from bundled templates; rebuilds base.mdc from repo docs when possible. */
 async function runRefreshRules(cwd) {
   const pkg = readInstallerPackageJson();
@@ -1300,24 +1310,20 @@ async function runRefreshRules(cwd) {
   );
 
   const hasHexDir = await fs.pathExists(path.join(cwd, HEXCURSE_ROOT));
-  await fs.ensureDir(path.join(cwd, '.cursor', 'rules'));
   const governanceContent = readBundledGovernanceMdc();
-  await fs.writeFile(path.join(cwd, '.cursor', 'rules', 'mcp-usage.mdc'), MCP_USAGE_TEMPLATE, 'utf8');
-  await fs.writeFile(path.join(cwd, '.cursor', 'rules', 'process-gates.mdc'), PROCESS_GATES_TEMPLATE, 'utf8');
-  await fs.writeFile(path.join(cwd, '.cursor', 'rules', 'base.mdc'), baseContent, 'utf8');
-  await fs.writeFile(path.join(cwd, '.cursor', 'rules', 'governance.mdc'), governanceContent, 'utf8');
-  console.log(chalk.green('✓'), 'Wrote .cursor/rules/mcp-usage.mdc');
-  console.log(chalk.green('✓'), 'Wrote .cursor/rules/process-gates.mdc');
-  console.log(chalk.green('✓'), 'Wrote .cursor/rules/base.mdc');
-  console.log(chalk.green('✓'), 'Wrote .cursor/rules/governance.mdc');
-
+  await writeGovernanceRuleForceful(cwd, 'mcp-usage.mdc', MCP_USAGE_TEMPLATE, hasHexDir);
+  await writeGovernanceRuleForceful(cwd, 'process-gates.mdc', PROCESS_GATES_TEMPLATE, hasHexDir);
+  await writeGovernanceRuleForceful(cwd, 'base.mdc', baseContent, hasHexDir);
+  await writeGovernanceRuleForceful(cwd, 'governance.mdc', governanceContent, hasHexDir);
+  await writeGovernanceRuleForceful(cwd, 'security.mdc', SECURITY_MDC_TEMPLATE, hasHexDir);
+  await writeGovernanceRuleForceful(cwd, 'adr.mdc', ADR_MDC_TEMPLATE, hasHexDir);
+  await writeGovernanceRuleForceful(cwd, 'memory-management.mdc', MEMORY_MANAGEMENT_MDC_TEMPLATE, hasHexDir);
+  await writeGovernanceRuleForceful(cwd, 'debugging.mdc', DEBUGGING_MDC_TEMPLATE, hasHexDir);
+  await writeGovernanceRuleForceful(cwd, 'multi-agent.mdc', MULTI_AGENT_MDC_TEMPLATE, hasHexDir);
+  await writeGovernanceRuleForceful(cwd, 'linear-sync.mdc', LINEAR_SYNC_MDC_TEMPLATE, hasHexDir);
+  console.log(chalk.green('✓'), 'Wrote .cursor/rules/*.mdc (10 governance files)');
   if (hasHexDir) {
-    await fs.ensureDir(path.join(cwd, HEXCURSE_ROOT, 'rules'));
-    await fs.writeFile(path.join(cwd, HEXCURSE_ROOT, 'rules', 'mcp-usage.mdc'), MCP_USAGE_TEMPLATE, 'utf8');
-    await fs.writeFile(path.join(cwd, HEXCURSE_ROOT, 'rules', 'process-gates.mdc'), PROCESS_GATES_TEMPLATE, 'utf8');
-    await fs.writeFile(path.join(cwd, HEXCURSE_ROOT, 'rules', 'base.mdc'), baseContent, 'utf8');
-    await fs.writeFile(path.join(cwd, HEXCURSE_ROOT, 'rules', 'governance.mdc'), governanceContent, 'utf8');
-    console.log(chalk.green('✓'), `Wrote ${HEXCURSE_ROOT}/rules/*.mdc (incl. governance.mdc)`);
+    console.log(chalk.green('✓'), `Wrote ${HEXCURSE_ROOT}/rules/*.mdc (mirror)`);
   } else {
     console.log(chalk.dim(`(No ${HEXCURSE_ROOT}/ folder — only .cursor/rules updated.)`));
   }
