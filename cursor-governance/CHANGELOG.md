@@ -2,6 +2,12 @@
 
 All notable changes to **cursor-governance** are documented here.
 
+## [1.5.2] — 2026-04-02
+
+### Fixed
+
+- **MCP `linear` / `pampa` npm targets:** Replaced non-existent `@linear/mcp-server` and `@pampa/mcp-server` with **`@mseep/linear-mcp`** and **`pampa`** (`pampa-mcp` via `npx --package=pampa`). PAMPA skill-index probe uses `npm view pampa version` instead of a broken `--version` call. Regression: `testMcpNpmPackagesLinearAndPampaExist` in `test/hexcurse-pack.test.js`.
+
 ## [1.5.1] — 2026-04-02
 
 ### Fixed
