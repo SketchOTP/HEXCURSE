@@ -3213,6 +3213,52 @@ async function writeFileMaybeSkip(cwd, rel, content, written, skipped) {
   console.log(chalk.green(`✓ Wrote ${rel}`));
 }
 
+/** Best-effort: index .cursor/skills with PAMPA when CLI is available (warn-only on failure). */
+async function tryIndexSkillsWithPampa(cwd) {
+  const skillsDir = path.join(cwd, '.cursor', 'skills');
+  if (!fs.existsSync(skillsDir)) return;
+  let canRun = false;
+  if (commandOnPath('pampa', process.platform)) {
+    canRun = true;
+  } else {
+    try {
+      execSync('npx -y @pampa/mcp-server --version', {
+        cwd,
+        shell: true,
+        stdio: 'pipe',
+        encoding: 'utf8',
+      });
+      canRun = true;
+    } catch (_) {
+      /* optional tooling */
+    }
+  }
+  if (!canRun) {
+    console.warn(
+      chalk.yellow('⚠'),
+      'PAMPA not on PATH and `npx @pampa/mcp-server --version` failed — skip skill indexing (optional).'
+    );
+    return;
+  }
+  try {
+    execSync('npx -y @pampa/mcp-server index .cursor/skills/', {
+      cwd,
+      shell: true,
+      stdio: 'inherit',
+    });
+    console.log(
+      chalk.green('✓'),
+      'PAMPA indexed .cursor/skills/ — skills are now semantically searchable'
+    );
+  } catch (e) {
+    console.warn(
+      chalk.yellow('⚠'),
+      'PAMPA skill indexing failed — optional tooling.',
+      chalk.dim(e && e.message ? e.message : String(e))
+    );
+  }
+}
+
 async function appendGitignoreLines(cwd) {
   const lines = [
     'repomix-output.xml',
@@ -3928,6 +3974,8 @@ async function main() {
     written,
     skipped
   );
+
+  await tryIndexSkillsWithPampa(cwd);
 
   await appendGitignoreLines(cwd);
 
