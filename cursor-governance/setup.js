@@ -3761,6 +3761,14 @@ function printSummary(written, skipped, cwd, mcpResult, answers) {
       chalk.dim(`(${mcpResult.added} added, ${mcpResult.kept} already present — not overwritten)`)
     );
   }
+  console.log(
+    chalk.yellow(
+      '\n⚠  MCP Token Budget: Each active server adds ~500–1000 tokens per tool to every request.\n' +
+        '   HexCurse now installs 15 servers. Disable project-specific servers in ~/.cursor/mcp.json\n' +
+        '   when not needed (e.g. disable Figma on backend-only sessions, disable Sentry when offline).\n' +
+        '   See HEXCURSE/docs/MCP_TOKEN_BUDGET.md for guidance.'
+    )
+  );
   console.log('');
   console.log(chalk.bold('Files written:'));
   if (written.length === 0) {
