@@ -1,0 +1,69 @@
+name: HexCurse PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  security-gate:
+    name: Semgrep Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Semgrep
+        run: pip install semgrep
+      - name: Run Semgrep
+        run: semgrep --config auto --error --json > semgrep-results.json || true
+      - name: Post Semgrep Results as PR Comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('semgrep-results.json', 'utf8'));
+            const findings = results.results || [];
+            if (findings.length === 0) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: '✅ **HexCurse Security Gate:** No Semgrep findings.'
+              });
+            } else {
+              const body = findings.map(f =>
+                `**${f.extra.severity}** in \`${f.path}\` line ${f.start.line}: ${f.extra.message}`
+              ).join('\n');
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `⚠️ **HexCurse Security Gate:** ${findings.length} finding(s):\n\n${body}`
+              });
+            }
+
+  governance-doctor:
+    name: HexCurse Doctor Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: cd cursor-governance && npm ci
+      - run: node cursor-governance/setup.js --doctor
+        env:
+          HEXCURSE_DOCTOR_CI: '1'
+
+  rules-freshness:
+    name: Rules Freshness Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: cd cursor-governance && npm ci
+      - name: Check for stale rules
+        run: node cursor-governance/setup.js --sync-rules --dry-run
+        env:
+          HEXCURSE_RULES_REMOTE_URL: 'https://raw.githubusercontent.com/YOUR_ORG/hexcurse/main/cursor-governance/templates/'
