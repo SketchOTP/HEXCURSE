@@ -1,0 +1,19 @@
+HexCurse HEADLESS kickoff — Cursor CLI print mode; workspace = repository root.
+
+Read these files before acting (paths relative to repo root): HEXCURSE/NORTH_STAR.md, HEXCURSE/CURSOR.md, HEXCURSE/AGENTS.md, HEXCURSE/PATHS.json, HEXCURSE/SESSION_START_PROMPT.md
+
+HEXCURSE full kickoff — I finished HEXCURSE/NORTH_STAR.md.
+
+A) Bridge (run in terminal from repository root — required unless I say I already ran it this session)
+   1. Read `.cursor/hexcurse-installer.path` — first line must be the absolute path to cursor-governance `setup.js` on this machine.
+   2. If that file is missing or empty: ask me once for the absolute path to `setup.js`, then create `.cursor/hexcurse-installer.path` containing only that path (one line).
+   3. Run: node "<path>" --run-hexcurse
+      (On Windows PowerShell, use the path as a single argument; escape if needed.)
+   4. If the command fails: show me the output, suggest --run-hexcurse-raw or fixing .env / LM Studio, and stop. Do not pretend tasks exist.
+
+B) After A succeeds (or I explicitly said bridge already ran this session)
+   Run the full SESSION START sequence from HEXCURSE/AGENTS.md starting at STEP 1 (memory → Taskmaster → DIRECTIVES → repomix → sequential-thinking → plan → stop for my "Confirmed. Proceed."). Do not skip steps. Do not write code or create a branch before I confirm.
+
+C) If **HEXCURSE/NORTH_STAR.md** (or legacy repo-root **NORTH_STAR.md**) still has a line that is **only** the placeholder **`NORTH_STAR_NOT_READY`** (standalone line under Vision), or is clearly empty, stop — tell me to fill the vision and remove/replace that line — do not run the bridge. (Mentioning the marker in prose does not count.)
+
+Project: {{PROJECT_NAME}}
