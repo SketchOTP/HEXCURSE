@@ -2,31 +2,31 @@
   "models": {
     "main": {
       "provider": "lmstudio",
-      "modelId": "qwen3.5-4b",
-      "maxTokens": 8192,
+      "modelId": "qwen3.5-2b",
+      "maxTokens": 2800,
       "temperature": 0.2,
-      "baseURL": "http://localhost:1234/v1"
+      "baseURL": "http://100.80.17.40:1234/v1"
     },
     "research": {
       "provider": "lmstudio",
-      "modelId": "qwen3.5-4b",
-      "maxTokens": 4096,
+      "modelId": "qwen3.5-2b",
+      "maxTokens": 2800,
       "temperature": 0.1,
-      "baseURL": "http://localhost:1234/v1"
+      "baseURL": "http://100.80.17.40:1234/v1"
     },
     "fallback": {
       "provider": "lmstudio",
-      "modelId": "qwen3.5-4b",
-      "maxTokens": 8192,
+      "modelId": "qwen3.5-2b",
+      "maxTokens": 2800,
       "temperature": 0.2,
-      "baseURL": "http://localhost:1234/v1"
+      "baseURL": "http://100.80.17.40:1234/v1"
     }
   },
   "global": {
     "logLevel": "info",
     "debug": false,
-    "defaultNumTasks": 10,
-    "defaultSubtasks": 5,
+    "defaultNumTasks": 7,
+    "defaultSubtasks": 4,
     "defaultPriority": "medium",
     "projectName": "HexCurse",
     "ollamaBaseURL": "http://localhost:11434/api",

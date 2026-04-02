@@ -26,16 +26,17 @@
 ---
 
 ## 📋 Queued
+<!-- Generated from .taskmaster/tasks/tasks.json (pending). Re-sync after parse-prd or task edits. -->
 - D002: Sync DIRECTIVES.md with Taskmaster | Priority: HIGH | Depends on: D001
 - D003: Configure .env for Taskmaster AI providers | Priority: HIGH | Depends on: —
-- D004: Re-run parse-prd when API keys available | Priority: MED | Depends on: D003
+- D004: Re-run parse-prd when LM Studio is available | Priority: MED | Depends on: D003
 - D005: Seed memory MCP from docs/MEMORY_SEED.md | Priority: MED | Depends on: —
 - D006: Verify MCP servers show green in Cursor | Priority: MED | Depends on: —
 - D007: Commit governance scaffold to Git | Priority: MED | Depends on: D002
 - D008: Confirm product stack and update ARCHITECTURE | Priority: LOW | Depends on: —
 - D009: Add application source tree (post-stack confirmation) | Priority: LOW | Depends on: D008
 - D010: Optional: tm rules --setup for Cursor integration | Priority: LOW | Depends on: —
-- D014: cursor-governance installer — Windows PowerShell readline prompts + ora removal (verify complete) | Priority: HIGH | Depends on: —
+- D014: cursor-governance installer — Windows PowerShell readline + ora removal (D014) | Priority: HIGH | Depends on: —
 - D015: Linux compatibility for cursor-governance installer (`setup.js` only) | Priority: HIGH | Depends on: D014
 
 ---

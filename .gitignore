@@ -26,3 +26,16 @@ node_modules/
 
 # Cursor hooks local state
 .cursor/hooks/state/
+
+# Machine-specific path to cursor-governance setup.js (seeded by --doctor on source repo)
+.cursor/hexcurse-installer.path
+
+# Repomix output (can be large; may mirror repo contents)
+repomix-output.xml
+
+# Local clones for one-off analysis (not part of HexCurse)
+.scratch-claw-code/
+.scratch-*/
+
+# Serena local overrides (machine-specific; keep out of git)
+.serena/project.local.yml

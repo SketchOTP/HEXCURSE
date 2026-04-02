@@ -1,9 +1,11 @@
 # CURSOR AI CODING SYSTEM — USER GUIDE
 # Your complete manual for setting up and running the system.
-# Companion file: CURSOR_AGENT_SETUP_PROMPT_V2.md  (that file is for the AI)
+# Legacy AI prompt pack (archived): **docs/archive/CURSOR_AGENT_SETUP_PROMPT_V2.md** — use **AGENTS.md** + **docs/SESSION_START_PROMPT.md** (this repo) or **HEXCURSE/** (consumer installs) instead.
 # ─────────────────────────────────────────────────────────────────────────────
 
-**HexCurse default:** Taskmaster (CLI + MCP) is configured for **LM Studio** with **qwen3.5-4b** at `http://localhost:1234/v1` (OpenAI-compatible API). Use `.env.example` and `.taskmaster/config.json`; keep LM Studio’s local server running when using `task-master parse-prd` or MCP task generation. If your model’s identifier in LM Studio differs from `qwen3.5-4b`, run `task-master models --set-main "<exact-id>" --lmstudio --baseURL http://localhost:1234/v1`.
+**HexCurse default:** Taskmaster (CLI + MCP) is configured for **LM Studio** with **qwen3.5-2b** (~**8000** token context) at `http://100.80.17.40:1234/v1` (OpenAI-compatible API; Tailscale/LAN host — set **`HEXCURSE_LM_STUDIO_BASE_URL`** or **`.env`** if yours differs). Keep that LM Studio server reachable when using `task-master parse-prd` or MCP task generation. If your model’s identifier in LM Studio differs from `qwen3.5-2b`, run `task-master models --set-main "<exact-id>" --lmstudio --baseURL http://100.80.17.40:1234/v1` (or your URL).
+
+**Small / medium context (e.g. 4k or ~8k tokens):** `parse-prd` sends a large prompt plus structured JSON; tight context can drop the connection or fail generation. Prefer a **larger-context** GGUF in LM Studio, use **Anthropic/OpenAI** for the one-time `parse-prd`, or before **`node setup.js --quick --preset=lmstudio`** set **`HEXCURSE_LM_STUDIO_MAX_CONTEXT`** to your loaded model’s limit (e.g. **`4096`** or **`8000`**) so the installer lowers Taskmaster **`maxTokens`** and default task counts. You can still edit **`.taskmaster/config.json`** by hand afterward.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 WHAT THIS SYSTEM IS AND WHAT YOUR JOB IS
@@ -45,7 +47,7 @@ Before you start, make sure you have:
   □ Node.js 18 or higher — check with: node --version
   □ Python 3.10 or higher — check with: python --version
   □ Git installed — check with: git --version
-  □ LM Studio — lmstudio.ai — enable Local Server (default `http://localhost:1234`), load **qwen3.5-4b** (or whatever matches `modelId` in `.taskmaster/config.json`)
+  □ LM Studio — lmstudio.ai — enable Local Server (this setup: **`http://100.80.17.40:1234`** / **`.../v1`** for the API), load **qwen3.5-2b** (~8k ctx) or whatever matches `modelId` in `.taskmaster/config.json`
   □ A GitHub Personal Access Token — github.com → Settings → Developer Settings
     → Personal Access Tokens → Fine-grained → create with repo read/write
 
@@ -92,7 +94,7 @@ LM Studio (below). Replace the GitHub placeholder with your real PAT.
       "args": ["-y", "--package=task-master-ai", "task-master-ai"],
       "env": {
         "OPENAI_API_KEY": "lm-studio",
-        "OPENAI_BASE_URL": "http://localhost:1234/v1"
+        "OPENAI_BASE_URL": "http://100.80.17.40:1234/v1"
       }
     },
 
@@ -240,7 +242,7 @@ Vague answers lead to vague architecture. Be direct.
 STEP 7 — RUN THE PROJECT SETUP PROMPT
 ─────────────────────────────────────────────────────────────────────────────
 
-1. Open CURSOR_AGENT_SETUP_PROMPT_V2.md in any text editor.
+1. Open docs/archive/CURSOR_AGENT_SETUP_PROMPT_V2.md in any text editor.
 
 2. Find PART 1 — PROJECT SETUP PROMPT.
    The section is marked with:  ════ PASTE BELOW THIS LINE ════
@@ -288,6 +290,23 @@ Phase 2 is complete. You only do this once per project.
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STRENGTHEN HEXCURSE IN CURSOR (RECOMMENDED)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Rules in `.cursor/rules/` help, but Cursor cannot force MCP calls. These habits materially improve compliance:
+
+1. **Cursor User / Project rules** — Settings → Rules for AI: paste the same bullets as **`.cursor/rules/process-gates.mdc`** in your repo (memory then Taskmaster, repomix at session start, sequential-thinking before non-trivial plans, Serena/context7/gitmcp/github/agents-memory-updater when rules say so, memory never overrides Taskmaster/DIRECTIVES/ARCHITECTURE, announce **`DEGRADED_MODE`** when an MCP is missing). Duplication with repo rules is intentional.
+
+2. **MCP panel** — Settings → MCP: keep the full HexCurse stack **green** when you depend on it: **memory**, **taskmaster-ai**, **sequential-thinking**, **Serena**, **context7**, **repomix**, **gitmcp**, **github**, **agents-memory-updater** (names may vary slightly in your config). Red or absent servers mean the agent cannot obey “always use MCP X.”
+
+3. **First message discipline** — Message 1 = paste **only** the session-start block from **`docs/SESSION_START_PROMPT.md`** (this HexCurse source repo) or **`HEXCURSE/SESSION_START_PROMPT.md`** (other repos after **`setup.js`**; see **`HEXCURSE/PATHS.json`**). Put your actual question in **message 2** so the startup ritual is not skipped.
+
+4. **Canonical session start** — Use whichever file exists in **your** repo: **`docs/SESSION_START_PROMPT.md`** at repo root, or the install pack’s **`HEXCURSE/SESSION_START_PROMPT.md`** — they carry the same ritual; paths differ by layout only.
+
+5. **Coordination doc** — Read **`docs/MCP_COORDINATION.md`** once; it explains how every MCP lines up with **`.cursor/rules/mcp-usage.mdc`** and session start/close (pack repos: **`HEXCURSE/docs/MCP_COORDINATION.md`**).
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PHASE 3 — YOUR DAILY WORKFLOW
 Every session, every day, this is all you do.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -301,9 +320,11 @@ STEP A — Open a brand new chat.
   Ctrl+L or Cmd+L opens a new chat.
 
 STEP B — Paste the Session Start Prompt.
-  Open CURSOR_AGENT_SETUP_PROMPT_V2.md.
-  Find PART 2 — SESSION START PROMPT.
-  Copy from  ════ PASTE BELOW THIS LINE ════  to  ════ END OF PASTE ════
+  **This HexCurse governance repo:** open **`docs/SESSION_START_PROMPT.md`** and copy the whole block from the `@` lines through the carry-over placeholder.
+
+  **Other repos with a `HEXCURSE/` install pack:** open **`HEXCURSE/SESSION_START_PROMPT.md`** (see **`HEXCURSE/PATHS.json`**) and copy the same style of block.
+
+  **Otherwise / generic setup:** open docs/archive/CURSOR_AGENT_SETUP_PROMPT_V2.md, find PART 2 — SESSION START PROMPT, and copy from  ════ PASTE BELOW THIS LINE ════  to  ════ END OF PASTE ════
 
   Before pasting, find this line near the bottom:
     [REPLACE THIS LINE with session carry-over context...]
@@ -531,7 +552,7 @@ FILE MAP — WHERE EVERYTHING LIVES
 
   THESE TWO FILES — store anywhere, not project-specific
   ──────────────────────────────────────────────────────────────────
-  CURSOR_AGENT_SETUP_PROMPT_V2.md    The prompts (for the AI)
+  docs/archive/CURSOR_AGENT_SETUP_PROMPT_V2.md    The prompts (for the AI)
   CURSOR_SYSTEM_USER_GUIDE.md        This file (for you)
 
 

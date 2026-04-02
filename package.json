@@ -1,0 +1,14 @@
+{
+  "name": "hexcurse",
+  "private": true,
+  "description": "HexCurse / cursor-governance source — scripts delegate to cursor-governance/",
+  "scripts": {
+    "test": "npm --prefix cursor-governance run test",
+    "test:hexcurse": "npm --prefix cursor-governance run test:hexcurse",
+    "test:north-star": "npm --prefix cursor-governance run test:north-star",
+    "test:all": "npm --prefix cursor-governance run test:all",
+    "doctor": "node cursor-governance/setup.js --doctor",
+    "preflight:cursor-agent": "node cursor-governance/setup.js --preflight-cursor-agent",
+    "ci": "npm run test:all && npm run doctor"
+  }
+}

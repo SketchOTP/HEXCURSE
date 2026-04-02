@@ -1,0 +1,23 @@
+# Governance health: unit tests + doctor. Doctor uses CI mode so missing
+# ~/.cursor/mcp.json and task-master on PATH do not fail the job (see docs/GOVERNANCE_PARITY.md).
+name: HexCurse doctor
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  doctor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run cursor-governance doctor
+        run: node cursor-governance/setup.js --doctor
+      - name: cursor-governance unit tests
+        working-directory: cursor-governance
+        run: npm ci && npm run test:all

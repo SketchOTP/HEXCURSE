@@ -29,7 +29,7 @@
       {
         "id": "3",
         "title": "Configure .env for Taskmaster AI providers",
-        "description": "Set OPENAI_API_KEY and OPENAI_BASE_URL for LM Studio (see .env.example). Start LM Studio with qwen3.5-4b loaded.",
+        "description": "Set OPENAI_API_KEY and OPENAI_BASE_URL for LM Studio (see .env.example). Start LM Studio with qwen3.5-2b loaded.",
         "details": "Never commit .env; modelId in .taskmaster/config.json must match the model name LM Studio exposes.",
         "testStrategy": "",
         "status": "pending",
@@ -40,7 +40,7 @@
       {
         "id": "4",
         "title": "Re-run parse-prd when LM Studio is available",
-        "description": "Run task-master parse-prd .taskmaster/docs/prd.txt to refresh task graph.",
+        "description": "Run task-master parse-prd --force .taskmaster/docs/prd.txt to refresh task graph.",
         "details": "LM Studio must be running; replace or merge generated tasks per human preference.",
         "testStrategy": "",
         "status": "pending",

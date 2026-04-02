@@ -5,7 +5,7 @@
       "args": ["-y", "--package=task-master-ai", "task-master-ai"],
       "env": {
         "OPENAI_API_KEY": "lm-studio",
-        "OPENAI_BASE_URL": "http://localhost:1234/v1"
+        "OPENAI_BASE_URL": "http://100.80.17.40:1234/v1"
       }
     },
     "context7": {
