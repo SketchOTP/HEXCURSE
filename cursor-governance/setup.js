@@ -91,6 +91,38 @@ function readBundledMcpCoordinationTemplate() {
   return fs.readFileSync(path.join(__dirname, 'templates', 'MCP_COORDINATION.md'), 'utf8');
 }
 
+/** Bundled MCP token budget doc for HEXCURSE/docs/MCP_TOKEN_BUDGET.md on install. */
+function readBundledMcpTokenBudgetTemplate() {
+  return fs.readFileSync(path.join(__dirname, 'templates', 'MCP_TOKEN_BUDGET.md'), 'utf8');
+}
+
+/** Bundled multi-agent doc for HEXCURSE/docs/MULTI_AGENT.md on install. */
+function readBundledMultiAgentTemplate() {
+  return fs.readFileSync(path.join(__dirname, 'templates', 'MULTI_AGENT.md'), 'utf8');
+}
+
+/** Returns MCP_TOKEN_BUDGET.md body for HEXCURSE/docs/. */
+function mcpTokenBudgetMd() {
+  return readBundledMcpTokenBudgetTemplate();
+}
+
+/** Returns MULTI_AGENT.md body for HEXCURSE/docs/. */
+function multiAgentMd() {
+  return readBundledMultiAgentTemplate();
+}
+
+/** Returns ADR_LOG.md stub with {{PROJECT_NAME}} replaced. */
+function adrLogStubMd(projectName) {
+  const raw = fs.readFileSync(path.join(__dirname, 'templates', 'ADR_LOG.md'), 'utf8');
+  return raw.replace(/\{\{PROJECT_NAME\}\}/g, String(projectName || 'Project').trim());
+}
+
+/** Returns minimal AGENT_HANDOFFS.md stub (append-only handoff log). */
+function agentHandoffsStubMd() {
+  return `<!-- Handoff entries appended here -->
+`;
+}
+
 /** Memory taxonomy for HEXCURSE/docs and docs/. */
 function readBundledMemoryTaxonomyTemplate() {
   return fs.readFileSync(path.join(__dirname, 'templates', 'MEMORY_TAXONOMY.md'), 'utf8');
@@ -3778,6 +3810,34 @@ async function main() {
     cwd,
     path.join(HEXCURSE_ROOT, 'docs', 'MCP_COORDINATION.md'),
     readBundledMcpCoordinationTemplate(),
+    written,
+    skipped
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'docs', 'MCP_TOKEN_BUDGET.md'),
+    mcpTokenBudgetMd(),
+    written,
+    skipped
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'docs', 'MULTI_AGENT.md'),
+    multiAgentMd(),
+    written,
+    skipped
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'docs', 'ADR_LOG.md'),
+    adrLogStubMd(answers.projectName),
+    written,
+    skipped
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'docs', 'AGENT_HANDOFFS.md'),
+    agentHandoffsStubMd(),
     written,
     skipped
   );
