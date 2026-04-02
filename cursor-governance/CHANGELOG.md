@@ -2,6 +2,12 @@
 
 All notable changes to **cursor-governance** are documented here.
 
+## [1.5.1] — 2026-04-02
+
+### Fixed
+
+- **`--quick --preset=other`:** Quick install no longer exits with an error; preset `other` skips Taskmaster model alignment (same behavior as interactive “Other” provider). Regression test in `test/hexcurse-pack.test.js`.
+
 ## [1.5.0] — 2026-04-02
 
 ### Added
