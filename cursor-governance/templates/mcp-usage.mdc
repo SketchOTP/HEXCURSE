@@ -1,0 +1,203 @@
+---
+description: MCP tool automatic behavior — fires without being asked, every session
+alwaysApply: true
+---
+
+# MCP AUTOMATIC BEHAVIOR RULES
+# These are not suggestions. They are hardwired automatic behaviors.
+# Every rule below fires on its trigger condition without the human asking.
+# If you find yourself about to do something a rule covers — the rule wins.
+
+## SOURCE OF TRUTH — workspace (disk)
+
+HexCurse is enforced on **files in the open Cursor workspace on disk**. Taskmaster, DIRECTIVES, SESSION_LOG, repomix, **jcodemunch**, and Serena operate on **local paths** only.
+
+- **Never** use the **github** MCP (or any remote API) to decide whether a file exists or to browse the tree — unpushed work exists only on disk.
+- After the human adds or saves files, read them via **workspace paths** (`read_file`, Serena, repomix on the local tree). If a tool cannot see a file that exists on disk, state that and suggest refreshing the workspace / confirming the path — **do not** assume GitHub reflects the working tree.
+- **Publishing:** `git commit` and `git push` are how work reaches GitHub. The **github** MCP is **optional** (PRs, issues, remote queries) and **never** required for governance.
+
+## MANDATORY MCP UTILIZATION
+
+HexCurse sessions must make **full, appropriate** use of available MCP tools. Agents must not default to manual reasoning, broad file reads, or ad hoc repo inspection when an MCP tool exists that can provide the needed data more directly, more accurately, or more efficiently.
+
+### Required MCP-first order
+1. **memory** — Read prior durable project facts and constraints first.
+2. **taskmaster-ai** — Call **get_tasks** before planning or implementation.
+3. **repomix** — Use when structural repo understanding is needed.
+4. **jcodemunch** — Tree-sitter index + token-efficient retrieval on the **local workspace** (RULE 10). Use **before** wide manual scanning or ad hoc multi-file reads when the server is available.
+5. **sequential-thinking** — Use before presenting any non-trivial implementation plan when available.
+6. **Serena** — Use symbol-aware tools for code navigation and edits instead of broad whole-file reading when applicable.
+7. **context7** — Use for external library/API/framework verification before relying on assumptions.
+8. **github** (optional) — Only when the human explicitly wants a GitHub PR, issue, or remote branch query; **not** for creating local branches or discovering files. Prefer **local git** (terminal) for branch/commit/push.
+
+### Hard rule
+If an MCP tool is **available** and **materially relevant** to the task, the agent **must** use it. Skipping a relevant MCP requires an **explicit reason** in the session report (see Session-close requirement).
+
+### Minimum expectations by task type
+- **Architecture / planning:** memory, taskmaster, repomix, **jcodemunch** (index + outline / suggest_queries on unfamiliar trees), sequential-thinking
+- **Implementation:** memory, taskmaster, **jcodemunch** (search, context bundles, impact / references as needed), Serena, context7 when libraries/APIs are involved
+- **Governance sync:** memory, taskmaster; **local git** for branch/worktree; **github** MCP only if remote PR/issue actions are in scope
+- **Research / integration questions:** context7 first for supported libraries/docs, then targeted external lookup if still unresolved
+
+### Forbidden behavior
+- Starting implementation without **get_tasks**
+- Producing a non-trivial plan without sequential-thinking when that MCP is available
+- Reading large code files end-to-end when **jcodemunch** retrieval or Serena symbol lookup would suffice
+- Skipping **jcodemunch** for multi-file discovery, impact analysis, or ranked context when it is green and the workspace is (or can be) indexed
+- Guessing library behavior without checking context7 when the dependency/API matters
+- **Letting memory override repo-local sources of truth** for the active workspace (Taskmaster, DIRECTIVES, ARCHITECTURE, and the live codebase win over stale memory)
+
+### Session-close requirement
+Each governed session must state (**in the final handoff and in SESSION_LOG.md** or **HEXCURSE/SESSION_LOG.md** if your repo uses the install pack):
+- Which MCP tools were used, and why
+- Any available MCPs not used, with explicit reason
+
+## DEGRADED_MODE (required when MCP is missing or unavailable)
+
+If a Cursor MCP server is **not configured**, **red**, or a tool call **fails**, you must state **`DEGRADED_MODE: <which MCP> — <reason>`** before proceeding, and list **what you will not do** without it (e.g. no claimed task order without taskmaster-ai). Do **not** silently substitute manual guessing for a mandatory tool. See also **`process-gates.mdc`**. **Exception:** missing **github** MCP is **not** DEGRADED_MODE for normal implementation — local git and disk are enough; use DEGRADED_MODE for **github** only if the human required a remote PR/issue this session and the server is unavailable.
+
+## RULE 1 — taskmaster-ai: task graph immediately after session-start memory
+AUTOMATIC: Immediately after the session-start **memory** query (RULE 2), and before
+  planning or implementation work —
+  call Taskmaster to get the current task state. This fires unconditionally.
+  call: get_tasks → identify active task and next queued task
+  Report to human: active task ID, title, and scope summary.
+AUTOMATIC: When a directive is confirmed complete —
+  call: set_task_status [ID] done
+  Do this before closing the session. Do not wait to be asked.
+AUTOMATIC: When a directive scope seems too large for one session —
+  call: expand_task [ID] to decompose into subtasks before starting.
+HARD STOP: You may not write a single line of implementation code until
+  Taskmaster has confirmed the active task and the human has confirmed scope.
+
+## RULE 2 — memory: ALWAYS fires at session start AND on every discovery
+AUTOMATIC at session start: Before reading **DIRECTIVES.md** or **HEXCURSE/DIRECTIVES.md**, and **docs/ARCHITECTURE.md** or **HEXCURSE/docs/ARCHITECTURE.md** (whichever exists in this repo) —
+  query memory for all facts stored about this project.
+  Incorporate those facts into your understanding before doing anything else.
+AUTOMATIC during session: The moment you discover any of the following —
+  → a hardware quirk, pin conflict, address assignment, voltage constraint
+  → a resolved blocker and what fixed it
+  → an architectural decision and why an alternative was rejected
+  → a library version constraint or known incompatibility
+  → any "never do X" rule learned from experience
+  Immediately write it to memory. Do not wait until session close.
+  Do not ask permission. Just write it and continue.
+AUTOMATIC at session close: Before writing **SESSION_LOG.md** or **HEXCURSE/SESSION_LOG.md** —
+  query memory to confirm the session's discoveries were saved.
+
+## RULE 3 — sequential-thinking: ALWAYS fires before planning any directive
+AUTOMATIC: Before writing an implementation plan for any directive —
+  invoke sequential-thinking to reason through the approach step by step.
+  This fires for every directive. There is no minimum file count threshold.
+  There is no "if I feel confident" exception. It always fires.
+  Output: numbered implementation plan with file paths and symbol names.
+HARD STOP: Do not show an implementation plan to the human until
+  sequential-thinking has run. The human approves the plan. Then code starts.
+
+## RULE 4 — serena: ALWAYS fires before touching any code file
+AUTOMATIC: Before reading, editing, or referencing any code file —
+  use find_symbol to locate the specific symbol you need.
+  You do not read whole files. You do not grep. You find symbols.
+AUTOMATIC: Before editing any function —
+  use find_referencing_symbols to find every caller first.
+  Editing a function without knowing its callers is forbidden.
+AUTOMATIC: To make a targeted edit —
+  use replace_symbol_body or insert_after_symbol.
+  You do not rewrite whole files. You replace specific symbols.
+HARD RULE: read_file on any file over 100 lines is forbidden.
+  If find_symbol fails to locate what you need, report it and ask the human
+  before falling back to read_file. Do not silently fall back.
+
+## RULE 5 — context7: ALWAYS fires before writing any library call
+AUTOMATIC: Before writing any line of code that calls an external library —
+  invoke context7 to fetch current documentation for that library.
+  This fires even if you are confident you know the API.
+  Training data is stale. context7 is not. context7 always wins.
+AUTOMATIC: The trigger is built into your behavior — you do not need
+  the human to say "use context7." You invoke it yourself before every
+  library call you are about to write.
+HARD RULE: Writing a library function call from memory without first
+  verifying it via context7 is forbidden.
+
+## RULE 6 — repomix: ALWAYS fires at session start on an existing codebase
+AUTOMATIC: At the start of any session on an existing codebase —
+  run: repomix --compress
+  Use the output to build your structural understanding.
+  Do not load individual files to get the big picture. Use repomix.
+HARD RULE: Run repomix once at session start. Do not re-run mid-session.
+
+## RULE 7 — gitmcp: ALWAYS fires for any external SDK or niche library
+AUTOMATIC: When the directive involves any hardware sensor library,
+  firmware SDK, niche framework, or any dependency that is not a major
+  mainstream library (not PyTorch/React/FastAPI tier) —
+  query gitmcp for that library's current documentation before writing
+  any code that touches it. You do not need to be asked. You do it.
+
+## RULE 8 — Local git (branch); GitHub MCP optional
+AUTOMATIC at directive start: The moment scope is confirmed by the human —
+  create a local branch **D[NNN]-[kebab-case-description]** using **local git** (e.g. `git checkout -b …` or equivalent) **before** the first line of implementation code,
+  unless the human says the branch already exists — then checkout that branch.
+  Do not use **github** MCP to create the branch unless the human explicitly asks for a remote branch via API.
+AUTOMATIC at session close: After git diff verification —
+  ensure commits are ready locally; **SESSION_LOG** and DIRECTIVES updates are mandatory.
+  **Opening a PR via github MCP is optional** — only if the human asked for it this session. Default workflow: human runs `git push` and opens a PR in the GitHub UI if desired.
+AUTOMATIC when a blocker is discovered —
+  write the blocker to **memory** and **DIRECTIVES.md** (Blockers field). **GitHub issue via github MCP is optional** — only if the human asked to file one.
+
+## RULE 9 — agents-memory-updater (continual learning): self-improve from transcripts
+AUTOMATIC when the human asks for continual learning, transcript mining,
+  agents-memory-updater, memory update from chats, or self-improve from
+  conversation history:
+  Invoke Task subagent_type agents-memory-updater (or equivalent) per
+  **docs/CONTINUAL_LEARNING.md** or **HEXCURSE/docs/CONTINUAL_LEARNING.md** — incremental index at
+  .cursor/hooks/state/continual-learning-index.json (see **HEXCURSE/PATHS.json** if present for
+  continualLearningIndex); parent transcripts only; refresh index mtimes;
+  classify per **docs/MEMORY_TAXONOMY.md** / **HEXCURSE/docs/MEMORY_TAXONOMY.md**; skill promotion queue
+  **.cursor/hooks/state/skill-promotion-queue.json**; high-signal memory + **AGENTS.md** subsection merges only; no secrets.
+
+AUTOMATIC at session close, after SESSION_LOG steps when those apply,
+  when this session changed governance or agent-behavior sources (git diff or
+  confirmed scope), including any of: .cursor/rules/, AGENTS.md, HEXCURSE/AGENTS.md,
+  HEXCURSE/rules/, mcp-usage.mdc, base.mdc, cursor-governance/, CONTINUAL_LEARNING.md,
+  MEMORY_TAXONOMY.md, HEXCURSE/docs/MEMORY_TAXONOMY.md, docs/MEMORY_TAXONOMY.md,
+  ROLLING_CONTEXT.md, docs/ROLLING_CONTEXT.md, .cursor/skills/,
+  HEXCURSE/docs/ARCH_PROMPT.md, ARCH_PROMPT.md, docs/ARCH_PROMPT.md,
+  MCP_COORDINATION.md, HEXCURSE/docs/MCP_COORDINATION.md, docs/MCP_COORDINATION.md,
+  SESSION_START_PROMPT.md, HEXCURSE/SESSION_START_PROMPT.md, PATHS.json, HEXCURSE/PATHS.json,
+  DIRECTIVES.md, HEXCURSE/DIRECTIVES.md:
+  Before the final handoff message, run agents-memory-updater once unless you already
+  ran it this session or the human said to skip continual learning for this close.
+  **No debounce** for governance-touch closes.
+
+AUTOMATIC at session close for **implementation** work when **governance paths above did not change**:
+  If any **parent** transcript under this workspace is **new** or has **filesystem mtime** newer than
+  the `mtimeUtc` stored in **continual-learning-index.json** for that path, run **agents-memory-updater**
+  once — **debounced:** skip if **continual-learning.json** `lastMemoryUpdaterRunDateUtc` equals
+  **today's UTC date** (YYYY-MM-DD) unless the human asked for mining in this session. If you **skip** due
+  to debounce but transcript delta was real, set **`pendingLearning`: true** in **continual-learning.json**
+  so the next session can run RULE 9 early (**SESSION_START_PROMPT**). After a successful run, set
+  `lastMemoryUpdaterRunDateUtc` to today's UTC date and set **`pendingLearning`** to **false**.
+
+OPTIONAL (recommended weekly or via OS cron): run `node cursor-governance/setup.js --learning-rollup`
+  from repo root to append **SESSION_LOG** excerpts to **HEXCURSE/docs/ROLLING_CONTEXT.md** (or legacy **docs/ROLLING_CONTEXT.md**; no LLM). If
+  **lastRollupAt** in **continual-learning.json** is **older than 14 days** or missing, prefer running this
+  at session close before final handoff when convenient.
+
+If none of: human request, governance touch, transcript delta (per index) — do not run
+  agents-memory-updater. **Quick exit:** if no high-signal content after scan, apply index mtime refresh only
+  and respond `No high-signal memory updates.`
+
+## RULE 10 — jcodemunch: ALWAYS fires for local code exploration and impact when the server is available
+Package name: **`jcodemunch-mcp`** (MCP server name often **`jcodemunch`**). Spelling **jcodemuch** in chat maps to the same server.
+
+AUTOMATIC **right after** repomix (RULE 6) on an existing codebase when **any** implementation or code-navigation work is planned —
+  ensure a local index exists: **`resolve_repo`** with the **workspace root path**, or **`index_folder`** on that path (incremental is fine).
+  Then at minimum: **`get_repo_outline`** and/or **`suggest_queries`** if the tree is unfamiliar; use **`list_repos`** only if you truly do not know the repo id.
+AUTOMATIC **during** implementation — prefer jcodemunch over brute force whenever multiple files or symbols are involved:
+  **`search_symbols`** / **`get_symbol_source`** / **`get_context_bundle`** / **`get_ranked_context`** for scoped reads;
+  **`find_references`**, **`find_importers`**, **`get_dependency_graph`**, **`get_blast_radius`** before changing shared contracts or hot paths;
+  **`search_text`** for non-symbol needles (string literals, TODOs, config keys);
+  **`get_changed_symbols`** (with git SHAs) when correlating a diff to symbols;
+  **`invalidate_cache`** + re-index when the index is clearly stale after large refactors.
+RELATIONSHIP TO **Serena** (RULE 4): jcodemunch is for **AST-rich discovery, ranking, import/reference graphs, and token-budgeted retrieval** on the indexed tree; Serena remains mandatory for **workspace symbol edits** (`replace_symbol_body`, `insert_after_symbol`, etc.) and precise `find_symbol` / `find_referencing_symbols` when you are editing. When **both** are green, use jcodemunch **first** for broad or fuzzy discovery and impact; then Serena for surgical edits. Do **not** use **github** remote search as a substitute for local jcodemunch + disk.
+HARD RULE: If jcodemunch is **available** and the session touches **application/source code** (not markdown-only governance with zero code reads), you must **not** skip indexing + at least one retrieval pass that jcodemunch serves better than opening whole files — unless you state **DEGRADED_MODE: jcodemunch — reason** in the handoff.
