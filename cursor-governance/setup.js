@@ -205,9 +205,11 @@ Options:
   HEXCURSE_DOCTOR_CI=1 — with \`setup.js --doctor\`, treat missing ~/.cursor/mcp.json and missing task-master CLI as warnings (for CI); same as CI=true or GITHUB_ACTIONS=true,
   ANTHROPIC_API_KEY or OPENAI_API_KEY for anthropic / openai presets.
 
-  Piped stdin (interactive): one line per prompt. After provider credentials and optional GitHub token,
-  the next line chooses repo kind (1 = new project, 2 = existing codebase). New project: same follow-up
-  lines as before. Existing: optional focus line (may be empty), then sacred constraints line.
+  Interactive install (v2): seven core questions — project name, purpose, GitHub token (skipped if
+  token is reused from env/mcp.json), then y/n for Playwright, Semgrep, Supabase (if y: project ref line),
+  LightRAG, then y/n for custom MCP (if y: follow chooseFn + URL or command prompts). Piped stdin: one
+  line per answer in that order. Taskmaster LLM keys are **not** prompted — set ANTHROPIC_API_KEY,
+  OPENAI_API_KEY / OPENAI_BASE_URL (or lm-studio defaults) in the environment before install.
 
 Run from your target repository root with no flags to start the interactive install.
 `);
@@ -1864,7 +1866,9 @@ function buildMcpServers(answers) {
   };
 
   const supabaseRef =
-    String(process.env.SUPABASE_PROJECT_REF || '').trim() || DEFAULT_SUPABASE_PROJECT_REF;
+    String(process.env.SUPABASE_PROJECT_REF || '').trim() ||
+    String(answers.supabaseProjectRef || '').trim() ||
+    DEFAULT_SUPABASE_PROJECT_REF;
 
   for (const id of MCP_OPTIONAL_IDS_ORDER) {
     if (!selected.has(id)) continue;
@@ -2306,37 +2310,48 @@ async function promptCustomMcp(chooseFn, askFn, askRequiredFn) {
   return { mode: 'stdio', command: String(command).trim(), args };
 }
 
-/** Five yes/no optional MCP questions (D-009 §2.2). */
-async function promptOptionalMcps(askFn, chooseFn, askRequiredFn) {
-  const selectedOptionals = [];
-  let customMcp = null;
-
-  if (await askYesNo(askFn, 'Do you build anything with a browser or UI?', false)) {
-    selectedOptionals.push('playwright');
+/**
+ * v2 interactive install: Taskmaster / LLM credentials come from the environment only (no provider prompts).
+ * Invoked after `promptUser()` returns, before `mergeMcpJson`, so `taskmaster-ai` MCP env is populated.
+ */
+function applyTaskmasterProviderFromEnvironment(answers) {
+  const anthropic = String(process.env.ANTHROPIC_API_KEY || '').trim();
+  if (anthropic.startsWith('sk-ant-')) {
+    answers.provider = 'anthropic';
+    answers.taskmasterEnv = { ANTHROPIC_API_KEY: anthropic };
+    return;
   }
-  if (await askYesNo(askFn, 'Do you ship code to users or need security scanning?', false)) {
-    selectedOptionals.push('semgrep');
+  const oai = String(process.env.OPENAI_API_KEY || '').trim();
+  const ob = String(process.env.OPENAI_BASE_URL || '').trim();
+  if (oai === 'lm-studio') {
+    answers.provider = 'lmstudio';
+    answers.taskmasterEnv = {
+      OPENAI_API_KEY: 'lm-studio',
+      OPENAI_BASE_URL: ob ? normalizeLmStudioV1BaseUrl(ob) : lmStudioBaseUrlFromEnv(),
+    };
+    return;
   }
-  if (await askYesNo(askFn, 'Do you use Supabase for your database or backend?', false)) {
-    selectedOptionals.push('supabase');
+  if (ob && oai && !oai.startsWith('sk-')) {
+    answers.provider = 'other';
+    answers.taskmasterEnv = {
+      OPENAI_BASE_URL: normalizeLmStudioV1BaseUrl(ob),
+      OPENAI_API_KEY: oai,
+    };
+    return;
   }
-  if (
-    await askYesNo(
-      askFn,
-      'Do you want deep codebase memory via LightRAG? (requires Python / uvx)',
-      false
-    )
-  ) {
-    selectedOptionals.push('lightrag');
+  if (oai.startsWith('sk-')) {
+    answers.provider = 'openai';
+    answers.taskmasterEnv = { OPENAI_API_KEY: oai };
+    return;
   }
-  if (await askYesNo(askFn, 'Do you have a custom MCP server to add?', false)) {
-    selectedOptionals.push('custom');
-    customMcp = await promptCustomMcp(chooseFn, askFn, askRequiredFn);
-  }
-
-  return { selectedOptionals, customMcp };
+  answers.provider = 'lmstudio';
+  answers.taskmasterEnv = {
+    OPENAI_API_KEY: 'lm-studio',
+    OPENAI_BASE_URL: ob ? normalizeLmStudioV1BaseUrl(ob) : lmStudioBaseUrlFromEnv(),
+  };
 }
 
+/** v2: seven core questions + optional custom MCP (D-009 §2.3). Taskmaster: `applyTaskmasterProviderFromEnvironment` after return. */
 async function promptUser() {
   let chooseFn = choose;
   let askFn = ask;
@@ -2349,41 +2364,17 @@ async function promptUser() {
     askRequiredFn = b.askRequired;
   }
 
-  const providerLabel = await chooseFn('Which model provider are you using?', [
-    'LM Studio',
-    'Anthropic',
-    'OpenAI',
-    'Other',
-  ]);
-  const provider = providerKeyFromLabel(providerLabel);
+  const projectName = await askRequiredFn(
+    'Project name',
+    undefined,
+    (v) => String(v || '').trim().length > 0
+  );
 
-  let taskmasterEnv = {};
-
-  if (provider === 'lmstudio') {
-    let url = await askFn('LM Studio base URL', lmStudioBaseUrlFromEnv());
-    url = normalizeLmStudioV1BaseUrl(String(url).trim() || lmStudioBaseUrlFromEnv());
-    taskmasterEnv = {
-      OPENAI_API_KEY: 'lm-studio',
-      OPENAI_BASE_URL: url,
-    };
-  } else if (provider === 'anthropic') {
-    const key = await askRequiredFn('Anthropic API key (sk-ant-...)', undefined, (v) =>
-      String(v || '').trim().startsWith('sk-ant-')
-    );
-    taskmasterEnv = { ANTHROPIC_API_KEY: String(key).trim() };
-  } else if (provider === 'openai') {
-    const key = await askRequiredFn('OpenAI API key (sk-...)', undefined, (v) =>
-      String(v || '').trim().startsWith('sk-')
-    );
-    taskmasterEnv = { OPENAI_API_KEY: String(key).trim() };
-  } else {
-    const apiBaseUrl = await askRequiredFn('API base URL', undefined, (v) => String(v || '').trim().length > 0);
-    const apiKey = await askRequiredFn('API key', undefined, (v) => String(v || '').trim().length > 0);
-    taskmasterEnv = {
-      OPENAI_BASE_URL: String(apiBaseUrl).trim(),
-      OPENAI_API_KEY: String(apiKey).trim(),
-    };
-  }
+  const purpose = await askRequiredFn(
+    'What are you building? (one sentence — seeds NORTH_STAR / PRD)',
+    undefined,
+    (v) => String(v || '').trim().length > 0
+  );
 
   let github;
   const resolvedGh = resolveGithubTokenFromUserEnvironment();
@@ -2393,7 +2384,9 @@ async function promptUser() {
       chalk.green('✓'),
       'Reusing GitHub token from',
       chalk.dim(resolvedGh.source + '.'),
-      chalk.dim('To enter a new token: unset GITHUB_PERSONAL_ACCESS_TOKEN / GITHUB_TOKEN and remove github from ~/.cursor/mcp.json (or clear its env).')
+      chalk.dim(
+        'To enter a new token: unset GITHUB_PERSONAL_ACCESS_TOKEN / GITHUB_TOKEN and clear github env in ~/.cursor/mcp.json.'
+      )
     );
   } else {
     github = await askRequiredFn(
@@ -2407,119 +2400,63 @@ async function promptUser() {
     process.exit(1);
   }
 
-  const { selectedOptionals, customMcp } = await promptOptionalMcps(askFn, chooseFn, askRequiredFn);
+  const selectedOptionals = [];
+  let customMcp = null;
+  let supabaseProjectRef = '';
 
-  const repoKindLabel = await chooseFn('New greenfield project, or existing codebase?', [
-    'New project (you describe goals and stack)',
-    'Existing codebase (infer NORTH_STAR from the repo via repomix + your model)',
-  ]);
-  const repoKind = repoKindLabel.startsWith('Existing') ? 'existing' : 'new';
-
-  let projectName;
-  let purpose;
-  let stack;
-  let modules;
-  let sacred;
-  let outOfScope;
-  let dod;
-  let northStarDraftMd = null;
-
-  if (repoKind === 'new') {
-    projectName = await askRequiredFn('Project name', undefined, (v) => String(v || '').trim().length > 0);
-    purpose = await askRequiredFn(
-      'One-sentence project purpose',
+  if (await askYesNo(askFn, 'Enable Playwright MCP for browser or UI work?', false)) {
+    selectedOptionals.push('playwright');
+  }
+  if (await askYesNo(askFn, 'Enable Semgrep MCP for security scanning?', false)) {
+    selectedOptionals.push('semgrep');
+  }
+  if (await askYesNo(askFn, 'Use Supabase MCP?', false)) {
+    selectedOptionals.push('supabase');
+    const ref = await askRequiredFn(
+      'Supabase project ref (from dashboard Project Settings → General)',
       undefined,
-      (v) => String(v || '').trim().length > 0
+      (v) => String(v || '').trim().length > 4
     );
-    stack = await askRequiredFn(
-      'Tech stack (e.g. Python, FastAPI, SQLite)',
-      undefined,
-      (v) => String(v || '').trim().length > 0
-    );
-    modules = await askRequiredFn(
-      'Top 3-5 modules/subsystems (comma-separated)',
-      undefined,
-      (v) => String(v || '').trim().length > 0
-    );
-
-    const sacredDefault = 'no cloud, no global state, always deterministic';
-    sacred = await askFn('Sacred constraints (comma-separated)', sacredDefault);
-
-    outOfScope = await askRequiredFn(
-      'What is explicitly out of scope for v1',
-      undefined,
-      (v) => String(v || '').trim().length > 0
-    );
-    dod = await askRequiredFn(
-      'Definition of done for first working version',
-      undefined,
-      (v) => String(v || '').trim().length > 0
-    );
-  } else {
-    const cwd = process.cwd();
-    projectName = path.basename(path.resolve(cwd)) || 'Project';
-    console.log(
-      chalk.dim(`Project name (folder): ${projectName}`),
-      chalk.dim('— edit NORTH_STAR.md if you want a different display name.')
-    );
-    const humanFocus = await askFn(
-      'Optional one-line focus (e.g. stabilize CI, onboard to HexCurse). Leave empty to infer from code only.',
-      ''
-    );
-    const sacredDefaultExisting = 'no secrets in git; one directive per session';
-    sacred = await askFn('Sacred constraints (comma-separated)', sacredDefaultExisting);
-
-    console.log(chalk.bold('\nPacking repository (npx repomix --compress)…'));
-    const snapshot = runRepomixCompressSnapshot(cwd);
-    console.log(chalk.dim(`Snapshot length: ${snapshot.length} characters`));
-    console.log(
-      chalk.bold('Drafting NORTH_STAR.md'),
-      chalk.dim('via your chosen provider (same API as Taskmaster)…')
-    );
-    try {
-      const draft = await generateNorthStarFromExistingRepo({
-        provider,
-        taskmasterEnv,
-        snapshot,
-        humanFocus: String(humanFocus || '').trim(),
-        projectName: String(projectName).trim(),
-      });
-      northStarDraftMd = draft.northStarMd;
-      purpose = draft.purpose;
-      stack = draft.stack;
-      modules = draft.modules;
-      outOfScope = draft.outOfScope;
-      dod = draft.dod;
-      console.log(chalk.green('✓'), 'NORTH_STAR draft ready (you can refine it after Cursor restart).');
-    } catch (e) {
-      console.error(chalk.red('Auto NORTH_STAR generation failed:'), e.message);
-      console.log(
-        chalk.yellow('Falling back to template NORTH_STAR.md — fill it manually, then use ONE_PROMPT or --parse-prd-via-agent.')
+    supabaseProjectRef = String(ref).trim();
+    process.env.SUPABASE_PROJECT_REF = supabaseProjectRef;
+  }
+  if (await askYesNo(askFn, 'Enable LightRAG MCP for deep codebase memory? (requires Python / uv)', false)) {
+    selectedOptionals.push('lightrag');
+    if (!pythonPipAvailableForUv) {
+      console.warn(
+        chalk.yellow('⚠'),
+        'Python/pip was not detected earlier — LightRAG may not run until Python and `uv` are installed.'
       );
-      northStarDraftMd = null;
-      purpose = `Existing codebase (${projectName}); define purpose in NORTH_STAR.md`;
-      stack = 'TBD — confirm from repository';
-      modules = 'TBD — list in NORTH_STAR.md after review';
-      outOfScope = 'TBD — confirm with human';
-      dod = 'NORTH_STAR filled; task-master parse-prd succeeds';
     }
   }
+
+  if (await askYesNo(askFn, 'Add a custom MCP server?', false)) {
+    selectedOptionals.push('custom');
+    customMcp = await promptCustomMcp(chooseFn, askFn, askRequiredFn);
+  }
+
+  const stack = 'TBD — set in NORTH_STAR.md and ARCHITECTURE.md';
+  const modules = 'TBD — list in NORTH_STAR.md';
+  const sacred = 'no secrets in git; one directive per session';
+  const outOfScope = 'TBD — confirm with human';
+  const dod = 'Taskmaster parse-prd succeeds; SESSION_START.md exists';
 
   return {
     projectName: String(projectName).trim(),
     purpose: String(purpose).trim(),
-    stack: String(stack).trim(),
-    modules: String(modules).trim(),
-    sacred: String(sacred).trim(),
-    outOfScope: String(outOfScope).trim(),
-    dod: String(dod).trim(),
-    provider,
-    taskmasterEnv,
+    stack,
+    modules,
+    sacred,
+    outOfScope,
+    dod,
+    provider: '',
+    taskmasterEnv: {},
     github: String(github).trim(),
-    repoKind,
-    northStarDraftMd,
+    repoKind: 'new',
+    northStarDraftMd: null,
     selectedOptionals,
     customMcp,
+    supabaseProjectRef,
   };
 }
 
@@ -3298,6 +3235,12 @@ async function main() {
     }
   } else {
     answers = await promptUser();
+    applyTaskmasterProviderFromEnvironment(answers);
+    console.log(
+      chalk.dim(
+        `Taskmaster / LLM for this install: provider=${answers.provider} (from environment — set OPENAI_*, ANTHROPIC_* before install if needed).`
+      )
+    );
   }
   const constraintsBullets = formatConstraintBullets(answers.sacred);
 
@@ -3551,6 +3494,7 @@ main.hexcursePaths = {
 /** Test-only: existing-repo NORTH_STAR draft (repomix snapshot + install-time LLM). See test/north-star-existing-repo.test.js */
 main.hexcurseInstallTestHooks = {
   generateNorthStarFromExistingRepo,
+  applyTaskmasterProviderFromEnvironment,
 };
 
 /** Test-only: quick-install answer shape. See test/hexcurse-pack.test.js */

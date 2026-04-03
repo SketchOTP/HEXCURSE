@@ -312,6 +312,54 @@ function testIsWindowsConPTYBoolean() {
   assert.strictEqual(typeof v, 'boolean');
 }
 
+function testApplyTaskmasterProviderDefaultsLmStudio() {
+  const { applyTaskmasterProviderFromEnvironment } = setupMain.hexcurseInstallTestHooks;
+  const saved = {
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    OPENAI_BASE_URL: process.env.OPENAI_BASE_URL,
+  };
+  try {
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_BASE_URL;
+    const answers = { provider: '', taskmasterEnv: {} };
+    applyTaskmasterProviderFromEnvironment(answers);
+    assert.strictEqual(answers.provider, 'lmstudio');
+    assert.strictEqual(answers.taskmasterEnv.OPENAI_API_KEY, 'lm-studio');
+    assert.ok(
+      String(answers.taskmasterEnv.OPENAI_BASE_URL || '').includes('/v1'),
+      answers.taskmasterEnv.OPENAI_BASE_URL
+    );
+  } finally {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+}
+
+function testApplyTaskmasterProviderAnthropicFromEnv() {
+  const { applyTaskmasterProviderFromEnvironment } = setupMain.hexcurseInstallTestHooks;
+  const saved = {
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  };
+  try {
+    delete process.env.OPENAI_API_KEY;
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-test123456789012345678901234567890';
+    const answers = { provider: '', taskmasterEnv: {} };
+    applyTaskmasterProviderFromEnvironment(answers);
+    assert.strictEqual(answers.provider, 'anthropic');
+    assert.strictEqual(answers.taskmasterEnv.ANTHROPIC_API_KEY, process.env.ANTHROPIC_API_KEY);
+  } finally {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+}
+
 function run() {
   const tests = [
     ['pathNorthStarPack', testPathNorthStarPack],
@@ -330,6 +378,8 @@ function run() {
     ['buildAgentParsePrompt contains schema and PRD', testBuildAgentParsePromptContainsSchemaAndPrd],
     ['parse-prd-via-agent apply strips markdown fences', testParsePrdViaAgentApplyStripsMarkdownFences],
     ['isWindowsConPTY returns boolean', testIsWindowsConPTYBoolean],
+    ['applyTaskmasterProvider defaults lmstudio', testApplyTaskmasterProviderDefaultsLmStudio],
+    ['applyTaskmasterProvider anthropic from env', testApplyTaskmasterProviderAnthropicFromEnv],
   ];
   let failed = 0;
   for (const [name, fn] of tests) {
