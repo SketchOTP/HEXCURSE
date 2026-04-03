@@ -34,14 +34,12 @@ Execute the **SESSION START** sequence from **`AGENTS.md`** (consumer pack: **`H
 
 **STEP 5.** Confirm task scope with the user (summarize what STEP 3–4 established).
 
-**STEP 6 — Active `.mdc` rules (10):**
+**STEP 6 — Active `.mdc` rules (5 default):**
 
-- **Always loaded:** `base.mdc`, `mcp-usage.mdc`, `process-gates.mdc`, `governance.mdc` (when editing directives / Taskmaster sync).
-- **When writing/editing source:** `security.mdc`, `debugging.mdc` (per globs/triggers).
-- **Architectural decisions:** `adr.mdc`.
-- **Large context / compaction:** `memory-management.mdc`.
-- **Multi-agent / worktrees:** `multi-agent.mdc` when **`HEXCURSE_MULTI_AGENT=1`** or **`HEXCURSE/docs/MULTI_AGENT.md`** governs the session.
-- **Linear in use:** `linear-sync.mdc`.
+- **Always loaded:** `base.mdc`, `mcp-usage.mdc`, `process-gates.mdc`.
+- **When writing/editing source (globs):** `security.mdc`.
+- **Architectural decisions (globs):** `adr.mdc`.
+- **Multi-agent:** `multi-agent.mdc` only after **`setup.js --multi-agent`** and when **`HEXCURSE_MULTI_AGENT=1`** / **`HEXCURSE/docs/MULTI_AGENT.md`** applies.
 
 **STEP 7.** Invoke **sequential-thinking**. Reason through the full approach; produce a numbered plan with file paths and symbols. Mandatory for every directive when the server is available.
 

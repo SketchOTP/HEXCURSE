@@ -135,13 +135,11 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 
 **STEP 5.** Confirm task scope with the user (you may summarize what STEP 3–4 established).
 
-**STEP 6 — Active `.mdc` rules (10):** Know what applies:
-- **Always loaded:** `base.mdc`, `mcp-usage.mdc`, `process-gates.mdc`, `governance.mdc` (when editing directives / Taskmaster sync).
-- **When writing/editing source:** `security.mdc`, `debugging.mdc` (per globs/triggers).
-- **Architectural decisions:** `adr.mdc`.
-- **Large context / compaction:** `memory-management.mdc`.
-- **Multi-agent / worktrees:** `multi-agent.mdc` when **`HEXCURSE_MULTI_AGENT=1`** or **`HEXCURSE/docs/MULTI_AGENT.md`** governs the session.
-- **Linear in use:** `linear-sync.mdc`.
+**STEP 6 — Active `.mdc` rules (5 default):** Know what applies:
+- **Always loaded:** `base.mdc`, `mcp-usage.mdc`, `process-gates.mdc`.
+- **When writing/editing source (globs):** `security.mdc`.
+- **Architectural decisions (globs):** `adr.mdc`.
+- **Multi-agent / worktrees:** `multi-agent.mdc` only after **`node …/setup.js --multi-agent`** installs it and **`HEXCURSE_MULTI_AGENT=1`** / **`HEXCURSE/docs/MULTI_AGENT.md`** applies.
 
 **STEP 7.** Invoke **sequential-thinking**. Reason through the full approach; produce a numbered plan with file paths and symbols. Mandatory for every directive when the server is available.
 
@@ -157,11 +155,11 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 
 **When a UI change is made:** invoke **playwright** to navigate to the affected surface and verify behavior.
 
-**When a runtime error or exception occurs:** invoke **sentry** (**get_issue**, etc.) before deep source reading; state a hypothesis before diagnostic calls (**debugging.mdc**).
+**When a runtime error or exception occurs:** invoke **sentry** (**get_issue**, etc.) before deep source reading; state a hypothesis before diagnostic calls.
 
 **When making a significant architectural decision:** append an ADR to **`docs/ADR_LOG.md`** immediately (**adr.mdc**).
 
-**When context window reaches ~70%:** write a **`## COMPACTION CHECKPOINT`** to **session_log.md** (**memory-management.mdc**); prune stale tool output.
+**When context window reaches ~70%:** write a **`## COMPACTION CHECKPOINT`** to **session_log.md**; prune stale tool output.
 
 **When research is needed:** **firecrawl** for external content; **context7** for library docs — never trust training data for current API specifics.
 
@@ -198,7 +196,7 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 
 **STEP 5.** If UI work was done, run **playwright** final verification on affected flows.
 
-**STEP 6.** **Linear** sync (if **LINEAR_API_KEY** set): completed Taskmaster tasks → **Done** in Linear; new tasks → create issues per **linear-sync.mdc**.
+**STEP 6.** **Linear** sync (if **LINEAR_API_KEY** set): completed Taskmaster tasks → **Done** in Linear; new tasks → create issues via **linear** MCP aligned with Taskmaster.
 
 **STEP 7.** **ADR check:** If this session made a significant architectural decision, verify an entry in **`docs/ADR_LOG.md`**; write it now if missing.
 

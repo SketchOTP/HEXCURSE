@@ -1,36 +1,14 @@
 ---
-description: Coordination rules for when HexCurse is operating in multi-agent mode with parallel agents in git worktrees.
+description: Multi-agent coordination (worktrees + swarm-protocol)
 alwaysApply: false
 globs: "HEXCURSE/docs/MULTI_AGENT.md, .swarm/**"
 ---
 
-# RULE: Multi-Agent Coordination
+# Multi-agent
 
-## Preconditions
-This rule activates only when `HEXCURSE/docs/MULTI_AGENT.md` exists and `HEXCURSE_MULTI_AGENT=1` is set in the environment.
+Active only when **HEXCURSE/docs/MULTI_AGENT.md** exists and **HEXCURSE_MULTI_AGENT=1**.
 
-## Work Claiming Protocol
-1. Before starting any task, claim it via the `swarm-protocol` MCP `claim_work` tool with your agent ID and task ID.
-2. If claim fails (another agent holds it), select the next unclaimed task from Taskmaster.
-3. Heartbeat every 5 minutes on long-running tasks via `swarm_heartbeat`.
-
-## File Conflict Prevention
-- Before writing to any file, call `swarm_check_conflicts` with the target file path.
-- If a conflict is detected, pause and notify the orchestrating agent via a session_log.md entry tagged `[CONFLICT]`.
-- Never force-write over a locked file.
-
-## Handoff Protocol
-When completing a task, write a structured handoff block to `HEXCURSE/docs/AGENT_HANDOFFS.md`:
-```
-### Handoff — Task {ID} — Agent {AGENT_ID} — {ISO datetime}
-**Completed:** {What was done}
-**Files modified:** {list}
-**Tests added:** {list or "none"}
-**Blocked on:** {any unresolved dependencies}
-**Next agent should:** {specific next action}
----
-```
-
-## Merge Discipline
-- Each agent works in its own git worktree branch: `hexcurse/agent/{AGENT_ID}/{TASK_ID}`.
-- Do not merge your own branch — open a PR and let the orchestrator review.
+1. Claim work via **swarm-protocol** **claim_work** before starting; heartbeat long tasks.
+2. **swarm_check_conflicts** before writes; on conflict, pause and note in **session_log.md** with **[CONFLICT]**.
+3. Handoffs go to **HEXCURSE/docs/AGENT_HANDOFFS.md** with task id, files, blockers, next step.
+4. Branch per agent **hexcurse/agent/{AGENT_ID}/{TASK_ID}**; do not self-merge — orchestrator reviews.

@@ -1,20 +1,20 @@
 ---
-description: Global governance rules — loaded in every session
+description: Project governance — loaded every session
 alwaysApply: true
 ---
 
 # PROJECT: HexCurse
-# PURPOSE: HexCurse is a project workspace that uses Cursor agent governance, Taskmaster orchestration, and MCP-backed tooling so implementation work stays scoped, documented, and traceable. The repository currently centers on governance artifacts and guides; the executable product’s shape and stack are **TBD — confirm before implementing**.  **Single source of truth (machinery):** **`docs/PROJECT_OVERVIEW.md`** — exhaustive, code-derived description of **cursor-governance** (`setup.js`), installer outputs, CLI modes, MCP merge, tests, and CI. This **`ARCHITECTURE.md`** stays the shorter system summary and product/TBD notes.
+# PURPOSE: HexCurse is a project workspace that uses Cursor agent governance, Taskmaster orchestration, and MCP-backed tooling so implementation work stays scoped, documented, and traceable. The **shipping product** is the **`cursor-governance` npm installer** (CLI, templates, MCP merge, doctor, NORTH_STAR bridge) plus the governance layer it stamps into repos. Application source code for **consumer** projects lives in those repos, not as a separate monolith app in this tree.  **Single source of truth (machinery):** **`docs/PROJECT_OVERVIEW.md`** — exhaustive, code-derived description of **cursor-governance** (`setup.js`), installer outputs, CLI modes, MCP merge, tests, and CI. This **`ARCHITECTURE.md`** stays the shorter system summary and product notes (**`NORTH_STAR.md`** is authoritative for intent).
 
-## How this system runs (agent-first)
-- **Nothing runs unattended.** Governance works when the **Cursor agent** is aware of it: `alwaysApply` rules load here, but you must still execute session start from **`AGENTS.md`** or **`HEXCURSE/AGENTS.md`** (memory → Taskmaster → DIRECTIVES → repomix → **jcodemunch** index/outline → sequential-thinking → confirm → **local git branch**) every implementation chat — use whichever layout **this** repo has.
-- **Humans prime each chat** by pasting **`docs/SESSION_START_PROMPT.md`** or **`HEXCURSE/SESSION_START_PROMPT.md`** (or `@` the paths listed there; pack repos also have **`HEXCURSE/PATHS.json`**). Unprimed chats may skip MCP and Taskmaster — that is a **workflow gap**, not a missing daemon.
-- **Session priming:** If the human has not pasted the session-start block (or `@` its files) and you are about to plan or implement, **ask once**: run the SESSION START sequence from **`AGENTS.md`** / **`HEXCURSE/AGENTS.md`**, or did they intend to skip?
-- **Governance artifacts:** When editing directives, session log, or **`AGENTS.md`** (root or under **`HEXCURSE/**`), apply **`governance.mdc`** standards (Taskmaster sync, single In Progress, IDs).
-- **Continual learning:** Run **agents-memory-updater** per **mcp-usage.mdc RULE 9** and **`docs/CONTINUAL_LEARNING.md`** / **`HEXCURSE/docs/CONTINUAL_LEARNING.md`** — human request; governance paths touched (no debounce); or parent transcript delta + debounce via **`continual_learning.json`** when that state file exists.
-- **When:** every new implementation session; after major scope changes; **Architect** is **external** (not Cursor)—see **`docs/CURSOR_MODES.md`** or **`HEXCURSE/docs/CURSOR_MODES.md`**.
+## Workflow
 
-## Sacred Constraints (NEVER violate these)
+- Follow **AGENTS.md** or **HEXCURSE/AGENTS.md** for session start (memory, Taskmaster, directives, tooling, plan → confirm → local branch).
+- Resolve prompt paths via **PATHS.json** when the pack is installed.
+- **mcp-usage.mdc** defines MCP triggers; **process-gates.mdc** defines quality gates.
+- Keep **DIRECTIVES** aligned with Taskmaster; at most one item **In Progress**.
+
+## Sacred Constraints
+
 - Never commit secrets, API keys, or tokens; use `.env` (gitignored) and machine-level MCP env only.
 - Never bypass or weaken alwaysApply MCP rules in `mcp-usage.mdc` / `AGENTS.md`.
 - One directive per session; if scope must change, stop and get explicit human confirmation.
@@ -22,6 +22,7 @@ alwaysApply: true
 - Application architecture and primary language choice remain TBD until the human confirms — do not assume a stack.
 
 ## Tech Stack
+
 | Layer | Technology | Reason |
 |-------|-----------|--------|
 | Editor / agent host | Cursor | Primary IDE and MCP client |
@@ -32,31 +33,27 @@ alwaysApply: true
 | Code intelligence | Serena MCP | Symbol-level navigation and edits when source tree exists |
 | Indexed exploration | jcodemunch MCP (`jcodemunch-mcp`) | Tree-sitter index, outlines, ranked retrieval, references, blast radius — local workspace |
 | Snapshot | Repomix | Compressed repo overview for large codebases |
-| Application runtime | TBD — confirm before implementing | Not yet selected |
+| UI / E2E | Playwright MCP | Browser verification when UI changes |
+| Security scan | Semgrep MCP | Pre-commit **security_check** (**process-gates.mdc**) |
+| Errors / incidents | Sentry MCP | Issue context before deep source reads |
+| Web research | Firecrawl MCP | External docs and pages |
+*(truncated — see ARCHITECTURE.md for full text)*
 
 ## Out of Scope
+
 - Production deployment and operations until explicitly in scope.
 - Committing secrets or tokens to the repo.
-- Choosing the application framework/language without human confirmation.
+- Non-Cursor IDEs, SaaS governance backends, multi-user features, GUI dashboards, custom MCP authoring, and model fine-tuning as **core** scope for the current installer generation (see **`NORTH_STAR.md`**).
 
-## Code Behavior Rules
-- One task per session. Scope is fixed at confirmation. It does not expand.
-- **jcodemunch** (RULE 10) indexes and retrieves local code; **Serena** `find_symbol` fires before touching any code file for edits. read_file on files
-  over 100 lines is forbidden. This is not conditional.
-- context7 fires before writing any library call. Training data is stale.
-  This is not conditional. It fires every time.
-- sequential-thinking fires before every implementation plan. Every directive.
-  No threshold. No exceptions.
-- memory is queried at session start and written on every discovery.
-  Discoveries are not saved "later." They are saved immediately.
-- Taskmaster **get_tasks** runs immediately after memory, before planning or implementation.
-- MCP coordination map: **docs/MCP_COORDINATION.md** or **HEXCURSE/docs/MCP_COORDINATION.md**; binding triggers: **mcp-usage.mdc**.
-- Local **git** branch is created when scope is confirmed (RULE 8). **Git push** / optional PR are human-driven; **github** MCP is not required for governance.
-- Never create files outside the established directory structure without asking.
-- Never install a new dependency without stating why and waiting for approval.
-- Every function gets a one-line contract comment above it.
-- If uncertain: STOP and ask. Do not guess. Do not proceed on assumptions.
+## Code rules
 
-## Commit Convention
-Format: "D[NUMBER]: [description] | [status]"
-Example: "D003: sensor pipeline bring-up | verified clean"
+- One task per session after scope is fixed.
+- **jcodemunch** + **Serena** for discovery and edits; no **read_file** over 100 lines without approval.
+- **context7** before external library calls; **sequential-thinking** before non-trivial plans.
+- **memory** at session start and when you learn something material.
+- Local **git** branch after scope confirm; **github** MCP optional for remotes.
+- No new dependencies without approval. One-line contract on new functions.
+
+## Commits
+
+Format: `D[NNN]: description | status`

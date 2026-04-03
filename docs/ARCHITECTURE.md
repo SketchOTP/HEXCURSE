@@ -125,22 +125,17 @@ Single coordination map: **`docs/MCP_COORDINATION.md`** (17-server inventory, in
 | **DURING** | jcodemunch, Serena, context7, gitmcp, playwright, semgrep, sentry, firecrawl, supabase, gitmcp-adafruit-mpu6050, memory |
 | **SESSION CLOSE** | git diff, semgrep, playwright (if UI), linear, memory, taskmaster-ai, SESSION_LOG, agents-memory-updater (RULE 9) |
 
-## Governance rules (10 × `.mdc`)
+## Governance rules (5 default × `.mdc`)
 
 | Rule file | `alwaysApply` | When it applies |
 |-----------|---------------|-----------------|
 | `base.mdc` | yes | Project constraints, sacred rules, stack summary |
-| `mcp-usage.mdc` | yes | MCP triggers, **DEGRADED_MODE**, RULE 1–12 |
-| `process-gates.mdc` | yes | Short checklist + Semgrep / ADR / session-close gates |
-| `governance.mdc` | varies | Directives / Taskmaster sync standards |
+| `mcp-usage.mdc` | yes | MCP order, **DEGRADED_MODE**, hard stops |
+| `process-gates.mdc` | yes | Session checklist + Semgrep / ADR / close gates |
 | `security.mdc` | globs on source | Semgrep after code writes |
 | `adr.mdc` | globs | Architecture Decision Records |
-| `memory-management.mdc` | yes | Context pruning, compaction checkpoints |
-| `debugging.mdc` | globs | Hypothesis-first debugging |
-| `multi-agent.mdc` | globs | Worktrees / swarm when multi-agent enabled |
-| `linear-sync.mdc` | globs | Linear ↔ Taskmaster |
 
-Plus optional **`markdown.mdc`** and other project-specific rules as installed.
+**`multi-agent.mdc`** is installed only with **`setup.js --multi-agent`**. Optional **`markdown.mdc`** and other project rules may exist beside these.
 
 ## v1.5.x expansion (maintainer summary)
 
@@ -151,7 +146,7 @@ Installer **v1.5.0+** added six general MCP servers (**playwright**, **semgrep**
 ## Out of Scope
 - Production deployment and operations until explicitly in scope.
 - Committing secrets or tokens to the repo.
-- Non-Cursor IDEs, SaaS governance backends, multi-user features, GUI dashboards, custom MCP authoring, and model fine-tuning as **core** HexCurse v1.x scope (see **`NORTH_STAR.md`**).
+- Non-Cursor IDEs, SaaS governance backends, multi-user features, GUI dashboards, custom MCP authoring, and model fine-tuning as **core** scope for the current installer generation (see **`NORTH_STAR.md`**).
 
 ## Definition of Done
 **First product release** (installer + learning loop) matches **`NORTH_STAR.md`** — global npm install works; install into a repo delivers 17 MCP + 10 rules + ritual docs within five minutes; SESSION START drives correct MCP usage; continual learning produces skills and meaningful **ROLLING_CONTEXT**; **`--sync-rules`** / **`--learning-rollup`** / **`--doctor`** behave as specified; token efficiency improves measurably across sessions in the same repo. For **this** workspace as a governed repo: governance tree, **ARCHITECTURE**, **AGENTS.md**, **DIRECTIVES.md**, **SESSION_LOG.md**, and Taskmaster **`.taskmaster/`** stay aligned; PRD reflects **NORTH_STAR** after each **`parse-prd`** run.

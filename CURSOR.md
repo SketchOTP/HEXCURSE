@@ -20,16 +20,14 @@ See **`docs/ONE_PROMPT.md`** and **`cursor-governance/README.md`**. CLI paramete
 - **Map:** [`docs/MCP_COORDINATION.md`](docs/MCP_COORDINATION.md) — 17-server inventory, invocation order, coordination patterns, **DEGRADED_MODE**, token budget.
 - **Binding behavior:** **`.cursor/rules/mcp-usage.mdc`** + **`.cursor/rules/process-gates.mdc`** (short checklist + Semgrep / ADR gates).
 
-## Active governance rules (10 × `.mdc`)
+## Active governance rules (5 default × `.mdc`)
 
 Same activation summary as **`docs/SESSION_START_PROMPT.md`** STEP 6:
 
-- **Always loaded:** `base.mdc`, `mcp-usage.mdc`, `process-gates.mdc`, `governance.mdc` (when editing directives / Taskmaster sync).
-- **When writing/editing source:** `security.mdc`, `debugging.mdc` (per globs/triggers).
-- **Architectural decisions:** `adr.mdc`.
-- **Large context / compaction:** `memory-management.mdc`.
-- **Multi-agent / worktrees:** `multi-agent.mdc` when **`HEXCURSE_MULTI_AGENT=1`** or **`docs/MULTI_AGENT.md`** / **`HEXCURSE/docs/MULTI_AGENT.md`** governs the session.
-- **Linear in use:** `linear-sync.mdc`.
+- **Always loaded:** `base.mdc`, `mcp-usage.mdc`, `process-gates.mdc`.
+- **When writing/editing source (globs):** `security.mdc`.
+- **Architectural decisions (globs):** `adr.mdc`.
+- **Multi-agent:** `multi-agent.mdc` only after **`setup.js --multi-agent`** and when **`HEXCURSE_MULTI_AGENT=1`** / **`HEXCURSE/docs/MULTI_AGENT.md`** applies.
 
 ## MCP quick reference (17 servers)
 

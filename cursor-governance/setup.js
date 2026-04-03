@@ -145,11 +145,6 @@ Add reusable agent patterns as Markdown files in this folder. Copy \`_TEMPLATE_S
 `;
 }
 
-/** governance.mdc (globs include .cursor/skills) — HEXCURSE/rules + .cursor/rules on install / refresh. */
-function readBundledGovernanceMdc() {
-  return fs.readFileSync(path.join(__dirname, 'templates', 'governance.mdc'), 'utf8');
-}
-
 /** Starter skill file for .cursor/skills/_TEMPLATE_SKILL.md (skip if exists). */
 function readBundledTemplateSkillMd() {
   return fs.readFileSync(path.join(__dirname, 'templates', '_TEMPLATE_SKILL.md'), 'utf8');
@@ -180,7 +175,7 @@ Options:
   --help, -h          Show this message
   --version, -v       Print package version and exit
   --doctor            Verify governance layout, PATHS.json, task-master, ~/.cursor/mcp.json (from repo root)
-  --refresh-rules     Rewrite all 10 .mdc rules (mcp-usage, process-gates, base, governance, security, adr, memory-management, debugging, multi-agent, linear-sync; uses AGENTS.md + ARCHITECTURE.md for base)
+  --refresh-rules     Rewrite the 5 default .mdc rules (base, mcp-usage, process-gates, security, adr; uses AGENTS.md + ARCHITECTURE.md for base). Use --multi-agent for multi-agent.mdc.
   --multi-agent       Enable parallel agent orchestration via git worktrees and swarm-protocol MCP
   --sync-rules        Fetch latest governance rules from the HexCurse GitHub source and update .cursor/rules/ (optional --dry-run)
   --parse-prd-via-agent   Generate tasks.json from PRD using the Cursor agent's
@@ -922,8 +917,8 @@ function runDoctor(cwd) {
 
   if (fs.existsSync(path.join(cwd, '.cursor', 'rules', 'mcp-usage.mdc'))) ok.push('.cursor/rules/mcp-usage.mdc present');
   else bad.push('.cursor/rules/mcp-usage.mdc missing');
-  if (fs.existsSync(path.join(cwd, '.cursor', 'rules', 'governance.mdc'))) ok.push('.cursor/rules/governance.mdc present');
-  else warn.push('.cursor/rules/governance.mdc missing — run install or --refresh-rules');
+  if (fs.existsSync(path.join(cwd, '.cursor', 'rules', 'process-gates.mdc'))) ok.push('.cursor/rules/process-gates.mdc present');
+  else bad.push('.cursor/rules/process-gates.mdc missing');
 
   const skillsDir = path.join(cwd, '.cursor', 'skills');
   if (fs.existsSync(skillsDir)) ok.push('.cursor/skills/ present');
@@ -1063,11 +1058,11 @@ function runDoctor(cwd) {
       mcpOptionalWarn('sequential-thinking', 'recommended — planning');
       mcpOptionalWarn('memory', 'recommended — durable facts');
       mcpOptionalWarn('supabase', 'optional — Supabase MCP when using Supabase backend');
-      mcpOptionalWarn('playwright', 'optional — UI / debugging.mdc');
+      mcpOptionalWarn('playwright', 'optional — UI verification after changes');
       mcpOptionalWarn('semgrep', 'recommended — security.mdc');
       mcpOptionalWarn('sentry', 'optional — error context');
       mcpOptionalWarn('firecrawl', 'optional — research');
-      mcpOptionalWarn('linear', 'optional — linear-sync.mdc');
+      mcpOptionalWarn('linear', 'optional — sync Taskmaster with Linear when using Linear');
       mcpOptionalWarn('pampa', 'optional — semantic skill search');
     } catch (e) {
       if (ciRelaxed) warn.push(`~/.cursor/mcp.json parse error (non-blocking in CI): ${e.message}`);
@@ -1090,7 +1085,7 @@ function runDoctor(cwd) {
     }
   }
 
-  for (const ruleName of ['security.mdc', 'adr.mdc', 'memory-management.mdc', 'debugging.mdc']) {
+  for (const ruleName of ['base.mdc', 'security.mdc', 'adr.mdc']) {
     const rp = path.join(cwd, '.cursor', 'rules', ruleName);
     if (!fs.existsSync(rp)) {
       warn.push(`.cursor/rules/${ruleName} missing — run install or --refresh-rules`);
@@ -1208,18 +1203,12 @@ async function runRefreshRules(cwd) {
   );
 
   const hasHexDir = await fs.pathExists(path.join(cwd, HEXCURSE_ROOT));
-  const governanceContent = readBundledGovernanceMdc();
   await writeGovernanceRuleForceful(cwd, 'mcp-usage.mdc', MCP_USAGE_TEMPLATE, hasHexDir);
   await writeGovernanceRuleForceful(cwd, 'process-gates.mdc', PROCESS_GATES_TEMPLATE, hasHexDir);
   await writeGovernanceRuleForceful(cwd, 'base.mdc', baseContent, hasHexDir);
-  await writeGovernanceRuleForceful(cwd, 'governance.mdc', governanceContent, hasHexDir);
   await writeGovernanceRuleForceful(cwd, 'security.mdc', SECURITY_MDC_TEMPLATE, hasHexDir);
   await writeGovernanceRuleForceful(cwd, 'adr.mdc', ADR_MDC_TEMPLATE, hasHexDir);
-  await writeGovernanceRuleForceful(cwd, 'memory-management.mdc', MEMORY_MANAGEMENT_MDC_TEMPLATE, hasHexDir);
-  await writeGovernanceRuleForceful(cwd, 'debugging.mdc', DEBUGGING_MDC_TEMPLATE, hasHexDir);
-  await writeGovernanceRuleForceful(cwd, 'multi-agent.mdc', MULTI_AGENT_MDC_TEMPLATE, hasHexDir);
-  await writeGovernanceRuleForceful(cwd, 'linear-sync.mdc', LINEAR_SYNC_MDC_TEMPLATE, hasHexDir);
-  console.log(chalk.green('✓'), 'Wrote .cursor/rules/*.mdc (10 governance files)');
+  console.log(chalk.green('✓'), 'Wrote .cursor/rules/*.mdc (5 default governance files)');
   if (hasHexDir) {
     console.log(chalk.green('✓'), `Wrote ${HEXCURSE_ROOT}/rules/*.mdc (mirror)`);
   } else {
@@ -1229,494 +1218,145 @@ async function runRefreshRules(cwd) {
 }
 
 const PROCESS_GATES_TEMPLATE = `---
-description: Short non-negotiable process gates for HexCurse implementation chats
+description: Non-negotiable process gates for implementation work
 alwaysApply: true
 ---
 
-# PROCESS GATES (HexCurse — implementation agent)
+# PROCESS GATES
 
-Full MCP stack, session timeline, and rule mapping: **\`docs/MCP_COORDINATION.md\`** (pack: **\`HEXCURSE/docs/MCP_COORDINATION.md\`**). Binding detail: **\`mcp-usage.mdc\`**. If anything here conflicts, the **stricter** requirement wins.
+Binding detail: **mcp-usage.mdc**. Stricter requirement wins.
 
-1. **Memory then Taskmaster:** Query **memory** at session start (before DIRECTIVES / ARCHITECTURE); then **get_tasks** before planning or implementing — or **\`DEGRADED_MODE: <mcp> — <reason>\`** if a server is missing or red.
-2. **Structural map:** **repomix --compress** once at session start on an existing codebase — or **DEGRADED_MODE** if repomix is unavailable.
-2b. **Indexed code map (local):** **jcodemunch** — **\`resolve_repo\`** / **\`index_folder\`** on the workspace root after repomix when code work is in scope; **\`get_repo_outline\`** / **\`suggest_queries\`** as needed; use **\`search_symbols\`**, **\`get_context_bundle\`**, **\`get_blast_radius\`**, **\`find_references\`**, etc., during work — or **DEGRADED_MODE** (**mcp-usage.mdc** RULE 10).
-3. **Plans:** **sequential-thinking** before non-trivial implementation plans — or **DEGRADED_MODE**.
-4. **Code:** **jcodemunch** for discovery/impact + **Serena** symbol tools for edits — before broad reads/edits when applicable — or **DEGRADED_MODE** / explicit human approval for large reads per **mcp-usage.mdc**.
-5. **Libraries:** **context7** before external library/API calls when relevant — or **DEGRADED_MODE**.
-6. **Niche SDKs:** **gitmcp** for firmware / niche GitHub deps not covered as mainstream library docs — or **DEGRADED_MODE**.
-7. **Local git & disk:** Work branches with **local git** after scope confirm (**mcp-usage.mdc** RULE 8). **github** MCP is optional (remote PR/issue only). **Source of truth** is the workspace on disk — not GitHub.
-8. **Continual learning:** **agents-memory-updater** per **RULE 9** — human request; **governance** paths touched (no debounce); or **parent transcript delta** vs index with **debounce** via **continual-learning.json** \`lastMemoryUpdaterRunDateUtc\`. Optional \`node cursor-governance/setup.js --learning-rollup\` when **lastRollupAt** is stale (appends to **\`HEXCURSE/docs/ROLLING_CONTEXT.md\`** or legacy **\`docs/ROLLING_CONTEXT.md\`**). See **\`docs/CONTINUAL_LEARNING.md\`** (pack: **\`HEXCURSE/docs/CONTINUAL_LEARNING.md\`**).
-9. **Memory vs repo:** **Memory** does not override Taskmaster, DIRECTIVES, ARCHITECTURE, or the live tree.
+1. **memory** then **taskmaster-ai** **get_tasks** before planning or code — or state **DEGRADED_MODE** with server id and reason.
+2. **repomix --compress** once per session start on existing codebases when repomix is available.
+3. **jcodemunch** index (**resolve_repo** / **index_folder**) when code work is in scope — or DEGRADED_MODE.
+4. **sequential-thinking** before non-trivial plans — or DEGRADED_MODE.
+5. **context7** before external library/API calls — or DEGRADED_MODE.
+6. **Serena** symbol tools for edits; avoid **read_file** on files over 100 lines without approval — or DEGRADED_MODE.
 
-If any required MCP is missing or red in Cursor, announce **\`DEGRADED_MODE\`** and what you will not assume — do not silently skip.
+If a required MCP is missing or red, state **DEGRADED_MODE** and what you will not assume.
 
-## Gate: Pre-commit security (semgrep)
+## Semgrep (commits touching source)
 
-Before any **git commit** involving **source code** changes:
+1. Run **semgrep** **security_check** on modified source files.
+2. **HIGH/CRITICAL:** do not commit until resolved.
+3. **MEDIUM:** note in handoff; commit allowed with acknowledgment.
+4. If semgrep unavailable: note in handoff; proceed only with human awareness.
 
-1. Invoke **semgrep** MCP **\`security_check\`** on all modified source files.
-2. If **HIGH** or **CRITICAL** findings: **do not commit** — fix first.
-3. If **MEDIUM** findings: commit is permitted, but log findings in **SESSION_LOG.md** under **\`## Security Notes\`**.
-4. If **semgrep** is unavailable: note the exception in **SESSION_LOG.md** and proceed only with explicit human awareness.
+## Architecture
 
-This gate is mandatory. It cannot be skipped for “small” changes.
+Significant design changes: append an ADR per **adr.mdc** to **docs/ADR_LOG.md** (pack: **HEXCURSE/docs/ADR_LOG.md**).
 
-## Gate: Architectural decision (adr)
+## Session close
 
-Before implementing any **significant** architectural change:
-
-1. Write an ADR entry to **\`docs/ADR_LOG.md\`** (pack: **\`HEXCURSE/docs/ADR_LOG.md\`**) using the format in **\`adr.mdc\`**.
-2. The ADR should be written **before** implementation begins when practical — not only after merge.
-3. **Architectural** includes: new dependency, API contract change, data model change, new MCP server or external service, module boundary change, overriding **NORTH_STAR** / **DIRECTIVES** constraints.
-
-## Gate: Session close checklist
-
-Before ending any session, confirm:
-
-- [ ] **Taskmaster** task status updated
-- [ ] **Semgrep** final scan run on modified sources; **HIGH/CRITICAL** resolved or logged with exception
-- [ ] **Linear** issues synced if **LINEAR_API_KEY** is set
-- [ ] **ADR** written for any significant architectural decisions
-- [ ] **SESSION_LOG.md** entry written
-- [ ] **Memory** MCP updated with key learnings
+- [ ] Taskmaster task status updated
+- [ ] Semgrep on touched sources (or logged exception)
+- [ ] ADR if architecture changed
+- [ ] Handoff lists MCP used / not used
+- [ ] **memory** updated with key discoveries
 `;
 
 const MCP_USAGE_TEMPLATE = `---
-description: MCP tool automatic behavior — fires without being asked, every session
+description: When to use which MCP tools — automatic triggers
 alwaysApply: true
 ---
 
-# MCP AUTOMATIC BEHAVIOR RULES
-# These are not suggestions. They are hardwired automatic behaviors.
-# Every rule below fires on its trigger condition without the human asking.
-# If you find yourself about to do something a rule covers — the rule wins.
+# MCP UTILIZATION
 
-> **Token budget:** Each active MCP server adds roughly **500–1000** tokens of tool-description overhead per turn. See **\`docs/MCP_TOKEN_BUDGET.md\`** (pack: **\`HEXCURSE/docs/MCP_TOKEN_BUDGET.md\`**) for the full table and guidance on disabling session-conditional servers in **\`~/.cursor/mcp.json\`**.
+Disk in the open workspace is source of truth — not remote Git.
 
-## SOURCE OF TRUTH — workspace (disk)
+## Core order (when available)
 
-HexCurse is enforced on **files in the open Cursor workspace on disk**. Taskmaster, DIRECTIVES, SESSION_LOG, repomix, **jcodemunch**, and Serena operate on **local paths** only.
+1. **memory** — start of session; write discoveries immediately.
+2. **taskmaster-ai** — **get_tasks** before plan or implementation; **set_task_status** when work completes.
+3. **repomix** — **--compress** once per session on existing trees.
+4. **jcodemunch** — index workspace; use **search_symbols**, **get_context_bundle**, **find_references** for multi-file work.
+5. **sequential-thinking** — before non-trivial implementation plans.
+6. **Serena** — **find_symbol**, **find_referencing_symbols**, **replace_symbol_body** for edits.
+7. **context7** — before every external library or API call you add or change.
+8. **github** — only when the human asked for PR/issue/remote; use local git for branches.
 
-- **Never** use the **github** MCP (or any remote API) to decide whether a file exists or to browse the tree — unpushed work exists only on disk.
-- After the human adds or saves files, read them via **workspace paths** (\`read_file\`, Serena, repomix on the local tree). If a tool cannot see a file that exists on disk, state that and suggest refreshing the workspace / confirming the path — **do not** assume GitHub reflects the working tree.
-- **Publishing:** \`git commit\` and \`git push\` are how work reaches GitHub. The **github** MCP is **optional** (PRs, issues, remote queries) and **never** required for governance.
+After substantive code edits, run **semgrep** **security_check** before commit (**process-gates.mdc**). After UI changes, **playwright** when available. **supabase** for schema before DB queries when this project uses it. Use any other configured MCP when materially relevant; skipping needs an explicit reason in the handoff.
 
-## MANDATORY MCP UTILIZATION
+## DEGRADED_MODE
 
-HexCurse sessions must make **full, appropriate** use of available MCP tools. Agents must not default to manual reasoning, broad file reads, or ad hoc repo inspection when an MCP tool exists that can provide the needed data more directly, more accurately, or more efficiently.
+If a server is missing or failing: announce **DEGRADED_MODE** (server id and reason) and list what you will not assume.
 
-### Required MCP-first order
-1. **memory** — Read prior durable project facts and constraints first.
-2. **taskmaster-ai** — Call **get_tasks** before planning or implementation.
-3. **repomix** — Use when structural repo understanding is needed.
-4. **jcodemunch** — Tree-sitter index + token-efficient retrieval on the **local workspace** (RULE 10). Use **before** wide manual scanning or ad hoc multi-file reads when the server is available.
-5. **sequential-thinking** — Use before presenting any non-trivial implementation plan when available.
-6. **Serena** — Use symbol-aware tools for code navigation and edits instead of broad whole-file reading when applicable.
-7. **context7** — Use for external library/API/framework verification before relying on assumptions.
-8. **github** (optional) — Only when the human explicitly wants a GitHub PR, issue, or remote branch query; **not** for creating local branches or discovering files. Prefer **local git** (terminal) for branch/commit/push.
-9. **gitmcp** — Niche / firmware / hardware SDK docs not covered by context7 (RULE 7).
-10. **playwright** — After UI changes for verification when the server is available.
-11. **semgrep** — After substantive code writes and before commit (**process-gates.mdc**); **security_check** on touched files. Configure **Streamable HTTP** **\`https://mcp.semgrep.ai/mcp\`** in **\`~/.cursor/mcp.json\`** (no local **\`SEMGREP_PATH\`** / **\`SEMGREP_APP_TOKEN\`**).
-12. **sentry** — On runtime errors / triage when configured; fetch issue context before deep source reads.
-13. **firecrawl** — External research when context7 and local docs are insufficient.
-14. **linear** — When Linear is in use; sync issues with Taskmaster at session boundaries.
-15. **pampa** — Semantic search over **\`.cursor/skills/\`** when skills may apply (**SESSION START** 4e).
-16. **gitmcp-adafruit-mpu6050** — MPU6050 / **Adafruit_MPU6050** work before driver code (RULE 11).
-17. **supabase** — Schema, RLS, Auth, Edge Functions when this project uses Supabase (RULE 12).
+## Hard stops
 
-### Hard rule
-If an MCP tool is **available** and **materially relevant** to the task, the agent **must** use it. Skipping a relevant MCP requires an **explicit reason** in the session report (see Session-close requirement).
+- No implementation until the active Taskmaster task is known and scope is confirmed.
+- No guessing library APIs when **context7** is available — verify first.
+- No commits with unresolved **HIGH/CRITICAL** semgrep findings on touched code.
 
-### Minimum expectations by task type
-- **Architecture / planning:** memory, taskmaster, repomix, **jcodemunch** (index + outline / suggest_queries on unfamiliar trees), sequential-thinking
-- **Implementation:** memory, taskmaster, **jcodemunch** (search, context bundles, impact / references as needed), Serena, context7 when libraries/APIs are involved; **semgrep** after substantive code edits
-- **UI / frontend:** **playwright** for verification when the server is available
-- **Backend / database (Supabase):** **supabase** MCP for schema and policies — not raw terminal SQL when MCP can answer
-- **Security / commits:** **semgrep** before commit; resolve HIGH/CRITICAL
-- **Research:** **firecrawl** + context7 — do not trust training data for current APIs when tools are green
-- **Bug triage:** **sentry** before deep source reads when applicable; hypothesis-first per **debugging.mdc**
-- **Hardware / MPU6050:** **gitmcp-adafruit-mpu6050** before driver code
-- **Tracked work (Linear):** **linear** sync at close when **LINEAR_API_KEY** is set
-- **Governance sync:** memory, taskmaster; **local git** for branch/worktree; **github** MCP only if remote PR/issue actions are in scope
-- **Research / integration questions:** context7 first for supported libraries/docs, then **firecrawl** / **gitmcp** if still unresolved
+## Handoff
 
-### Forbidden behavior
-- Starting implementation without **get_tasks**
-- Producing a non-trivial plan without sequential-thinking when that MCP is available
-- Reading large code files end-to-end when **jcodemunch** retrieval or Serena symbol lookup would suffice
-- Skipping **jcodemunch** for multi-file discovery, impact analysis, or ranked context when it is green and the workspace is (or can be) indexed
-- Guessing library behavior without checking context7 when the dependency/API matters
-- **Relying on training data for library APIs when context7 is available**
-- **Committing code with unresolved HIGH/CRITICAL semgrep findings**
-- **Writing database queries without checking schema via supabase MCP** when Supabase is in use and the server is available
-- **Closing a session with Linear issues out of sync with Taskmaster** when Linear is in use
-- **Letting memory override repo-local sources of truth** for the active workspace (Taskmaster, DIRECTIVES, ARCHITECTURE, and the live codebase win over stale memory)
-
-### Session-close requirement
-Each governed session must state (**in the final handoff and in SESSION_LOG.md** or **HEXCURSE/SESSION_LOG.md** if your repo uses the install pack):
-- Which MCP tools were used, and why
-- Any available MCPs not used, with explicit reason
-
-## DEGRADED_MODE (required when MCP is missing or unavailable)
-
-If a Cursor MCP server is **not configured**, **red**, or a tool call **fails**, you must state **\`DEGRADED_MODE: <which MCP> — <reason>\`** before proceeding, and list **what you will not do** without it (e.g. no claimed task order without taskmaster-ai). Do **not** silently substitute manual guessing for a mandatory tool. See also **\`process-gates.mdc\`** and **\`docs/MCP_COORDINATION.md\`** (pack: **\`HEXCURSE/docs/MCP_COORDINATION.md\`**).
-
-**Essential — quality severely degraded without:** **taskmaster-ai**, **memory**, **Serena**, **context7**.
-
-**Important — degrade gracefully:** **sequential-thinking**, **repomix**, **gitmcp**, **jcodemunch**, **semgrep**.
-
-**Optional — note gaps explicitly:** **github** (remote), **playwright**, **sentry**, **firecrawl**, **linear**, **pampa**, **gitmcp-adafruit-mpu6050**, **supabase**.
-
-**In DEGRADED_MODE:** log unavailable servers in **SESSION_LOG.md**; do not commit changed source without **semgrep** unless **semgrep** is explicitly unavailable — then document the exception in **SESSION_LOG.md** and the handoff.
-
-**Exception:** missing **github** MCP is **not** DEGRADED_MODE for normal implementation — local git and disk are enough; use DEGRADED_MODE for **github** only if the human required a remote PR/issue this session and the server is unavailable.
-
-## RULE 1 — taskmaster-ai: task graph immediately after session-start memory
-AUTOMATIC: Immediately after the session-start **memory** query (RULE 2), and before
-  planning or implementation work —
-  call Taskmaster to get the current task state. This fires unconditionally.
-  call: get_tasks → identify active task and next queued task
-  Report to human: active task ID, title, and scope summary.
-AUTOMATIC: When a directive is confirmed complete —
-  call: set_task_status [ID] done
-  Do this before closing the session. Do not wait to be asked.
-AUTOMATIC: When a directive scope seems too large for one session —
-  call: expand_task [ID] to decompose into subtasks before starting.
-HARD STOP: You may not write a single line of implementation code until
-  Taskmaster has confirmed the active task and the human has confirmed scope.
-
-## RULE 2 — memory: ALWAYS fires at session start AND on every discovery
-AUTOMATIC at session start: Before reading **DIRECTIVES.md** or **HEXCURSE/DIRECTIVES.md**, and **docs/ARCHITECTURE.md** or **HEXCURSE/docs/ARCHITECTURE.md** (whichever exists in this repo) —
-  query memory for all facts stored about this project.
-  Incorporate those facts into your understanding before doing anything else.
-AUTOMATIC during session: The moment you discover any of the following —
-  → a hardware quirk, pin conflict, address assignment, voltage constraint
-  → a resolved blocker and what fixed it
-  → an architectural decision and why an alternative was rejected
-  → a library version constraint or known incompatibility
-  → any "never do X" rule learned from experience
-  Immediately write it to memory. Do not wait until session close.
-  Do not ask permission. Just write it and continue.
-AUTOMATIC at session close: Before writing **SESSION_LOG.md** or **HEXCURSE/SESSION_LOG.md** —
-  query memory to confirm the session's discoveries were saved.
-
-## RULE 3 — sequential-thinking: ALWAYS fires before planning any directive
-AUTOMATIC: Before writing an implementation plan for any directive —
-  invoke sequential-thinking to reason through the approach step by step.
-  This fires for every directive. There is no minimum file count threshold.
-  There is no "if I feel confident" exception. It always fires.
-  Output: numbered implementation plan with file paths and symbol names.
-HARD STOP: Do not show an implementation plan to the human until
-  sequential-thinking has run. The human approves the plan. Then code starts.
-
-## RULE 4 — serena: ALWAYS fires before touching any code file
-AUTOMATIC: Before reading, editing, or referencing any code file —
-  use find_symbol to locate the specific symbol you need.
-  You do not read whole files. You do not grep. You find symbols.
-AUTOMATIC: Before editing any function —
-  use find_referencing_symbols to find every caller first.
-  Editing a function without knowing its callers is forbidden.
-AUTOMATIC: To make a targeted edit —
-  use replace_symbol_body or insert_after_symbol.
-  You do not rewrite whole files. You replace specific symbols.
-HARD RULE: read_file on any file over 100 lines is forbidden.
-  If find_symbol fails to locate what you need, report it and ask the human
-  before falling back to read_file. Do not silently fall back.
-
-## RULE 5 — context7: ALWAYS fires before writing any library call
-AUTOMATIC: Before writing any line of code that calls an external library —
-  invoke context7 to fetch current documentation for that library.
-  This fires even if you are confident you know the API.
-  Training data is stale. context7 is not. context7 always wins.
-AUTOMATIC: The trigger is built into your behavior — you do not need
-  the human to say "use context7." You invoke it yourself before every
-  library call you are about to write.
-HARD RULE: Writing a library function call from memory without first
-  verifying it via context7 is forbidden.
-
-## RULE 6 — repomix: ALWAYS fires at session start on an existing codebase
-AUTOMATIC: At the start of any session on an existing codebase —
-  run: repomix --compress
-  Use the output to build your structural understanding.
-  Do not load individual files to get the big picture. Use repomix.
-HARD RULE: Run repomix once at session start. Do not re-run mid-session.
-
-## RULE 7 — gitmcp: ALWAYS fires for any external SDK or niche library
-AUTOMATIC: When the directive involves any hardware sensor library,
-  firmware SDK, niche framework, or any dependency that is not a major
-  mainstream library (not PyTorch/React/FastAPI tier) —
-  query gitmcp for that library's current documentation before writing
-  any code that touches it. You do not need to be asked. You do it.
-
-## RULE 8 — Local git (branch); GitHub MCP optional
-AUTOMATIC at directive start: The moment scope is confirmed by the human —
-  create a local branch **D[NNN]-[kebab-case-description]** using **local git** (e.g. \`git checkout -b …\` or equivalent) **before** the first line of implementation code,
-  unless the human says the branch already exists — then checkout that branch.
-  Do not use **github** MCP to create the branch unless the human explicitly asks for a remote branch via API.
-AUTOMATIC at session close: After git diff verification —
-  ensure commits are ready locally; **SESSION_LOG** and DIRECTIVES updates are mandatory.
-  **Opening a PR via github MCP is optional** — only if the human asked for it this session. Default workflow: human runs \`git push\` and opens a PR in the GitHub UI if desired.
-AUTOMATIC when a blocker is discovered —
-  write the blocker to **memory** and **DIRECTIVES.md** (Blockers field). **GitHub issue via github MCP is optional** — only if the human asked to file one.
-
-## RULE 9 — agents-memory-updater (continual learning): self-improve from transcripts
-AUTOMATIC when the human asks for continual learning, transcript mining,
-  agents-memory-updater, memory update from chats, or self-improve from
-  conversation history:
-  Invoke Task subagent_type agents-memory-updater (or equivalent) per
-  **docs/CONTINUAL_LEARNING.md** or **HEXCURSE/docs/CONTINUAL_LEARNING.md** — incremental index at
-  .cursor/hooks/state/continual-learning-index.json (see **HEXCURSE/PATHS.json** if present for
-  continualLearningIndex); parent transcripts only; refresh index mtimes;
-  classify per **docs/MEMORY_TAXONOMY.md** / **HEXCURSE/docs/MEMORY_TAXONOMY.md**; skill promotion queue
-  **.cursor/hooks/state/skill-promotion-queue.json**; high-signal memory + **AGENTS.md** subsection merges only; no secrets.
-
-AUTOMATIC at session close, after SESSION_LOG steps when those apply,
-  when this session changed governance or agent-behavior sources (git diff or
-  confirmed scope), including any of: .cursor/rules/, AGENTS.md, HEXCURSE/AGENTS.md,
-  HEXCURSE/rules/, mcp-usage.mdc, base.mdc, cursor-governance/, CONTINUAL_LEARNING.md,
-  MEMORY_TAXONOMY.md, HEXCURSE/docs/MEMORY_TAXONOMY.md, docs/MEMORY_TAXONOMY.md,
-  ROLLING_CONTEXT.md, docs/ROLLING_CONTEXT.md, .cursor/skills/,
-  HEXCURSE/docs/ARCH_PROMPT.md, ARCH_PROMPT.md, docs/ARCH_PROMPT.md,
-  MCP_COORDINATION.md, HEXCURSE/docs/MCP_COORDINATION.md, docs/MCP_COORDINATION.md,
-  SESSION_START_PROMPT.md, HEXCURSE/SESSION_START_PROMPT.md, PATHS.json, HEXCURSE/PATHS.json,
-  DIRECTIVES.md, HEXCURSE/DIRECTIVES.md:
-  Before the final handoff message, run agents-memory-updater once unless you already
-  ran it this session or the human said to skip continual learning for this close.
-  **No debounce** for governance-touch closes.
-
-AUTOMATIC at session close for **implementation** work when **governance paths above did not change**:
-  If any **parent** transcript under this workspace is **new** or has **filesystem mtime** newer than
-  the \`mtimeUtc\` stored in **continual-learning-index.json** for that path, run **agents-memory-updater**
-  once — **debounced:** skip if **continual-learning.json** \`lastMemoryUpdaterRunDateUtc\` equals
-  **today's UTC date** (YYYY-MM-DD) unless the human asked for mining in this session. If you **skip** due
-  to debounce but transcript delta was real, set **\`pendingLearning\`: true** in **continual-learning.json**
-  so the next session can run RULE 9 early (**SESSION_START_PROMPT**). After a successful run, set
-  \`lastMemoryUpdaterRunDateUtc\` to today's UTC date and set **\`pendingLearning\`** to **false**.
-
-OPTIONAL (recommended weekly or via OS cron): run \`node cursor-governance/setup.js --learning-rollup\`
-  from repo root to append **SESSION_LOG** excerpts to **HEXCURSE/docs/ROLLING_CONTEXT.md** (or legacy **docs/ROLLING_CONTEXT.md**; no LLM). If
-  **lastRollupAt** in **continual-learning.json** is **older than 14 days** or missing, prefer running this
-  at session close before final handoff when convenient.
-
-If none of: human request, governance touch, transcript delta (per index) — do not run
-  agents-memory-updater. **Quick exit:** if no high-signal content after scan, apply index mtime refresh only
-  and respond \`No high-signal memory updates.\`
-
-## RULE 10 — jcodemunch: ALWAYS fires for local code exploration and impact when the server is available
-Package name: **\`jcodemunch-mcp\`** (MCP server name often **\`jcodemunch\`**). Spelling **jcodemuch** in chat maps to the same server.
-
-AUTOMATIC **right after** repomix (RULE 6) on an existing codebase when **any** implementation or code-navigation work is planned —
-  ensure a local index exists: **\`resolve_repo\`** with the **workspace root path**, or **\`index_folder\`** on that path (incremental is fine).
-  Then at minimum: **\`get_repo_outline\`** and/or **\`suggest_queries\`** if the tree is unfamiliar; use **\`list_repos\`** only if you truly do not know the repo id.
-AUTOMATIC **during** implementation — prefer jcodemunch over brute force whenever multiple files or symbols are involved:
-  **\`search_symbols\`** / **\`get_symbol_source\`** / **\`get_context_bundle\`** / **\`get_ranked_context\`** for scoped reads;
-  **\`find_references\`**, **\`find_importers\`**, **\`get_dependency_graph\`**, **\`get_blast_radius\`** before changing shared contracts or hot paths;
-  **\`search_text\`** for non-symbol needles (string literals, TODOs, config keys);
-  **\`get_changed_symbols\`** (with git SHAs) when correlating a diff to symbols;
-  **\`invalidate_cache\`** + re-index when the index is clearly stale after large refactors.
-RELATIONSHIP TO **Serena** (RULE 4): jcodemunch is for **AST-rich discovery, ranking, import/reference graphs, and token-budgeted retrieval** on the indexed tree; Serena remains mandatory for **workspace symbol edits** (\`replace_symbol_body\`, \`insert_after_symbol\`, etc.) and precise \`find_symbol\` / \`find_referencing_symbols\` when you are editing. When **both** are green, use jcodemunch **first** for broad or fuzzy discovery and impact; then Serena for surgical edits. Do **not** use **github** remote search as a substitute for local jcodemunch + disk.
-HARD RULE: If jcodemunch is **available** and the session touches **application/source code** (not markdown-only governance with zero code reads), you must **not** skip indexing + at least one retrieval pass that jcodemunch serves better than opening whole files — unless you state **DEGRADED_MODE: jcodemunch — reason** in the handoff.
-
-## RULE 11 — gitmcp-adafruit-mpu6050: hardware / sensor library lookups (Adafruit MPU6050)
-AUTOMATIC: When the task involves the **Adafruit MPU6050** sensor, I²C wiring, register maps, or the **Adafruit_MPU6050** Arduino / CircuitPython library —
-  query **gitmcp-adafruit-mpu6050** for current docs, examples, and API references on **gitmcp.io** before writing or refactoring driver code.
-  Do not rely on training data for hardware-specific register behavior or library call sequences.
-
-## RULE 12 — supabase: database and backend via Supabase MCP
-AUTOMATIC: When this project uses **Supabase** (Postgres, Auth, RLS, Edge Functions) —
-  use the **supabase** MCP for schema inspection, query execution, RLS policy verification, Edge Function management, and auth configuration.
-  Prefer MCP-driven checks over guessing from memory or ad hoc dashboard-only workflows when the server is available.
+State which MCP tools were used or skipped (with reason).
 `;
 
 const SECURITY_MDC_TEMPLATE = `---
-description: Automatically run Semgrep security scan on any generated or modified code before committing. Required for all non-trivial code changes.
+description: Semgrep security gate before commits
 alwaysApply: false
 globs: "**/*.{ts,tsx,js,jsx,py,go,java,rb,php,rs,cs}"
 ---
 
-# RULE: Security Gate (Semgrep)
+# Security (Semgrep)
 
-## Trigger
-Any time you generate new code, modify existing code, or complete a task that involves writing to source files.
+## When
+Any change that writes or rewrites source files.
 
-## Required Actions
+## Actions
 
-1. After writing code to disk, invoke the \`semgrep\` MCP tool \`security_check\` on the modified files.
-2. If Semgrep returns findings of severity HIGH or CRITICAL:
-   - Do NOT proceed to commit.
-   - Report findings inline in the session.
-   - Propose specific fixes for each finding before moving forward.
-3. If Semgrep returns MEDIUM findings:
-   - Log them in SESSION_LOG.md under a \`## Security Notes\` subsection.
-   - Proceed only after acknowledging the finding.
-4. LOW / INFO findings: log only, do not block.
+1. Run **semgrep** MCP **security_check** on modified paths.
+2. **HIGH/CRITICAL:** do not commit; fix and re-scan.
+3. **MEDIUM:** record in handoff under security notes; then proceed.
+4. **LOW/INFO:** note only.
 
 ## Forbidden
-- Committing code that has unresolved HIGH or CRITICAL Semgrep findings.
-- Skipping this check because the change "looks small."
-
-## Example invocation
-Use the \`semgrep_scan\` tool with the list of modified file paths. Pass \`auto\` as the config string to use community rules.
+- Committing with unresolved HIGH/CRITICAL findings.
+- Skipping the scan because the change looks small.
 `;
 
 const ADR_MDC_TEMPLATE = `---
-description: Automatically capture Architecture Decision Records (ADRs) whenever a significant architectural choice is made during a session.
+description: Record significant architecture decisions
 alwaysApply: false
-globs: "HEXCURSE/docs/ARCHITECTURE.md, **/ARCHITECTURE.md, **/adr/**"
+globs: "**/ARCHITECTURE.md, **/adr/**, HEXCURSE/docs/ARCHITECTURE.md"
 ---
 
-# RULE: Architecture Decision Records (ADR)
+# Architecture Decision Records
 
-## What triggers an ADR
-Any decision that involves:
-- Choosing between two or more approaches for a non-trivial feature
-- Changing a data model, API contract, or module boundary
-- Adding or removing a dependency
-- Choosing a new MCP server, tool, or external service
-- Overriding a constraint in NORTH_STAR.md or DIRECTIVES.md
+## Triggers
+- Non-trivial design fork, data/API contract change, new dependency or external service, MCP/tool choice, or overriding NORTH_STAR / DIRECTIVES constraints.
 
-## Required Format
-When an ADR-triggering decision is made, append to \`HEXCURSE/docs/ADR_LOG.md\` (create if absent):
+## Format
+Append to **HEXCURSE/docs/ADR_LOG.md** or **docs/ADR_LOG.md** using heading **### ADR-{N}: Title**, then lines **Date**, **Status**, **Context**, **Decision**, **Consequences**, **Alternatives**, and a horizontal rule.
 
-\`\`\`
-### ADR-{SEQUENCE}: {Short Title}
-**Date:** {ISO date}
-**Status:** Accepted
-**Context:** {1–3 sentences: what problem necessitated this decision}
-**Decision:** {What was chosen and why}
-**Consequences:** {What becomes easier, what becomes harder, any risks}
-**Alternatives considered:** {Brief list of what was rejected and why}
----
-\`\`\`
-
-## Forbidden
-- Making a significant architectural change without logging an ADR.
-- Deleting or modifying past ADR entries (they are append-only).
-`;
-
-const MEMORY_MANAGEMENT_MDC_TEMPLATE = `---
-description: Intelligent context management — prune stale context, detect architecture drift, and maintain state across session compactions.
-alwaysApply: true
----
-
-# RULE: Memory & Context Management
-
-## Context Budget Awareness
-- Monitor your active context window. When it exceeds ~70% capacity, begin pruning.
-- Pruning priority (remove first): verbose tool output logs, repeated file reads, superseded plans.
-- Never prune: NORTH_STAR.md content, Sacred Constraints, current task description, file paths of modified files.
-
-## Pattern Recognition
-Actively detect and flag:
-- **Architecture drift:** Implementation diverging from HEXCURSE/docs/ARCHITECTURE.md — log to SESSION_LOG.md immediately.
-- **Code smell accumulation:** Three or more TODO/FIXME comments added in one session without a corresponding Taskmaster task — create tasks automatically.
-- **Scope creep:** Work extending beyond the current Taskmaster task scope — pause and confirm with user before proceeding.
-
-## State Persistence on Compaction
-Before your context is compacted (or when you anticipate it), write a \`## COMPACTION CHECKPOINT\` block to SESSION_LOG.md containing:
-1. Current Taskmaster task ID and status
-2. Files modified this session (list)
-3. Decisions made (summary)
-4. Next immediate action
-
-## Recovery
-When resuming after a compaction, read SESSION_LOG.md and HEXCURSE/docs/ROLLING_CONTEXT.md before any other action.
-`;
-
-const DEBUGGING_MDC_TEMPLATE = `---
-description: Minimize tool call loops during debugging. Use structured hypothesis-driven investigation.
-alwaysApply: false
-globs: "**/*.{ts,tsx,js,jsx,py,go}"
----
-
-# RULE: Debugging Protocol
-
-## Hypothesis-First
-Before calling any diagnostic tool, state a hypothesis: "I believe the error is caused by X because Y."
-Then select the single tool call most likely to confirm or deny that hypothesis.
-
-## Tool Call Efficiency
-- Maximum 3 consecutive tool calls without updating your hypothesis.
-- After 3 failed tool calls, stop and summarize findings so far in plain language before continuing.
-- Prefer \`semgrep\` MCP \`get_abstract_syntax_tree\` over repeated file reads for structural questions.
-- Use \`sentry\` MCP \`sentry_get_issue\` to fetch real error context before reading source.
-
-## Browser Errors
-Use \`playwright\` MCP to reproduce UI errors before attempting code fixes:
-1. Navigate to the failing page.
-2. Capture the exact error from console/network.
-3. Only then modify source.
-
-## Forbidden
-- Reading the same file more than twice in a single debugging loop without acting on its contents.
-- Running a full test suite to diagnose a single failing test — use targeted test execution only.
+## Rules
+- ADRs are append-only; do not delete prior entries.
 `;
 
 const MULTI_AGENT_MDC_TEMPLATE = `---
-description: Coordination rules for when HexCurse is operating in multi-agent mode with parallel agents in git worktrees.
+description: Multi-agent coordination (worktrees + swarm-protocol)
 alwaysApply: false
 globs: "HEXCURSE/docs/MULTI_AGENT.md, .swarm/**"
 ---
 
-# RULE: Multi-Agent Coordination
+# Multi-agent
 
-## Preconditions
-This rule activates only when \`HEXCURSE/docs/MULTI_AGENT.md\` exists and \`HEXCURSE_MULTI_AGENT=1\` is set in the environment.
+Active only when **HEXCURSE/docs/MULTI_AGENT.md** exists and **HEXCURSE_MULTI_AGENT=1**.
 
-## Work Claiming Protocol
-1. Before starting any task, claim it via the \`swarm-protocol\` MCP \`claim_work\` tool with your agent ID and task ID.
-2. If claim fails (another agent holds it), select the next unclaimed task from Taskmaster.
-3. Heartbeat every 5 minutes on long-running tasks via \`swarm_heartbeat\`.
-
-## File Conflict Prevention
-- Before writing to any file, call \`swarm_check_conflicts\` with the target file path.
-- If a conflict is detected, pause and notify the orchestrating agent via a SESSION_LOG.md entry tagged \`[CONFLICT]\`.
-- Never force-write over a locked file.
-
-## Handoff Protocol
-When completing a task, write a structured handoff block to \`HEXCURSE/docs/AGENT_HANDOFFS.md\`:
-\`\`\`
-### Handoff — Task {ID} — Agent {AGENT_ID} — {ISO datetime}
-**Completed:** {What was done}
-**Files modified:** {list}
-**Tests added:** {list or "none"}
-**Blocked on:** {any unresolved dependencies}
-**Next agent should:** {specific next action}
----
-\`\`\`
-
-## Merge Discipline
-- Each agent works in its own git worktree branch: \`hexcurse/agent/{AGENT_ID}/{TASK_ID}\`.
-- Do not merge your own branch — open a PR and let the orchestrator review.
+1. Claim work via **swarm-protocol** **claim_work** before starting; heartbeat long tasks.
+2. **swarm_check_conflicts** before writes; on conflict, pause and note in **session_log.md** with **[CONFLICT]**.
+3. Handoffs go to **HEXCURSE/docs/AGENT_HANDOFFS.md** with task id, files, blockers, next step.
+4. Branch per agent **hexcurse/agent/{AGENT_ID}/{TASK_ID}**; do not self-merge — orchestrator reviews.
 `;
 
-const LINEAR_SYNC_MDC_TEMPLATE = `---
-description: Keep Linear issues and Taskmaster tasks bidirectionally synchronized during sessions.
-alwaysApply: false
-globs: ".taskmaster/tasks/tasks.json, HEXCURSE/DIRECTIVES.md"
----
-
-# RULE: Linear ↔ Taskmaster Sync
-
-## On Session Start (if LINEAR_API_KEY is set)
-1. Call \`linear\` MCP \`get_my_issues\` filtered to \`In Progress\`.
-2. For each Linear issue not present in Taskmaster, create a corresponding Taskmaster task using \`task-master add-task\`.
-3. Log any new tasks created in SESSION_LOG.md.
-
-## On Task Completion
-When marking a Taskmaster task \`done\`:
-1. Search Linear for a matching issue by task title or ID.
-2. If found, move the Linear issue to \`Done\` via \`linear\` MCP \`update_issue\`.
-
-## On Session Close
-Ensure all Taskmaster tasks modified this session have a corresponding Linear issue. Create missing issues via \`linear\` MCP \`create_issue\` with:
-- Title = task title
-- Description = task details
-- Labels = \`hexcurse\`, \`ai-generated\`
-
-## Forbidden
-- Manually editing \`.taskmaster/tasks/tasks.json\` to reconcile with Linear — always use the MCP tool.
-`;
+/** Keeps generated base.mdc under the line-count budget (see V.4 in D-009). */
+function limitMarkdownBlock(text, maxLines) {
+  const raw = String(text || '').trim();
+  if (!raw) return '_TBD — see ARCHITECTURE.md_';
+  const lines = raw.split(/\r?\n/);
+  if (lines.length <= maxLines) return raw;
+  return `${lines.slice(0, maxLines).join('\n')}\n*(truncated — see ARCHITECTURE.md for full text)*`;
+}
 
 function formatConstraintBullets(commaOrNewlineSeparated) {
   const raw = String(commaOrNewlineSeparated || '').trim();
@@ -1731,52 +1371,48 @@ function baseMdc(projectName, purpose, constraintsList, stack, outOfScope) {
   const purposeOneLine = String(purpose || '')
     .replace(/\r?\n+/g, ' ')
     .trim();
+  const c = limitMarkdownBlock(constraintsList, 12);
+  const s = limitMarkdownBlock(stack, 14);
+  const o = limitMarkdownBlock(outOfScope, 10);
   return `---
-description: Global governance rules — loaded in every session
+description: Project governance — loaded every session
 alwaysApply: true
 ---
 
 # PROJECT: ${projectName}
 # PURPOSE: ${purposeOneLine}
 
-## How this system runs (agent-first)
-- **Nothing runs unattended.** Governance works when the **Cursor agent** is aware of it: \`alwaysApply\` rules load here, but you must still execute session start from **\`AGENTS.md\`** or **\`HEXCURSE/AGENTS.md\`** (memory → Taskmaster → DIRECTIVES → repomix → **jcodemunch** index/outline → sequential-thinking → confirm → **local git branch**) every implementation chat — use whichever layout **this** repo has.
-- **Humans prime each chat** by pasting **\`docs/SESSION_START_PROMPT.md\`** or **\`HEXCURSE/SESSION_START_PROMPT.md\`** (or \`@\` the paths listed there; pack repos also have **\`HEXCURSE/PATHS.json\`**). Unprimed chats may skip MCP and Taskmaster — that is a **workflow gap**, not a missing daemon.
-- **Session priming:** If the human has not pasted the session-start block (or \`@\` its files) and you are about to plan or implement, **ask once**: run the SESSION START sequence from **\`AGENTS.md\`** / **\`HEXCURSE/AGENTS.md\`**, or did they intend to skip?
-- **Governance artifacts:** When editing directives, session log, or **\`AGENTS.md\`** (root or under **\`HEXCURSE/**\`), apply **\`governance.mdc\`** standards (Taskmaster sync, single In Progress, IDs).
-- **Continual learning:** Run **agents-memory-updater** per **mcp-usage.mdc RULE 9** and **\`docs/CONTINUAL_LEARNING.md\`** / **\`HEXCURSE/docs/CONTINUAL_LEARNING.md\`** — human request; governance paths touched (no debounce); or parent transcript delta + debounce via **\`continual-learning.json\`**. Optional **\`setup.js --learning-rollup\`** when rollup is stale.
-- **When:** every new implementation session; after major scope changes; **Architect** is **external** (not Cursor)—see **\`docs/CURSOR_MODES.md\`** or **\`HEXCURSE/docs/CURSOR_MODES.md\`**.
+## Workflow
 
-## Sacred Constraints (NEVER violate these)
-${constraintsList}
+- Follow **AGENTS.md** or **HEXCURSE/AGENTS.md** for session start (memory, Taskmaster, directives, tooling, plan → confirm → local branch).
+- Resolve prompt paths via **PATHS.json** when the pack is installed.
+- **mcp-usage.mdc** defines MCP triggers; **process-gates.mdc** defines quality gates.
+- Keep **DIRECTIVES** aligned with Taskmaster; at most one item **In Progress**.
+
+## Sacred Constraints
+
+${c}
 
 ## Tech Stack
-${stack}
+
+${s}
 
 ## Out of Scope
-${outOfScope}
 
-## Code Behavior Rules
-- One task per session. Scope is fixed at confirmation. It does not expand.
-- **jcodemunch** (RULE 10) indexes and retrieves local code; **Serena** \`find_symbol\` fires before touching any code file for edits. read_file on files
-  over 100 lines is forbidden. This is not conditional.
-- context7 fires before writing any library call. Training data is stale.
-  This is not conditional. It fires every time.
-- sequential-thinking fires before every implementation plan. Every directive.
-  No threshold. No exceptions.
-- memory is queried at session start and written on every discovery.
-  Discoveries are not saved "later." They are saved immediately.
-- Taskmaster **get_tasks** runs immediately after memory, before planning or implementation.
-- MCP coordination map: **docs/MCP_COORDINATION.md** or **HEXCURSE/docs/MCP_COORDINATION.md**; binding triggers: **mcp-usage.mdc**.
-- Local **git** branch is created when scope is confirmed (RULE 8). **Git push** / optional PR are human-driven; **github** MCP is not required for governance.
-- Never create files outside the established directory structure without asking.
-- Never install a new dependency without stating why and waiting for approval.
-- Every function gets a one-line contract comment above it.
-- If uncertain: STOP and ask. Do not guess. Do not proceed on assumptions.
+${o}
 
-## Commit Convention
-Format: "D[NUMBER]: [description] | [status]"
-Example: "D003: sensor pipeline bring-up | verified clean"
+## Code rules
+
+- One task per session after scope is fixed.
+- **jcodemunch** + **Serena** for discovery and edits; no **read_file** over 100 lines without approval.
+- **context7** before external library calls; **sequential-thinking** before non-trivial plans.
+- **memory** at session start and when you learn something material.
+- Local **git** branch after scope confirm; **github** MCP optional for remotes.
+- No new dependencies without approval. One-line contract on new functions.
+
+## Commits
+
+Format: \`D[NNN]: description | status\`
 `;
 }
 
@@ -2863,11 +2499,11 @@ function pathsManifestObject(installerMeta) {
       rulesCanonicalDir: `${h}/rules`,
       baseMdcCanonical: `${h}/rules/base.mdc`,
       mcpUsageMdcCanonical: `${h}/rules/mcp-usage.mdc`,
-      governanceMdcCanonical: `${h}/rules/governance.mdc`,
+      processGatesMdcCanonical: `${h}/rules/process-gates.mdc`,
       rulesCursorDir: '.cursor/rules',
       baseMdcActive: '.cursor/rules/base.mdc',
       mcpUsageMdcActive: '.cursor/rules/mcp-usage.mdc',
-      governanceMdcActive: '.cursor/rules/governance.mdc',
+      processGatesMdcActive: '.cursor/rules/process-gates.mdc',
       taskmasterRoot: '.taskmaster',
       prd: '.taskmaster/docs/prd.txt',
       agentParsePromptCache: '.taskmaster/agent-parse-prompt.txt',
@@ -2881,14 +2517,8 @@ function pathsManifestObject(installerMeta) {
       securityMdcActive: '.cursor/rules/security.mdc',
       adrMdcCanonical: `${h}/rules/adr.mdc`,
       adrMdcActive: '.cursor/rules/adr.mdc',
-      memoryMgmtMdcCanonical: `${h}/rules/memory-management.mdc`,
-      memoryMgmtMdcActive: '.cursor/rules/memory-management.mdc',
-      debuggingMdcCanonical: `${h}/rules/debugging.mdc`,
-      debuggingMdcActive: '.cursor/rules/debugging.mdc',
       multiAgentMdcCanonical: `${h}/rules/multi-agent.mdc`,
       multiAgentMdcActive: '.cursor/rules/multi-agent.mdc',
-      linearSyncMdcCanonical: `${h}/rules/linear-sync.mdc`,
-      linearSyncMdcActive: '.cursor/rules/linear-sync.mdc',
       supabaseProjectRef: process.env.SUPABASE_PROJECT_REF || '',
       mcpTokenBudget: `${h}/docs/MCP_TOKEN_BUDGET.md`,
       multiAgentDoc: `${h}/docs/MULTI_AGENT.md`,
@@ -3520,13 +3150,9 @@ async function syncRemoteRules(cwd, { dryRun = false } = {}) {
     'base.mdc',
     'mcp-usage.mdc',
     'process-gates.mdc',
-    'governance.mdc',
     'security.mdc',
     'adr.mdc',
-    'memory-management.mdc',
-    'debugging.mdc',
     'multi-agent.mdc',
-    'linear-sync.mdc',
   ];
   let updated = 0;
   let upToDate = 0;
@@ -3668,13 +3294,8 @@ async function main() {
   );
   await writeGovernanceRules(cwd, 'mcp-usage.mdc', MCP_USAGE_TEMPLATE, written, skipped);
   await writeGovernanceRules(cwd, 'process-gates.mdc', PROCESS_GATES_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'governance.mdc', readBundledGovernanceMdc(), written, skipped);
   await writeGovernanceRules(cwd, 'security.mdc', SECURITY_MDC_TEMPLATE, written, skipped);
   await writeGovernanceRules(cwd, 'adr.mdc', ADR_MDC_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'memory-management.mdc', MEMORY_MANAGEMENT_MDC_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'debugging.mdc', DEBUGGING_MDC_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'multi-agent.mdc', MULTI_AGENT_MDC_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'linear-sync.mdc', LINEAR_SYNC_MDC_TEMPLATE, written, skipped);
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'PATHS.json'),
