@@ -59,7 +59,8 @@ A) Bridge (run in terminal from repository root — required unless I say I alre
    4. If the command fails: show me the output, suggest --run-hexcurse-raw or fixing .env / LM Studio, and stop. Do not pretend tasks exist.
 
 B) After A succeeds (or I explicitly said bridge already ran this session)
-   Run the full SESSION START sequence from HEXCURSE/AGENTS.md starting at STEP 1 (memory → Taskmaster → DIRECTIVES → repomix → sequential-thinking → plan → stop for my "Confirmed. Proceed."). Do not skip steps. Do not write code or create a branch before I confirm.
+   Run the full SESSION START sequence from HEXCURSE/AGENTS.md in order — including STEP 4a–4e (jcodemunch index, repomix --compress, semgrep baseline on last 5 modified files when semgrep is green, Linear sync if LINEAR_API_KEY set, PAMPA skill search), then scope confirm, 10-rule notice, sequential-thinking, plan, wait for my "Confirmed. Proceed.", then local git branch. See HEXCURSE/docs/MCP_COORDINATION.md for all 17 MCP servers. Do not skip steps. Do not write code before I confirm.
+   Refresh rules when needed: node "<path-to-setup.js>" --sync-rules (requires HEXCURSE_RULES_REMOTE_URL). Multi-agent: node "<path-to-setup.js>" --multi-agent.
 
 C) If **HEXCURSE/NORTH_STAR.md** (or legacy repo-root **NORTH_STAR.md**) still has a line that is **only** the placeholder **`NORTH_STAR_NOT_READY`** (standalone line under Vision), or is clearly empty, stop — tell me to fill the vision and remove/replace that line — do not run the bridge. (Mentioning the marker in prose does not count.)
 ```

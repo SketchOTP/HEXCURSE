@@ -40,6 +40,13 @@ Parent transcripts: `%USERPROFILE%\.cursor\projects\<project>\agent-transcripts\
 3. **Debounced skip:** If transcript delta qualifies but **`lastMemoryUpdaterRunDateUtc`** blocks a run, set **`pendingLearning`: true**; next session runs RULE 9 early (**SESSION_START_PROMPT**). Clear after a successful pass.
 4. **Incremental index** limits re-reads.
 
+## Skill indexing (PAMPA)
+
+After adding a new skill file under **`.cursor/skills/`**, run **PAMPA** indexing so the skill is semantically searchable in future sessions (e.g. **SESSION START** STEP 4e):
+
+- From repo root: **`HEXCURSE_DOCTOR_CI=1 node cursor-governance/setup.js --doctor`** — doctor warns if the PAMPA index is stale, or
+- Trigger re-index via the **pampa** MCP inside a Cursor session.
+
 ## Installer
 
 Re-running **cursor-governance** does not overwrite existing hook state (skip if present).
