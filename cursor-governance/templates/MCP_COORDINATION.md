@@ -11,20 +11,150 @@ This document is the **human-readable map** of how Cursor MCP servers and CLIs w
 
 The **ritual and MCP stack are the same**; only path prefixes change.
 
-## MCP stack — role, rule, and when to use it
+## Server inventory (17 MCP servers)
 
-| MCP / tool | `mcp-usage.mdc` | Role | Use it to |
-|------------|-----------------|------|-----------|
-| **memory** | RULE 2 | Durable project facts | **Session start:** query before reading DIRECTIVES / ARCHITECTURE. **During:** write immediately on discoveries. **Close:** confirm discoveries saved. Never overrides Taskmaster / DIRECTIVES / ARCHITECTURE / live tree. |
-| **taskmaster-ai** | RULE 1 | Task graph | **`get_tasks`** right after memory, before planning or code. **`set_task_status`** when a directive completes. **`expand_task`** when scope is too large. |
-| **repomix** | RULE 6 | Repo structure | **Once** at session start on an existing codebase (`repomix --compress`). Structural map — not for per-symbol work. |
-| **jcodemunch** | RULE 10 | Indexed local exploration | **After repomix** when code work is planned: `resolve_repo` / `index_folder` on the workspace root; `get_repo_outline`, `suggest_queries`. **During work:** `search_symbols`, `get_symbol_source`, `get_context_bundle`, `get_ranked_context`, `find_references`, `get_blast_radius`, `search_text`, etc. Complements **Serena** (discovery + impact vs symbol edits). Package: **`jcodemunch-mcp`**. |
-| **sequential-thinking** | RULE 3 | Plan quality | Before any **non-trivial implementation plan** shown to the human. Output: numbered plan with paths and symbols. |
-| **Serena** | RULE 4 | Code intelligence | **Before** touching code: `find_symbol`, `find_referencing_symbols`, targeted edits. Avoid whole-file reads when symbols suffice; >100-line `read_file` forbidden without human approval. |
-| **context7** | RULE 5 | Library truth | **Before every** external library / API call you are about to write. Training data is stale; context7 is not. |
-| **gitmcp** | RULE 7 | Niche upstream docs | Hardware SDKs, firmware, niche GitHub libs **not** well covered as mainstream context7 docs. |
-| **github** | RULE 8 (optional) | Remote GitHub API | **Not** for local branch or file discovery. Use only if the human wants a remote PR/issue or API query. Local branch: **git**; publish: **`git push`**. |
-| **agents-memory-updater** | RULE 9 | Continual learning | Human request; **governance** touch at close (no debounce); **transcript delta** + debounce via **continual-learning.json**. Optional **`node cursor-governance/setup.js --learning-rollup`**. See **`HEXCURSE/docs/CONTINUAL_LEARNING.md`**. |
+Canonical merge order and wiring: **`buildMcpServers()`** in **`cursor-governance/setup.js`**. Archival table: **`docs/directives/D-HEXCURSE-MCP-RECONCILE-003.md`**.
+
+| # | Server ID | Kind | Launch (summary) | Always on | Primary use |
+|---|-----------|------|------------------|-----------|-------------|
+| 1 | `taskmaster-ai` | stdio | `npx` **task-master-ai** | Yes | Task graph: **get_tasks**, **set_task_status**, **expand_task** |
+| 2 | `context7` | stdio | **@upstash/context7-mcp** | Yes | Live library / API docs — never trust training data for APIs |
+| 3 | `repomix` | stdio | **repomix --mcp** | Yes | One **compress** snapshot per session start |
+| 4 | `serena` | stdio | **serena-mcp-server** (**uvx**) | Yes | Symbol navigation and workspace edits |
+| 5 | `gitmcp` | URL | **gitmcp.io/docs** | Yes | Niche GitHub / SDK docs not covered by context7 |
+| 6 | `gitmcp-adafruit-mpu6050` | URL | **gitmcp.io** Adafruit MPU6050 | When hardware | Driver / sensor / register docs |
+| 7 | `sequential-thinking` | stdio | **@modelcontextprotocol/server-sequential-thinking** | Yes | Non-trivial plans before implementation |
+| 8 | `memory` | stdio | **@modelcontextprotocol/server-memory** | Yes | Durable facts; never overrides repo truth |
+| 9 | `github` | stdio | **@modelcontextprotocol/server-github** | Optional remote | PR / issue / API only when human asks — not local branch discovery |
+| 10 | `jcodemunch` | stdio | **jcodemunch-mcp** (**uvx**) | Yes | Index, outline, symbols, references, blast radius (**RULE 10**) |
+| 11 | `playwright` | stdio | **@playwright/mcp** | When UI work | E2E / browser verification |
+| 12 | `semgrep` | stdio | **semgrep-mcp** (**uvx**) | When coding | **security_check** after writes; gate before commit |
+| 13 | `sentry` | stdio | **@sentry/mcp-server** | When debugging | Issue / error context before deep source reads |
+| 14 | `firecrawl` | stdio | **firecrawl-mcp** | When researching | Scrape / fetch external docs and pages |
+| 15 | `linear` | stdio | **@mseep/linear-mcp** | When Linear enabled | Issues ↔ Taskmaster sync |
+| 16 | `pampa` | stdio | **node** + global **pampa** path | When skills matter | Semantic **`.cursor/skills/`** search |
+| 17 | `supabase` | URL | **mcp.supabase.com** | When using Supabase | Schema, RLS, Auth, Edge Functions |
+
+**Not counted in 17:** **agents-memory-updater** (Cursor **Task** subagent / **RULE 9**), **`task-master`** CLI — same ritual, different mechanism.
+
+### `mcp-usage.mdc` rule mapping
+
+| RULE | Server / topic |
+|------|----------------|
+| 1 | taskmaster-ai |
+| 2 | memory |
+| 3 | sequential-thinking |
+| 4 | Serena |
+| 5 | context7 |
+| 6 | repomix |
+| 7 | gitmcp |
+| 8 | Local git; github optional |
+| 9 | agents-memory-updater / continual learning |
+| 10 | jcodemunch |
+| 11 | gitmcp-adafruit-mpu6050 |
+| 12 | supabase |
+
+## Invocation order within a session
+
+Align with **`AGENTS.md`** / **`docs/SESSION_START_PROMPT.md`** (pack: **`HEXCURSE/…`**).
+
+### SESSION START (typical order)
+
+1. **memory** — Cross-session context first (after NORTH_STAR / ROLLING / Taskmaster per **`AGENTS.md`** step order).
+2. **taskmaster-ai** — **get_tasks**; report active + next queued.
+3. **DIRECTIVES** — Read from disk; reconcile with Taskmaster.
+4. **jcodemunch** — **STEP 4a:** index / outline / **suggest_queries**.
+5. **repomix** — **STEP 4b:** **--compress** once.
+6. **semgrep** — **STEP 4c:** baseline on last 5 modified files when available.
+7. **linear** — **STEP 4d:** **In Progress** issues when **LINEAR_API_KEY** set.
+8. **pampa** — **STEP 4e:** skill search.
+9. **sequential-thinking** — Full plan; then human **Confirmed. Proceed.** then **local git** branch.
+
+### DURING IMPLEMENTATION (on trigger)
+
+| Trigger | Server |
+|---------|--------|
+| Any library API | **context7** |
+| UI change | **playwright** |
+| Runtime / Sentry-linked error | **sentry** |
+| External research | **firecrawl** (+ context7 for libs) |
+| DB / Supabase | **supabase** |
+| Human asked remote GitHub | **github** |
+| Niche upstream / hardware docs | **gitmcp** / **gitmcp-adafruit-mpu6050** |
+| Multi-step reasoning | **sequential-thinking** |
+| Code discovery / impact | **jcodemunch** |
+| Symbol edit | **Serena** |
+| New fact | **memory** |
+
+### SESSION CLOSE (typical order)
+
+1. **git** — Diff / scope check.
+2. **semgrep** — Final **security_check** on all modified source files (**process-gates.mdc**).
+3. **playwright** — If UI work: final pass on affected flows.
+4. **linear** — Done / create issues vs Taskmaster.
+5. **memory** — Confirm discoveries saved.
+6. **taskmaster-ai** — **set_task_status** etc.
+7. **SESSION_LOG** + MCP utilization report.
+8. **agents-memory-updater** when **RULE 9** applies; optional **`--learning-rollup`**.
+
+## Coordination patterns
+
+| Pattern | Flow |
+|---------|------|
+| Bug triage | **sentry** → **github** (search) → **semgrep** → **playwright** (verify fix) |
+| Research → implement | **firecrawl** + **context7** → **Serena** (insertion point) → **semgrep** |
+| Database feature | **supabase** (schema) → **Serena** → **semgrep** → **supabase** (verify) |
+| Hardware driver | **gitmcp-adafruit-mpu6050** → **Serena** → **semgrep** |
+| PR review | **github** (diff) → **semgrep** → **playwright** (E2E) |
+| Multi-agent | **taskmaster-ai** (claim) → **swarm-protocol** (locks) → **Serena** → **github** (PR) |
+
+## DEGRADED_MODE (17-server view)
+
+When a server is **red**, **missing**, or **tool calls fail**, state **`DEGRADED_MODE: <id> — <reason>`** before proceeding and list what you will **not** assume. See **`mcp-usage.mdc`** for the full policy.
+
+**Essential — session quality is severely degraded without these (get human or fix MCP):**
+
+- **taskmaster-ai**, **memory**, **Serena**, **context7**
+
+**Important — degrade gracefully; compensate with manual checks:**
+
+- **sequential-thinking**, **repomix**, **gitmcp**, **jcodemunch**, **semgrep**
+
+**Optional — continue with explicit gaps noted:**
+
+- **github** (remote), **playwright**, **sentry**, **firecrawl**, **linear**, **pampa**, **gitmcp-adafruit-mpu6050**, **supabase**
+
+**In DEGRADED_MODE:**
+
+- Log unavailable servers in **SESSION_LOG.md**.
+- Do not pretend a tool ran if it did not.
+- **Do not commit** changed source without **semgrep** unless **semgrep** is explicitly unavailable — then **document the exception** in **SESSION_LOG.md** and the handoff.
+
+## Token budget
+
+Each active MCP adds roughly **500–1000** tokens of tool-description overhead per agent turn. Prefer disabling session-conditional servers in **`~/.cursor/mcp.json`** when you will not use them.
+
+| Server | Always needed | When to disable |
+|--------|---------------|-----------------|
+| taskmaster-ai | Yes | Never |
+| memory | Yes | Never |
+| sequential-thinking | Yes | Never |
+| github | Core ritual | Read-only sessions with no remote ops |
+| context7 | Yes | Never (when writing code with deps) |
+| serena | Yes | Never (when editing code) |
+| repomix | Yes | Never (existing codebases) |
+| gitmcp | Yes | Rarely |
+| jcodemunch | Yes | Never (when touching code) |
+| gitmcp-adafruit-mpu6050 | Project | Non-hardware sessions |
+| supabase | When using Supabase | Frontend-only / no DB |
+| playwright | When UI work | Backend-only |
+| semgrep | When writing code | Read-only research |
+| sentry | When debugging errors | Greenfield |
+| firecrawl | When researching | Air-gapped |
+| linear | When using Linear | Teams not on Linear |
+| pampa | When searching skills | Minimal first sessions |
+
+Full notes: **`docs/MCP_TOKEN_BUDGET.md`** (pack: **`HEXCURSE/docs/MCP_TOKEN_BUDGET.md`**).
 
 **CLI:** **`task-master`** (Taskmaster) is used with MCP; align **`.taskmaster/config.json`** with your local LLM (e.g. LM Studio) per **`docs/ARCHITECTURE.md`** (pack: **`HEXCURSE/docs/ARCHITECTURE.md`**).
 
@@ -33,34 +163,17 @@ The **ritual and MCP stack are the same**; only path prefixes change.
 - **Taskmaster** (`task-master` CLI / taskmaster-ai MCP) talks to an **HTTP** LLM provider (LM Studio OpenAI-compatible, Anthropic, OpenAI, **`task-master models --openai-compatible --baseURL …`**, etc.). It does **not** embed the [Cursor headless](https://cursor.com/docs/cli/headless) agent process.
 - **[Cursor CLI auth](https://cursor.com/docs/cli/reference/authentication.md)** (`agent login`, `agent status`, optional `CURSOR_API_KEY`) applies to **`agent`** (including headless `agent -p`). To **gate** the NORTH_STAR bridge so `parse-prd` runs only after CLI login, set **`HEXCURSE_PREFLIGHT_CURSOR_AGENT=1`** (runs `agent status` before `task-master parse-prd` in **`setup.js --run-hexcurse` / `--run-hexcurse-raw`**), or run **`npm run preflight:cursor-agent`** / **`node cursor-governance/setup.js --preflight-cursor-agent`**.
 
-## Session timeline (implementation agent)
-
-Order matches **`AGENTS.md` SESSION START** and keeps tools coordinated:
-
-1. **memory** — Query all stored project facts.
-2. **taskmaster-ai** — `get_tasks`; report active + next queued.
-3. **DIRECTIVES** — Read and confirm sync with Taskmaster (resolve drift before coding).
-4. **repomix** — `repomix --compress` once for structure.
-4b. **jcodemunch** — Ensure local index (`resolve_repo` / `index_folder` on workspace root); `get_repo_outline` / `suggest_queries` when useful before planning deep code work.
-5. **sequential-thinking** — Full plan for the active directive; wait for **"Confirmed. Proceed."**
-6. **Local git** — Create branch (`git checkout -b D[NNN]-…` or use existing), then implementation begins. **github** MCP is **not** part of this step.
-
-**During work:** **jcodemunch** for ranked retrieval, outlines, references, blast radius, and multi-file search; **Serena** for symbol-level edits in the workspace; context7 before library calls; gitmcp when the dependency is niche; memory writes on discoveries. **Source of truth** is files **on disk** in the workspace — see **SOURCE OF TRUTH** in **`mcp-usage.mdc`**.
-
-**Session close (see `AGENTS.md`):** git diff → memory check → Taskmaster done → DIRECTIVES → SESSION_LOG → optional remote PR (**github** MCP **only if** the human asked) → **MCP utilization report** (used + not used with reasons) → **RULE 9** if applicable.
-
 ## Continual learning artifacts (skills, taxonomy, rollup)
 
-- **`HEXCURSE/docs/MEMORY_TAXONOMY.md`** — buckets and `[hexcurse:<bucket>]` tags for memory and **Learned Workspace Facts**.
-- **`.cursor/skills/`** — committed skills; **`skill-promotion-queue.json`** tracks promotion thresholds (**`HEXCURSE/docs/CONTINUAL_LEARNING.md`**).
-- **`docs/ROLLING_CONTEXT.md`** (repo root) — rollup target; **`setup.js --learning-rollup`** for deterministic **SESSION_LOG** append; optional LLM summary when **RULE 9** / stale **lastRollupAt**.
-- **Grounding:** **`path::symbol`** + **Serena** (and **jcodemunch** `search_symbols` / `get_symbol_source` when confirming across files) for durable code facts (taxonomy).
+- **`docs/MEMORY_TAXONOMY.md`** — fixed buckets and MCP tag convention for merges into memory and **`AGENTS.md`** **Learned Workspace Facts**.
+- **`.cursor/skills/`** — committed procedural memory (**`README.md`**, per-skill **`SKILL.md`**); promotion from **`skill-promotion-queue.json`** when a **`lessonKey`** hits threshold (see **`docs/CONTINUAL_LEARNING.md`**).
+- **`docs/ROLLING_CONTEXT.md`** — rolling consolidation; deterministic append via **`setup.js --learning-rollup`** (safe for OS cron); LLM summary optional when **RULE 9** runs and rollup is stale.
+- **Codebase grounding:** **invariant** / **gotcha** / **architecture** facts should cite **`path::symbol`**; use **Serena** and, when cross-file confirmation helps, **jcodemunch** (`search_symbols` / `get_symbol_source`) before persisting (see taxonomy + continual-learning procedure).
 
 ## Maximum usefulness (not “check the box”)
 
 - Use each MCP where it is **materially relevant**; if you skip one that is available and relevant, say **why** in the handoff and SESSION_LOG.
-- Do not substitute **guessing** or **bulk file reads** when the table above has a better tool.
-- **DEGRADED_MODE:** If a server is missing, red, or failing, state `DEGRADED_MODE: <mcp> — <reason>` and what you will **not** assume (see **`process-gates.mdc`**).
+- Do not substitute **guessing** or **bulk file reads** when this document and **`mcp-usage.mdc`** name a better tool.
 
 ## Related docs
 
