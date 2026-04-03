@@ -1470,6 +1470,36 @@ Full MCP stack, session timeline, and rule mapping: **\`docs/MCP_COORDINATION.md
 9. **Memory vs repo:** **Memory** does not override Taskmaster, DIRECTIVES, ARCHITECTURE, or the live tree.
 
 If any required MCP is missing or red in Cursor, announce **\`DEGRADED_MODE\`** and what you will not assume — do not silently skip.
+
+## Gate: Pre-commit security (semgrep)
+
+Before any **git commit** involving **source code** changes:
+
+1. Invoke **semgrep** MCP **\`security_check\`** on all modified source files.
+2. If **HIGH** or **CRITICAL** findings: **do not commit** — fix first.
+3. If **MEDIUM** findings: commit is permitted, but log findings in **SESSION_LOG.md** under **\`## Security Notes\`**.
+4. If **semgrep** is unavailable: note the exception in **SESSION_LOG.md** and proceed only with explicit human awareness.
+
+This gate is mandatory. It cannot be skipped for “small” changes.
+
+## Gate: Architectural decision (adr)
+
+Before implementing any **significant** architectural change:
+
+1. Write an ADR entry to **\`docs/ADR_LOG.md\`** (pack: **\`HEXCURSE/docs/ADR_LOG.md\`**) using the format in **\`adr.mdc\`**.
+2. The ADR should be written **before** implementation begins when practical — not only after merge.
+3. **Architectural** includes: new dependency, API contract change, data model change, new MCP server or external service, module boundary change, overriding **NORTH_STAR** / **DIRECTIVES** constraints.
+
+## Gate: Session close checklist
+
+Before ending any session, confirm:
+
+- [ ] **Taskmaster** task status updated
+- [ ] **Semgrep** final scan run on modified sources; **HIGH/CRITICAL** resolved or logged with exception
+- [ ] **Linear** issues synced if **LINEAR_API_KEY** is set
+- [ ] **ADR** written for any significant architectural decisions
+- [ ] **SESSION_LOG.md** entry written
+- [ ] **Memory** MCP updated with key learnings
 `;
 
 const MCP_USAGE_TEMPLATE = `---
@@ -1481,6 +1511,8 @@ alwaysApply: true
 # These are not suggestions. They are hardwired automatic behaviors.
 # Every rule below fires on its trigger condition without the human asking.
 # If you find yourself about to do something a rule covers — the rule wins.
+
+> **Token budget:** Each active MCP server adds roughly **500–1000** tokens of tool-description overhead per turn. See **\`docs/MCP_TOKEN_BUDGET.md\`** (pack: **\`HEXCURSE/docs/MCP_TOKEN_BUDGET.md\`**) for the full table and guidance on disabling session-conditional servers in **\`~/.cursor/mcp.json\`**.
 
 ## SOURCE OF TRUTH — workspace (disk)
 
@@ -1503,15 +1535,31 @@ HexCurse sessions must make **full, appropriate** use of available MCP tools. Ag
 6. **Serena** — Use symbol-aware tools for code navigation and edits instead of broad whole-file reading when applicable.
 7. **context7** — Use for external library/API/framework verification before relying on assumptions.
 8. **github** (optional) — Only when the human explicitly wants a GitHub PR, issue, or remote branch query; **not** for creating local branches or discovering files. Prefer **local git** (terminal) for branch/commit/push.
+9. **gitmcp** — Niche / firmware / hardware SDK docs not covered by context7 (RULE 7).
+10. **playwright** — After UI changes for verification when the server is available.
+11. **semgrep** — After substantive code writes and before commit (**process-gates.mdc**); **security_check** on touched files.
+12. **sentry** — On runtime errors / triage when configured; fetch issue context before deep source reads.
+13. **firecrawl** — External research when context7 and local docs are insufficient.
+14. **linear** — When Linear is in use; sync issues with Taskmaster at session boundaries.
+15. **pampa** — Semantic search over **\`.cursor/skills/\`** when skills may apply (**SESSION START** 4e).
+16. **gitmcp-adafruit-mpu6050** — MPU6050 / **Adafruit_MPU6050** work before driver code (RULE 11).
+17. **supabase** — Schema, RLS, Auth, Edge Functions when this project uses Supabase (RULE 12).
 
 ### Hard rule
 If an MCP tool is **available** and **materially relevant** to the task, the agent **must** use it. Skipping a relevant MCP requires an **explicit reason** in the session report (see Session-close requirement).
 
 ### Minimum expectations by task type
 - **Architecture / planning:** memory, taskmaster, repomix, **jcodemunch** (index + outline / suggest_queries on unfamiliar trees), sequential-thinking
-- **Implementation:** memory, taskmaster, **jcodemunch** (search, context bundles, impact / references as needed), Serena, context7 when libraries/APIs are involved
+- **Implementation:** memory, taskmaster, **jcodemunch** (search, context bundles, impact / references as needed), Serena, context7 when libraries/APIs are involved; **semgrep** after substantive code edits
+- **UI / frontend:** **playwright** for verification when the server is available
+- **Backend / database (Supabase):** **supabase** MCP for schema and policies — not raw terminal SQL when MCP can answer
+- **Security / commits:** **semgrep** before commit; resolve HIGH/CRITICAL
+- **Research:** **firecrawl** + context7 — do not trust training data for current APIs when tools are green
+- **Bug triage:** **sentry** before deep source reads when applicable; hypothesis-first per **debugging.mdc**
+- **Hardware / MPU6050:** **gitmcp-adafruit-mpu6050** before driver code
+- **Tracked work (Linear):** **linear** sync at close when **LINEAR_API_KEY** is set
 - **Governance sync:** memory, taskmaster; **local git** for branch/worktree; **github** MCP only if remote PR/issue actions are in scope
-- **Research / integration questions:** context7 first for supported libraries/docs, then targeted external lookup if still unresolved
+- **Research / integration questions:** context7 first for supported libraries/docs, then **firecrawl** / **gitmcp** if still unresolved
 
 ### Forbidden behavior
 - Starting implementation without **get_tasks**
@@ -1519,6 +1567,10 @@ If an MCP tool is **available** and **materially relevant** to the task, the age
 - Reading large code files end-to-end when **jcodemunch** retrieval or Serena symbol lookup would suffice
 - Skipping **jcodemunch** for multi-file discovery, impact analysis, or ranked context when it is green and the workspace is (or can be) indexed
 - Guessing library behavior without checking context7 when the dependency/API matters
+- **Relying on training data for library APIs when context7 is available**
+- **Committing code with unresolved HIGH/CRITICAL semgrep findings**
+- **Writing database queries without checking schema via supabase MCP** when Supabase is in use and the server is available
+- **Closing a session with Linear issues out of sync with Taskmaster** when Linear is in use
 - **Letting memory override repo-local sources of truth** for the active workspace (Taskmaster, DIRECTIVES, ARCHITECTURE, and the live codebase win over stale memory)
 
 ### Session-close requirement
@@ -1528,7 +1580,17 @@ Each governed session must state (**in the final handoff and in SESSION_LOG.md**
 
 ## DEGRADED_MODE (required when MCP is missing or unavailable)
 
-If a Cursor MCP server is **not configured**, **red**, or a tool call **fails**, you must state **\`DEGRADED_MODE: <which MCP> — <reason>\`** before proceeding, and list **what you will not do** without it (e.g. no claimed task order without taskmaster-ai). Do **not** silently substitute manual guessing for a mandatory tool. See also **\`process-gates.mdc\`**. **Exception:** missing **github** MCP is **not** DEGRADED_MODE for normal implementation — local git and disk are enough; use DEGRADED_MODE for **github** only if the human required a remote PR/issue this session and the server is unavailable.
+If a Cursor MCP server is **not configured**, **red**, or a tool call **fails**, you must state **\`DEGRADED_MODE: <which MCP> — <reason>\`** before proceeding, and list **what you will not do** without it (e.g. no claimed task order without taskmaster-ai). Do **not** silently substitute manual guessing for a mandatory tool. See also **\`process-gates.mdc\`** and **\`docs/MCP_COORDINATION.md\`** (pack: **\`HEXCURSE/docs/MCP_COORDINATION.md\`**).
+
+**Essential — quality severely degraded without:** **taskmaster-ai**, **memory**, **Serena**, **context7**.
+
+**Important — degrade gracefully:** **sequential-thinking**, **repomix**, **gitmcp**, **jcodemunch**, **semgrep**.
+
+**Optional — note gaps explicitly:** **github** (remote), **playwright**, **sentry**, **firecrawl**, **linear**, **pampa**, **gitmcp-adafruit-mpu6050**, **supabase**.
+
+**In DEGRADED_MODE:** log unavailable servers in **SESSION_LOG.md**; do not commit changed source without **semgrep** unless **semgrep** is explicitly unavailable — then document the exception in **SESSION_LOG.md** and the handoff.
+
+**Exception:** missing **github** MCP is **not** DEGRADED_MODE for normal implementation — local git and disk are enough; use DEGRADED_MODE for **github** only if the human required a remote PR/issue this session and the server is unavailable.
 
 ## RULE 1 — taskmaster-ai: task graph immediately after session-start memory
 AUTOMATIC: Immediately after the session-start **memory** query (RULE 2), and before
@@ -2406,7 +2468,30 @@ You are then **ready to start** — for daily work use **SESSION_START_PROMPT** 
 ## Start every implementation chat
 
 1. Paste **\`HEXCURSE/SESSION_START_PROMPT.md\`** at the top of the chat (or \`@\` the paths it lists). See **\`PATHS.json\`** in this folder for stable paths. (Or **\`ONE_PROMPT.md\`** after changing **\`NORTH_STAR.md\`**.)
-2. **MCP:** Cursor Settings → MCP — keep **memory**, **taskmaster-ai**, **sequential-thinking**, **jcodemunch** (\`jcodemunch-mcp\`), **Serena**, **context7**, **repomix**, **gitmcp**, **github**, and **agents-memory-updater** green when you rely on them.
+2. **MCP:** Cursor Settings → MCP — keep the **17 servers** you need green (see **Active governance rules** + **MCP quick reference** below and **\`docs/MCP_TOKEN_BUDGET.md\`**). **agents-memory-updater** is a Cursor **Task** subagent (RULE 9), not an \`mcp.json\` id.
+
+## Active governance rules (10 × \`.mdc\`)
+
+- **Always loaded:** \`base.mdc\`, \`mcp-usage.mdc\`, \`process-gates.mdc\`, \`governance.mdc\` (when editing directives / Taskmaster sync).
+- **When writing/editing source:** \`security.mdc\`, \`debugging.mdc\` (per globs/triggers).
+- **Architectural decisions:** \`adr.mdc\`.
+- **Large context / compaction:** \`memory-management.mdc\`.
+- **Multi-agent / worktrees:** \`multi-agent.mdc\` when **\`HEXCURSE_MULTI_AGENT=1\`** or **\`HEXCURSE/docs/MULTI_AGENT.md\`** governs the session.
+- **Linear in use:** \`linear-sync.mdc\`.
+
+## MCP quick reference (17 servers)
+
+**Core ritual:** \`taskmaster-ai\`, \`memory\`, \`sequential-thinking\`, \`context7\`, \`repomix\`, \`serena\`, \`gitmcp\`, \`jcodemunch\` — plus \`github\` when you need remote PR/issue/API (optional per **mcp-usage.mdc**).
+
+**Session-conditional:** \`playwright\`, \`semgrep\`, \`sentry\`, \`firecrawl\`, \`linear\`, \`pampa\`.
+
+**Project-specific:** \`gitmcp-adafruit-mpu6050\`, \`supabase\`.
+
+Full map: **\`docs/MCP_COORDINATION.md\`**.
+
+## New in v1.5.x
+
+Six new general MCPs (**playwright**, **semgrep**, **sentry**, **firecrawl**, **linear**, **pampa**); two URL MCPs (**gitmcp-adafruit-mpu6050**, **supabase**); six new \`.mdc\` rules (**security**, **adr**, **memory-management**, **debugging**, **multi-agent**, **linear-sync**); installer **\`--multi-agent\`** and **\`--sync-rules\`**.
 
 ## Architect / planning chats
 

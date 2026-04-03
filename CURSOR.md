@@ -13,12 +13,40 @@ See **`docs/ONE_PROMPT.md`** and **`cursor-governance/README.md`**. CLI paramete
 
 1. Paste **`docs/SESSION_START_PROMPT.md`** at the top of the chat (or `@` the paths it lists).
 2. Full agent rules: **`AGENTS.md`**.
-3. **MCP:** Cursor Settings → MCP — keep **memory**, **taskmaster-ai**, **sequential-thinking**, **jcodemunch** (`jcodemunch-mcp`), **Serena**, **context7**, **repomix**, **gitmcp**, **github**, and **agents-memory-updater** (names may vary slightly) **green** when you rely on them.
+3. **MCP:** Cursor Settings → MCP — keep the [**17 servers**](#mcp-quick-reference-17-servers) you need **green** (see also [`docs/MCP_TOKEN_BUDGET.md`](docs/MCP_TOKEN_BUDGET.md)). **agents-memory-updater** is a Cursor **Task** subagent (RULE 9), not an `mcp.json` id.
 
 ## MCP coordination (use the stack fully)
 
-- **Map:** [`docs/MCP_COORDINATION.md`](docs/MCP_COORDINATION.md) — each MCP’s role, rule number in **`mcp-usage.mdc`**, session order, and session-close reporting.
-- **Binding behavior:** **`.cursor/rules/mcp-usage.mdc`** + **`.cursor/rules/process-gates.mdc`** (short checklist).
+- **Map:** [`docs/MCP_COORDINATION.md`](docs/MCP_COORDINATION.md) — 17-server inventory, invocation order, coordination patterns, **DEGRADED_MODE**, token budget.
+- **Binding behavior:** **`.cursor/rules/mcp-usage.mdc`** + **`.cursor/rules/process-gates.mdc`** (short checklist + Semgrep / ADR gates).
+
+## Active governance rules (10 × `.mdc`)
+
+Same activation summary as **`docs/SESSION_START_PROMPT.md`** STEP 6:
+
+- **Always loaded:** `base.mdc`, `mcp-usage.mdc`, `process-gates.mdc`, `governance.mdc` (when editing directives / Taskmaster sync).
+- **When writing/editing source:** `security.mdc`, `debugging.mdc` (per globs/triggers).
+- **Architectural decisions:** `adr.mdc`.
+- **Large context / compaction:** `memory-management.mdc`.
+- **Multi-agent / worktrees:** `multi-agent.mdc` when **`HEXCURSE_MULTI_AGENT=1`** or **`docs/MULTI_AGENT.md`** / **`HEXCURSE/docs/MULTI_AGENT.md`** governs the session.
+- **Linear in use:** `linear-sync.mdc`.
+
+## MCP quick reference (17 servers)
+
+**Always-on for typical implementation sessions:** `taskmaster-ai`, `memory`, `sequential-thinking`, `context7`, `repomix`, `serena`, `gitmcp`, `jcodemunch` — plus `github` when you need remote PR/issue/API (optional per **`mcp-usage.mdc`**).
+
+**Session-conditional:** `playwright` (UI), `semgrep` (code + commits), `sentry` (errors), `firecrawl` (research), `linear` (tracked work), `pampa` (`.cursor/skills/` search).
+
+**Project-specific:** `gitmcp-adafruit-mpu6050` (MPU6050), `supabase` (Supabase backends).
+
+Details: [`docs/MCP_COORDINATION.md`](docs/MCP_COORDINATION.md) and [`docs/directives/D-HEXCURSE-MCP-RECONCILE-003.md`](docs/directives/D-HEXCURSE-MCP-RECONCILE-003.md).
+
+## New in v1.5.x
+
+- **Six** new general MCP servers: **playwright**, **semgrep**, **sentry**, **firecrawl**, **linear**, **pampa**.
+- **Two** project-specific URL servers: **gitmcp-adafruit-mpu6050**, **supabase**.
+- **Six** new `.mdc` rules: **security**, **adr**, **memory-management**, **debugging**, **multi-agent**, **linear-sync** (10 governance rules total with **base**, **mcp-usage**, **process-gates**, **governance**).
+- Installer flags **`--multi-agent`** (worktree / swarm scaffold) and **`--sync-rules`** (remote rule refresh); see [`docs/QUICK_COMMAND_REFERENCE.md`](docs/QUICK_COMMAND_REFERENCE.md).
 
 ## Strengthen compliance (human-side)
 
