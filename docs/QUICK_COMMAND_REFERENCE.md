@@ -44,6 +44,12 @@
 
 ## Memory
 
+### Seed memory MCP with project facts
+
+Run inside a Cursor session — invoke the **memory** MCP directly (e.g. `create_entities` / project facts), not from a headless shell:
+
+- Paste or follow the structured bullets in **`docs/MEMORY_SEED.md`**, or ask the agent: *Store the HexCurse project facts from MEMORY_SEED.md in memory using entity types project, server, rule, and ritual.*
+
 **Save a fact**
 > Write to memory MCP: '[fact to remember]'. Confirm it was saved.
 

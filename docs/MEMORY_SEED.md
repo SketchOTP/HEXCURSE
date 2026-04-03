@@ -15,3 +15,16 @@ After enabling the **memory** MCP in Cursor, ask the agent to run `write_memory`
 11. `Codebase grounding: for architecture/gotcha/invariant, attach path::symbol (e.g. cursor-governance/setup.js::runDoctor) after Serena find_symbol or path check.`
 
 Confirm each stored entry in session per **`AGENTS.md`** session-close checklist (legacy multi-step prompt archived at **`docs/archive/CURSOR_AGENT_SETUP_PROMPT_V2.md`**).
+
+## Seeded — 2026-04-03
+
+The following **memory** MCP entities were created in a Cursor session (D-007 Phase 2) via `create_entities`:
+
+| Entity | Category (`entityType`) | Contents |
+|--------|-------------------------|----------|
+| **HexCurse** | project | Package purpose, v1.6.1 target, GitHub URL, install commands, sacred constraints, tech/out-of-scope, MCP order, continual learning, semgrep Streamable HTTP |
+| **HexCurse MCP canonical 17** | server | One observation per canonical MCP id (stdio vs URL, primary use) |
+| **HexCurse rules mdc** | rule | Always-apply vs conditional `.mdc` rules, DEGRADED_MODE, memory vs repo truth |
+| **HexCurse session ritual** | ritual | Abbreviated SESSION START / SESSION CLOSE, semgrep pre-commit gate |
+
+Re-seed after major governance changes; merge duplicates in the graph manually if the same entity name already existed from an older session.
