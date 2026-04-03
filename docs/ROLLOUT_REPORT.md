@@ -18,7 +18,7 @@
 - **Notes:** `task-master parse-prd` failed (no `ANTHROPIC_API_KEY` / `PERPLEXITY_API_KEY`) — **ENVIRONMENT ISSUE**, installer continued. `spawn npm ENOENT` during task-master-ai self-update — **ENVIRONMENT ISSUE** (PATH when global CLI spawns `npm`).
 
 ## Phase 2 — MCP Servers
-- **Servers present:** `taskmaster-ai`, `context7`, `repomix`, `jcodemunch`, `serena`, `gitmcp`, `sequential-thinking`, `memory`, `github`, `playwright`, `semgrep`, `sentry`, `firecrawl`, `linear`, `pampa` (+ extras: `codemunch`, `Zapier`, `gitmcp-adafruit-mpu6050`).
+- **Servers present:** `taskmaster-ai`, `context7`, `repomix`, `jcodemunch`, `serena`, `gitmcp`, `sequential-thinking`, `memory`, `github`, `playwright`, `semgrep`, `sentry`, `firecrawl`, `linear`, `pampa` (+ extras: `Zapier`, `gitmcp-adafruit-mpu6050`). **Note:** `jcodemunch` (`jcodemunch-mcp` via `uvx`) is the indexed code MCP; there is no separate `codemunch` MCP server.
 - **Server launch / package checks (verbatim outcomes):**
   - **Playwright** `@playwright/mcp --help` → **EXIT 0**
   - **semgrep** `uvx semgrep-mcp --help` → **EXIT 0**

@@ -15,6 +15,7 @@ Procedural memory lives here as **repeatable playbooks** (Hermes-style “skills
 ```
 .cursor/skills/
 ├── README.md                 # this file
+├── supabase-postgres-best-practices/   # from `npx skills add supabase/agent-skills --agent cursor …`
 └── <kebab-topic>/
     └── SKILL.md              # required entry point for Cursor skills
 ```

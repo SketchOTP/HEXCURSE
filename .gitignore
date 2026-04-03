@@ -24,6 +24,9 @@ node_modules/
 # OS specific
 .DS_Store
 
+# Skills CLI default install path (skills add …); canonical copy lives under .cursor/skills/ when mirrored
+.agents/
+
 # Cursor hooks local state
 .cursor/hooks/state/
 
