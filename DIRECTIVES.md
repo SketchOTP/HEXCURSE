@@ -15,6 +15,7 @@
 - D-HEXCURSE-PRODUCT-STACK-005 (Taskmaster #4): Rebuild task graph from NORTH_STAR + prd.txt (agent-curated) ✓ 2026-04-03
 - D-HEXCURSE-PRODUCT-STACK-005 (Taskmaster #8): Confirm product stack in `docs/ARCHITECTURE.md` ✓ 2026-04-03
 - D-HEXCURSE-PRODUCT-STACK-005: Part B closed — `docs/TASK_GRAPH_SNAPSHOT.md`, cursor-governance **v1.5.9**, tasks #3/#4/#8 done ✓ 2026-04-03
+- D-HEXCURSE-AGENT-PARSE-006 (Taskmaster #16): `--parse-prd-via-agent` in `setup.js` — PRD → agent prompt, `--apply` writes `tasks.json`, doctor stub check, PATHS `agentParsePromptCache` — cursor-governance **v1.6.0** ✓ 2026-04-03
 
 ---
 
