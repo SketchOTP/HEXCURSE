@@ -249,6 +249,16 @@ Options:
   --run-hexcurse      NORTH_STAR bridge: AI-expand HEXCURSE/NORTH_STAR.md (legacy repo-root file still accepted) → .taskmaster/docs/prd.txt, parse-prd, sync DIRECTIVES Queued
   --run-hexcurse-raw  Same bridge but no AI (north star pasted as PRD body); still parse-prd + DIRECTIVES sync
   --preflight-cursor-agent  Run \`agent status\` only; exit 0 if Cursor CLI is authenticated (see HEXCURSE_PREFLIGHT_CURSOR_AGENT)
+  --parse-prd-via-agent   Generate tasks.json from PRD using the Cursor agent's
+                          own LLM — no outbound API call required from setup.js.
+                          Prints a structured prompt to stdout for pasting into
+                          the Cursor agent chat, then parses the agent response.
+
+    --prd=<path>          PRD file to read (default: .taskmaster/docs/prd.txt)
+    --out=<path>          tasks.json output path (default: .taskmaster/tasks/tasks.json)
+    --dry-run             Print prompt and schema only, do not write tasks.json
+    --apply=<path>        Read agent JSON response from file and write to tasks.json
+
   --quick, -q         Non-interactive install (requires GitHub token in env or ~/.cursor/mcp.json)
   --preset=<name>     With --quick: lmstudio | anthropic | openai (default lmstudio). Or set HEXCURSE_PRESET.
 
@@ -277,7 +287,7 @@ Run from your target repository root with no flags to start the interactive inst
 `);
 }
 
-/** Returns 'install' | 'help' | 'version' | 'doctor' | 'refresh-rules' | 'multi-agent' | 'sync-rules' | 'learning-rollup' | 'run-hexcurse' | 'run-hexcurse-raw' | 'preflight-cursor-agent'. */
+/** Returns 'install' | 'help' | 'version' | 'doctor' | 'refresh-rules' | 'multi-agent' | 'sync-rules' | 'learning-rollup' | 'run-hexcurse' | 'run-hexcurse-raw' | 'preflight-cursor-agent' | 'parse-prd-via-agent'. */
 function parseSetupArgv(argv) {
   const flags = new Set(argv.slice(2).filter((a) => a.startsWith('-')));
   if (flags.has('--help') || flags.has('-h')) return 'help';
@@ -288,9 +298,22 @@ function parseSetupArgv(argv) {
   if (flags.has('--sync-rules')) return 'sync-rules';
   if (flags.has('--learning-rollup')) return 'learning-rollup';
   if (flags.has('--preflight-cursor-agent')) return 'preflight-cursor-agent';
+  if (flags.has('--parse-prd-via-agent')) return 'parse-prd-via-agent';
   if (flags.has('--run-hexcurse-raw')) return 'run-hexcurse-raw';
   if (flags.has('--run-hexcurse')) return 'run-hexcurse';
   return 'install';
+}
+
+/** Parse --prd, --out, --dry-run, --apply for --parse-prd-via-agent mode. */
+function parseParsePrdViaAgentArgv(argv) {
+  const args = { prd: null, out: null, 'dry-run': false, apply: null };
+  for (const a of argv.slice(2)) {
+    if (a === '--dry-run') args['dry-run'] = true;
+    else if (a.startsWith('--prd=')) args.prd = a.slice('--prd='.length);
+    else if (a.startsWith('--out=')) args.out = a.slice('--out='.length);
+    else if (a.startsWith('--apply=')) args.apply = a.slice('--apply='.length);
+  }
+  return args;
 }
 
 /** True when argv includes --dry-run (for --sync-rules). */
@@ -4548,6 +4571,10 @@ async function main() {
   }
   if (mode === 'doctor') {
     runDoctor(process.cwd());
+    return;
+  }
+  if (mode === 'parse-prd-via-agent') {
+    await runParsePrdViaAgent(process.cwd(), parseParsePrdViaAgentArgv(process.argv));
     return;
   }
   if (mode === 'multi-agent') {
