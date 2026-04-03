@@ -2,6 +2,27 @@
 
 All notable changes to **cursor-governance** are documented here.
 
+## [1.6.1] — 2026-04-03
+
+### Fixed
+
+- `semgrep` MCP updated from deprecated uvx/stdio to Streamable HTTP endpoint `https://mcp.semgrep.ai/mcp` (#6)
+- Windows PowerShell: ConPTY detection for doctor + test hook (#14)
+- Linux: pampa path resolution (`mcp-server.js` / `src/mcp-server.js`), sudo fallback for npm global install (#15)
+- setup.js parity: bundled templates match source `AGENTS.md`, `SESSION_START_PROMPT.md`, and `.mdc` files (#9)
+
+### Added
+
+- `docs/MCP_STATUS.md` — live status of all 17 MCP servers
+- `docs/SESSION_RITUAL_AUDIT.md` — governed session audit results
+- `docs/CONTINUAL_LEARNING_VALIDATION.md` — continual learning loop proof
+- `docs/SKILL_PROMOTION_GUIDE.md` — skill promotion criteria and PAMPA cadence
+- `docs/TOKEN_EFFICIENCY_PROTOCOL.md` — token measurement and trending protocol
+- Memory MCP seeded with project facts, constraints, servers, rules (#5)
+- `isWindowsConPTY()` helper + test (#14)
+- `SESSION_LOG.md` template fields for token estimates, tool calls, context efficiency (#12)
+- `AGENTS.md` SESSION CLOSE **STEP 14** — explicit four-criteria skill promotion checklist (#11)
+
 ## [1.6.0] — 2026-04-03
 
 ### Added
