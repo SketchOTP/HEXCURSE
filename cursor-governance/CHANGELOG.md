@@ -2,6 +2,26 @@
 
 All notable changes to **cursor-governance** are documented here.
 
+## [1.5.8] — 2026-04-02
+
+### Changed
+
+- `AGENTS.md` — complete rewrite for 17-server / 10-rule world; SESSION START steps **4a–4e**; DURING IMPLEMENTATION tool triggers; SESSION CLOSE expanded; **Forbidden** / **Mandatory order** aligned with **`mcp-usage.mdc`**
+- `docs/SESSION_START_PROMPT.md` — rewrite with steps **4a–4e** and 10-rule activation notice
+- `docs/MCP_COORDINATION.md` — full rewrite; 17-server table; invocation order by session phase; coordination patterns; **DEGRADED_MODE** tiers; token budget section
+- `CURSOR.md` — 10-rule reference, 17-server quick ref, **New in v1.5.x**
+- `.cursor/rules/process-gates.mdc` — Semgrep pre-commit gate, ADR gate, session-close checklist (**`PROCESS_GATES_TEMPLATE`** in **`setup.js`**)
+- `.cursor/rules/mcp-usage.mdc` — **DEGRADED_MODE** 17-server tiers, token budget notice, MCP order **1–17**, RULE **11–12**, expanded minimum expectations (**`MCP_USAGE_TEMPLATE`**)
+- `docs/ARCHITECTURE.md` — 17-server MCP coverage, rules table, **v1.5.x** maintainer summary
+- `docs/QUICK_COMMAND_REFERENCE.md` — **v1.5.x** CLI commands (**`--sync-rules`**, **`--multi-agent`**, PAMPA / doctor)
+- `docs/PROJECT_OVERVIEW.md` — **§6** 17-server **`buildMcpServers`** table, **§10–11** templates/rules, **§23** install writes, **§25** merge count, **§33** directive history; installer version **1.5.8**
+- `cursor-governance/templates/` — **`ONE_PROMPT.md`**, **`HEADLESS_KICKOFF.txt`**, **`CONTINUAL_LEARNING.pack.md`**, **`MCP_COORDINATION.md`** updated for **v1.5.x**
+- **`agentsMd()`**, **`sessionStartMd()`**, **`cursorPackMd()`** — synced with source markdown
+
+### Added
+
+- `cursor-governance/scripts/patch-agentsMd-from-root.mjs` — rebuild **`agentsMd()`** from root **`AGENTS.md`** with **`HEXCURSE/`** path mapping
+
 ## [1.5.7] — 2026-04-03
 
 ### Fixed
