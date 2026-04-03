@@ -16,6 +16,13 @@ HexCurse is a project workspace that uses Cursor agent governance, Taskmaster or
 | Code intelligence | Serena MCP | Symbol-level navigation and edits when source tree exists |
 | Indexed exploration | jcodemunch MCP (`jcodemunch-mcp`) | Tree-sitter index, outlines, ranked retrieval, references, blast radius — local workspace |
 | Snapshot | Repomix | Compressed repo overview for large codebases |
+| UI / E2E | Playwright MCP | Browser verification when UI changes |
+| Security scan | Semgrep MCP | Pre-commit **security_check** (**process-gates.mdc**) |
+| Errors / incidents | Sentry MCP | Issue context before deep source reads |
+| Web research | Firecrawl MCP | External docs and pages |
+| Issue tracking | Linear MCP | Sync with Taskmaster when enabled |
+| Skills search | Pampa MCP | Semantic **`.cursor/skills/`** search |
+| Supabase backends | Supabase MCP | Schema, RLS, Auth, Edge Functions |
 | Application runtime | TBD — confirm before implementing | Not yet selected |
 
 ## System Map
@@ -23,8 +30,9 @@ HexCurse is a project workspace that uses Cursor agent governance, Taskmaster or
 Human (scope / review / merge)
         │
         ▼
-Cursor Agent ◄──► MCP: Taskmaster, memory, sequential-thinking, jcodemunch, Serena,
-        │              context7, repomix, gitmcp, GitHub
+Cursor Agent ◄──► MCP (17 servers): taskmaster-ai, context7, repomix, serena, gitmcp,
+        │              gitmcp-adafruit-mpu6050, sequential-thinking, memory, github, jcodemunch,
+        │              playwright, semgrep, sentry, firecrawl, linear, pampa, supabase
         ▼
 Repo files: AGENTS.md, DIRECTIVES.md, docs/*, .cursor/rules/*, .taskmaster/*
         │
@@ -75,9 +83,46 @@ HexCurse/
 | Niche GitHub SDKs / firmware (when used) | **gitmcp** (per-repo URL entries) |
 | Public GitHub API / PRs (optional) | **github** MCP — remote PR/issue only; local **git** for branch / push |
 | Repo-wide structure | **repomix** CLI (`repomix --compress` once per session start) |
-| Transcript → memory / AGENTS | **agents-memory-updater** (subagent) per **RULE 9** and **`docs/CONTINUAL_LEARNING.md`** |
+| UI verification | **playwright** MCP — **During** / session close when UI touched |
+| Security gate | **semgrep** MCP — **During** after writes; **Close** on all modified sources |
+| Error triage | **sentry** MCP — **During** when debugging runtime issues |
+| External research | **firecrawl** MCP — **During** when scraping / fetching URLs |
+| Tracked work | **linear** MCP — **SESSION START** 4d / **Close** sync when **LINEAR_API_KEY** set |
+| Skill discovery | **pampa** MCP — **SESSION START** 4e |
+| MPU6050 / Adafruit driver | **gitmcp-adafruit-mpu6050** URL MCP — **During** hardware tasks |
+| Supabase project | **supabase** URL MCP — **During** DB / auth / RLS work |
+| Transcript → memory / AGENTS | **agents-memory-updater** (Task subagent) per **RULE 9** and **`docs/CONTINUAL_LEARNING.md`** |
 
-Single coordination map: **`docs/MCP_COORDINATION.md`**.
+Single coordination map: **`docs/MCP_COORDINATION.md`** (17-server inventory, invocation order, **DEGRADED_MODE**, token budget).
+
+## MCP servers by session phase (summary)
+
+| Phase | Typical servers |
+|-------|-----------------|
+| **SESSION START** | memory, taskmaster-ai, DIRECTIVES (disk), jcodemunch (4a), repomix (4b), semgrep (4c), linear (4d), pampa (4e), sequential-thinking |
+| **DURING** | jcodemunch, Serena, context7, gitmcp, playwright, semgrep, sentry, firecrawl, supabase, gitmcp-adafruit-mpu6050, memory |
+| **SESSION CLOSE** | git diff, semgrep, playwright (if UI), linear, memory, taskmaster-ai, SESSION_LOG, agents-memory-updater (RULE 9) |
+
+## Governance rules (10 × `.mdc`)
+
+| Rule file | `alwaysApply` | When it applies |
+|-----------|---------------|-----------------|
+| `base.mdc` | yes | Project constraints, sacred rules, stack summary |
+| `mcp-usage.mdc` | yes | MCP triggers, **DEGRADED_MODE**, RULE 1–12 |
+| `process-gates.mdc` | yes | Short checklist + Semgrep / ADR / session-close gates |
+| `governance.mdc` | varies | Directives / Taskmaster sync standards |
+| `security.mdc` | globs on source | Semgrep after code writes |
+| `adr.mdc` | globs | Architecture Decision Records |
+| `memory-management.mdc` | yes | Context pruning, compaction checkpoints |
+| `debugging.mdc` | globs | Hypothesis-first debugging |
+| `multi-agent.mdc` | globs | Worktrees / swarm when multi-agent enabled |
+| `linear-sync.mdc` | globs | Linear ↔ Taskmaster |
+
+Plus optional **`markdown.mdc`** and other project-specific rules as installed.
+
+## v1.5.x expansion (maintainer summary)
+
+Installer **v1.5.0+** added six general MCP servers (**playwright**, **semgrep**, **sentry**, **firecrawl**, **linear**, **pampa**), two URL servers (**gitmcp-adafruit-mpu6050**, **supabase**), six new `.mdc` templates, **`--multi-agent`**, and **`--sync-rules`**. **v1.5.7** reconciled canonical **17** servers in **`buildMcpServers()`** (see **`docs/directives/D-HEXCURSE-MCP-RECONCILE-003.md`**). **v1.5.8** aligned governance docs and generators (**D-HEXCURSE-DOCS-AUDIT-004**).
 
 **Governance parity (what rules claim vs what runs automatically):** **`docs/GOVERNANCE_PARITY.md`** (install pack: **`HEXCURSE/docs/GOVERNANCE_PARITY.md`**).
 
