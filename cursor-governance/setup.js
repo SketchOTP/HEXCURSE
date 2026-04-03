@@ -2819,7 +2819,11 @@ function mergeMcpJson(taskmasterEnv, githubToken) {
   return { mcpPath, added, kept };
 }
 
-/** Adds swarm-protocol MCP server to ~/.cursor/mcp.json when missing (non-destructive merge). */
+/**
+ * Removes a stale swarm-protocol MCP entry if it referenced the non-existent npm package
+ * `swarm-protocol-mcp` (never published). Does not add a replacement — use git worktrees +
+ * HEXCURSE/docs/MULTI_AGENT.md until a supported swarm MCP is published.
+ */
 function mergeSwarmProtocolMcpServerIfMissing() {
   const mcpPath = path.join(os.homedir(), '.cursor', 'mcp.json');
   let data = { mcpServers: {} };
@@ -2838,24 +2842,34 @@ function mergeSwarmProtocolMcpServerIfMissing() {
       return;
     }
   }
-  if (data.mcpServers['swarm-protocol']) {
-    console.log(chalk.dim('~/.cursor/mcp.json already defines swarm-protocol'));
+  const entry = data.mcpServers['swarm-protocol'];
+  const argsStr = entry && Array.isArray(entry.args) ? entry.args.join(' ') : '';
+  if (entry && argsStr.includes('swarm-protocol-mcp')) {
+    delete data.mcpServers['swarm-protocol'];
+    fs.ensureDirSync(path.dirname(mcpPath));
+    fs.writeFileSync(mcpPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+    if (process.platform !== 'win32') {
+      try {
+        fs.chmodSync(mcpPath, 0o600);
+      } catch (e) {
+        /* non-fatal */
+      }
+    }
+    console.log(
+      chalk.yellow('⚠'),
+      'Removed stale swarm-protocol MCP entry (`swarm-protocol-mcp` is not on npm). Coordination: git worktrees + AGENT_HANDOFFS.md per MULTI_AGENT.md.'
+    );
     return;
   }
-  data.mcpServers['swarm-protocol'] = {
-    command: 'npx',
-    args: ['-y', 'swarm-protocol-mcp'],
-  };
-  fs.ensureDirSync(path.dirname(mcpPath));
-  fs.writeFileSync(mcpPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
-  if (process.platform !== 'win32') {
-    try {
-      fs.chmodSync(mcpPath, 0o600);
-    } catch (e) {
-      /* non-fatal */
-    }
+  if (data.mcpServers['swarm-protocol']) {
+    console.log(chalk.dim('~/.cursor/mcp.json already defines swarm-protocol (custom) — left unchanged.'));
+    return;
   }
-  console.log(chalk.green('✓'), 'Added swarm-protocol to ~/.cursor/mcp.json');
+  console.log(
+    chalk.dim(
+      'Skipping swarm-protocol MCP: no supported public npm package bundled yet. Use git worktrees per HEXCURSE/docs/MULTI_AGENT.md.'
+    )
+  );
 }
 
 /** True when stdin is an interactive TTY (false for pipes — required for readline on Windows). */

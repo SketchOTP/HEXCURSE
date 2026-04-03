@@ -2,6 +2,12 @@
 
 All notable changes to **cursor-governance** are documented here.
 
+## [1.5.5] — 2026-04-03
+
+### Fixed
+
+- **`--multi-agent` / swarm MCP:** Stopped adding **`swarm-protocol-mcp`** to `~/.cursor/mcp.json` (package **does not exist** on npm). `--multi-agent` now **removes** stale entries that used `swarm-protocol-mcp` and prints guidance to use git worktrees + `MULTI_AGENT.md` instead.
+
 ## [1.5.4] — 2026-04-02
 
 ### Fixed
