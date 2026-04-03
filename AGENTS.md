@@ -1,6 +1,6 @@
 # Agents — HexCurse
 
-Governed **Cursor** workspace. Rules in **`.cursor/rules/`** load automatically; this file is the human-facing contract. Paste **`docs/SESSION_START_PROMPT.md`** first each chat (**this source repo**). Consumer installs: session-start path is under **`HEXCURSE/PATHS.json`** (**`paths.sessionStart`**).
+Governed **Cursor** workspace. Rules in **`.cursor/rules/`** load automatically; this file is the human-facing contract. Paste **`docs/SESSION_START.md`** first each chat (**this source repo**). Consumer installs: **`HEXCURSE/PATHS.json`** → **`paths.sessionStart`** (typically **`HEXCURSE/SESSION_START.md`**).
 
 ## Project context
 

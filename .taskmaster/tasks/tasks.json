@@ -106,7 +106,7 @@
       {
         "id": "9",
         "title": "Installer correctness: setup.js parity with AGENTS and GOVERNANCE_PARITY",
-        "description": "Keep merge, --doctor, --run-hexcurse, template embeds aligned with SESSION_START_PROMPT and embedded agentsMd/sessionStartMd.",
+        "description": "Keep merge, --doctor, --run-hexcurse, template embeds aligned with SESSION_START.md and embedded agentsMd/sessionStartMd.",
         "details": "Run HEXCURSE_DOCTOR_CI=1 doctor from repo root; npm run test:all in cursor-governance.",
         "testStrategy": "Doctor zero blocking; all tests green.",
         "status": "done",
@@ -204,7 +204,7 @@
       {
         "id": "13",
         "title": "Session ritual accuracy vs live MCP coordination",
-        "description": "Audit SESSION_START_PROMPT and AGENTS.md steps against docs/MCP_COORDINATION.md and actual mcp.json merge.",
+        "description": "Audit SESSION_START.md and AGENTS.md steps against docs/MCP_COORDINATION.md and actual mcp.json merge.",
         "details": "Ensure 4a–4e and server list match installer output; fix doc drift before shipping.",
         "testStrategy": "Checklist walkthrough of SESSION START without DEGRADED_MODE on core servers.",
         "status": "done",

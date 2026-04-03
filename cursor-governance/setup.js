@@ -876,8 +876,10 @@ function runDoctor(cwd) {
   const warn = [];
   const hexRoot = path.join(cwd, HEXCURSE_ROOT);
   const hexPaths = path.join(hexRoot, 'PATHS.json');
-  const legSess = path.join(cwd, 'docs', 'SESSION_START_PROMPT.md');
-  const hexSess = path.join(hexRoot, 'SESSION_START_PROMPT.md');
+  const legSess = path.join(cwd, 'docs', 'SESSION_START.md');
+  const legLegacy = path.join(cwd, 'docs', 'SESSION_START_PROMPT.md');
+  const hexSess = path.join(hexRoot, 'SESSION_START.md');
+  const hexLegacy = path.join(hexRoot, 'SESSION_START_PROMPT.md');
   const hexAgents = path.join(hexRoot, 'AGENTS.md');
   const rootAgents = path.join(cwd, 'AGENTS.md');
   const mcpPath = path.join(os.homedir(), '.cursor', 'mcp.json');
@@ -907,9 +909,11 @@ function runDoctor(cwd) {
     ok.push('No HEXCURSE/ folder — legacy layout (PATHS.json not required)');
   }
 
-  if (fs.existsSync(hexSess)) ok.push('HEXCURSE/SESSION_START_PROMPT.md present');
-  else if (fs.existsSync(legSess)) ok.push('Legacy docs/SESSION_START_PROMPT.md present');
-  else bad.push('No SESSION_START_PROMPT.md (HEXCURSE or docs/)');
+  if (fs.existsSync(hexSess)) ok.push('HEXCURSE/SESSION_START.md present');
+  else if (fs.existsSync(hexLegacy)) ok.push('HEXCURSE/SESSION_START_PROMPT.md present (legacy)');
+  else if (fs.existsSync(legSess)) ok.push('docs/SESSION_START.md present');
+  else if (fs.existsSync(legLegacy)) ok.push('Legacy docs/SESSION_START_PROMPT.md present');
+  else bad.push('No SESSION_START.md (HEXCURSE/ or docs/)');
 
   if (fs.existsSync(hexAgents)) ok.push('HEXCURSE/AGENTS.md present');
   else if (fs.existsSync(rootAgents)) ok.push('Root AGENTS.md present');
@@ -1485,7 +1489,7 @@ TBD — fill in after first planning session
 │   ├── AGENTS.md
 │   ├── DIRECTIVES.md
 │   ├── SESSION_LOG.md
-│   ├── SESSION_START_PROMPT.md
+│   ├── SESSION_START.md
 │   ├── docs/
 │   │   ├── ARCHITECTURE.md      # This file (after install)
 │   │   ├── ARCH_PROMPT.md
@@ -1537,13 +1541,13 @@ ${dod}
 function cursorPackMd(projectName) {
   return `# Cursor — ${projectName}
 
-Governance for this repo lives in **\`HEXCURSE/\`**. Use **\`NORTH_STAR.md\`**, **\`AGENTS.md\`**, **\`SESSION_START_PROMPT.md\`**, and **\`ONE_PROMPT.md\`** as entry points.
+Governance for this repo lives in **\`HEXCURSE/\`**. Use **\`NORTH_STAR.md\`**, **\`AGENTS.md\`**, **\`SESSION_START.md\`**, and **\`ONE_PROMPT.md\`** as entry points.
 
 ## After install
 
 1. Restart Cursor so \`.cursor/rules\` and MCP reload.
 2. **Settings → MCP** — fix any red servers (tokens / paths).
-3. New Agent chat: paste **\`HEXCURSE/SESSION_START_PROMPT.md\`** (or follow **\`ONE_PROMPT.md\`**).
+3. New Agent chat: paste **\`HEXCURSE/SESSION_START.md\`** (or follow **\`ONE_PROMPT.md\`**).
 
 ## CLI (repo root)
 
@@ -1562,7 +1566,7 @@ function cursorModesMd() {
 ## Agent (implementation)
 
 - Writing code, running tests, editing files under an approved task.
-- Load **\`HEXCURSE/AGENTS.md\`** and paste **\`HEXCURSE/SESSION_START_PROMPT.md\`** at session start.
+- Load **\`HEXCURSE/AGENTS.md\`** and paste **\`HEXCURSE/SESSION_START.md\`** at session start.
 - Binding MCP behavior: **\`.cursor/rules/mcp-usage.mdc\`**.
 
 ## Ask / read-only
@@ -1635,13 +1639,13 @@ Edit this file to add detail, then re-run:
 `;
 }
 
-function readBundledSessionStartPackMd() {
-  return fs.readFileSync(path.join(__dirname, 'templates', 'SESSION_START_PROMPT.pack.md'), 'utf8');
+function readBundledSessionStartMd() {
+  return fs.readFileSync(path.join(__dirname, 'templates', 'SESSION_START.md'), 'utf8');
 }
 
 function sessionStartMd(projectName) {
   const name = String(projectName || 'Project').trim();
-  return readBundledSessionStartPackMd()
+  return readBundledSessionStartMd()
     .replace(/\{\{PROJECT_NAME\}\}/g, name)
     .replace(/\r\n/g, '\n');
 }
@@ -2501,7 +2505,7 @@ function pathsManifestObject(installerMeta) {
       agents: `${h}/AGENTS.md`,
       directives: `${h}/DIRECTIVES.md`,
       architecture: `${h}/docs/ARCHITECTURE.md`,
-      sessionStartPrompt: `${h}/SESSION_START_PROMPT.md`,
+      sessionStart: `${h}/SESSION_START.md`,
       pathsManifest: `${h}/PATHS.json`,
       packReadme: `${h}/README.md`,
       rulesCanonicalDir: `${h}/rules`,
@@ -2552,7 +2556,7 @@ AI workflow files for this repository live in **${HEXCURSE_ROOT}/**.
 ## After install
 
 1. Restart Cursor; fix any red MCP servers.
-2. Fill **\`NORTH_STAR.md\`**, then use **\`ONE_PROMPT.md\`** or paste **\`SESSION_START_PROMPT.md\`** in a new Agent chat.
+2. Fill **\`NORTH_STAR.md\`**, then use **\`ONE_PROMPT.md\`** or paste **\`SESSION_START.md\`** in a new Agent chat.
 3. Generate or refresh tasks: \`node path/to/cursor-governance/setup.js --parse-prd-via-agent\` (see **\`.cursor/hexcurse-installer.path\`** for \`path/to\`).
 
 ## Entry points
@@ -2562,7 +2566,7 @@ AI workflow files for this repository live in **${HEXCURSE_ROOT}/**.
 | Agent rules | [AGENTS.md](./AGENTS.md) |
 | Directives | [DIRECTIVES.md](./DIRECTIVES.md) |
 | Architecture | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) |
-| Session start | [SESSION_START_PROMPT.md](./SESSION_START_PROMPT.md) |
+| Session start | [SESSION_START.md](./SESSION_START.md) |
 | Cursor quick-start | [CURSOR.md](./CURSOR.md) |
 | Skills | [../.cursor/skills/README.md](../.cursor/skills/README.md) |
 | North star | [NORTH_STAR.md](./NORTH_STAR.md) |
@@ -2598,9 +2602,9 @@ function rootAgentsPointerMd(projectName) {
 | North star / PRD bridge | [${HEXCURSE_ROOT}/NORTH_STAR.md](${HEXCURSE_ROOT}/NORTH_STAR.md) |
 | Cursor quick-start | [${HEXCURSE_ROOT}/CURSOR.md](${HEXCURSE_ROOT}/CURSOR.md) |
 | Path manifest (for tools) | [${HEXCURSE_ROOT}/PATHS.json](${HEXCURSE_ROOT}/PATHS.json) |
-| Session start paste | [${HEXCURSE_ROOT}/SESSION_START_PROMPT.md](${HEXCURSE_ROOT}/SESSION_START_PROMPT.md) |
+| Session start paste | [${HEXCURSE_ROOT}/SESSION_START.md](${HEXCURSE_ROOT}/SESSION_START.md) |
 
-Open **${HEXCURSE_ROOT}/SESSION_START_PROMPT.md** and paste its block into a new Cursor chat (it \`@\`-mentions paths under \`${HEXCURSE_ROOT}/\`).
+Open **${HEXCURSE_ROOT}/SESSION_START.md** and paste its block into a new Cursor chat (it \`@\`-mentions paths under \`${HEXCURSE_ROOT}/\`).
 `;
 }
 
@@ -2934,7 +2938,7 @@ function buildQuickInstallAnswers(cwd, preset) {
   ).trim();
   const outOfScope = String(process.env.HEXCURSE_OUT_OF_SCOPE || 'TBD — confirm with human').trim();
   const dod = String(
-    process.env.HEXCURSE_DOD || 'Taskmaster parse-prd succeeds; SESSION_START prompt exists'
+    process.env.HEXCURSE_DOD || 'Taskmaster parse-prd succeeds; SESSION_START.md exists'
   ).trim();
 
   let taskmasterEnv = {};
@@ -3077,7 +3081,7 @@ function printSummary(written, skipped, cwd, mcpResult, answers) {
       `  3. Fill HEXCURSE/NORTH_STAR.md, then open ${path.join(HEXCURSE_ROOT, 'ONE_PROMPT.md')} — paste the fenced block as your only first message in a new chat.`
     );
   }
-  console.log(chalk.dim(`  Or: open ${path.join(HEXCURSE_ROOT, 'SESSION_START_PROMPT.md')} for the daily session-start block.`));
+  console.log(chalk.dim(`  Or: open ${path.join(HEXCURSE_ROOT, 'SESSION_START.md')} for the daily session-start block.`));
   console.log(
     chalk.dim(
       '  Tip: quick install  node setup.js --quick --preset=lmstudio  |  existing repo: set HEXCURSE_REPO_KIND=existing'
@@ -3372,7 +3376,7 @@ async function main() {
   );
   await writeFileMaybeSkip(
     cwd,
-    path.join(HEXCURSE_ROOT, 'SESSION_START_PROMPT.md'),
+    path.join(HEXCURSE_ROOT, 'SESSION_START.md'),
     sessionStartMd(answers.projectName.trim()),
     written,
     skipped

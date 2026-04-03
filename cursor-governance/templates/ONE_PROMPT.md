@@ -47,7 +47,7 @@ Open a **new Cursor Agent** chat with this repo as the workspace. Paste **everyt
 ### Paste this block only (first message)
 
 ```
-@HEXCURSE/NORTH_STAR.md @HEXCURSE/CURSOR.md @HEXCURSE/AGENTS.md @HEXCURSE/PATHS.json @HEXCURSE/SESSION_START_PROMPT.md
+@HEXCURSE/NORTH_STAR.md @HEXCURSE/CURSOR.md @HEXCURSE/AGENTS.md @HEXCURSE/PATHS.json @HEXCURSE/SESSION_START.md
 
 HEXCURSE full kickoff — I finished HEXCURSE/NORTH_STAR.md.
 
@@ -74,6 +74,6 @@ C) If **HEXCURSE/NORTH_STAR.md** (or legacy repo-root **NORTH_STAR.md**) still h
 | **A** | AI-expands **NORTH_STAR** → **`.taskmaster/docs/prd.txt`**, **`task-master parse-prd`**, syncs **`HEXCURSE/DIRECTIVES.md`** **`## 📋 Queued`**. |
 | **B** | Normal HexCurse session start so the first directive is planned with MCP discipline. |
 
-**No AI for the bridge?** Run in terminal yourself: `node "<path-to>/setup.js" --parse-prd-via-agent` then paste **HEXCURSE/SESSION_START_PROMPT.md** in a new chat (or use headless with the same kickoff body after editing step A manually).
+**No AI for the bridge?** Run in terminal yourself: `node "<path-to>/setup.js" --parse-prd-via-agent` then paste **HEXCURSE/SESSION_START.md** in a new chat (or use headless with the same kickoff body after editing step A manually).
 
 **Project:** {{PROJECT_NAME}}

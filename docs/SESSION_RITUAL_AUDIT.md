@@ -3,7 +3,7 @@
 **Cursor version:** (host — check Help → About in Cursor)  
 **HexCurse version:** 1.6.0 → 1.6.1 (D-007 omnibus in progress)
 
-Audit performed during the **D-HEXCURSE-OMNIBUS-007** implementation chat in `N:\HexCurse`. The human pasted the directive file path and execution rules rather than the full `docs/SESSION_START_PROMPT.md` block; the agent treated that as explicit scope and proceeded with directive-first execution.
+Audit performed during the **D-HEXCURSE-OMNIBUS-007** implementation chat in `N:\HexCurse`. The human pasted the directive file path and execution rules rather than the full `docs/SESSION_START.md` block; the agent treated that as explicit scope and proceeded with directive-first execution.
 
 ## STEP 0 — Read NORTH_STAR.md
 
@@ -19,7 +19,7 @@ Audit performed during the **D-HEXCURSE-OMNIBUS-007** implementation chat in `N:
 
 - taskmaster-ai MCP invoked: intermittently (`set-status` used after phases; explicit **get_tasks** at session open not shown in transcript)
 - Tasks loaded: yes (human enumerated tasks #5, #6, #9–#15)
-- Result: **gap** — STEP 3 **REQUIRED** line added to `docs/SESSION_START_PROMPT.md` / pack template / `AGENTS.md` so agents always call **get_tasks** even when the human names a directive
+- Result: **gap** — STEP 3 **REQUIRED** line added to `docs/SESSION_START.md` / pack template / `AGENTS.md` so agents always call **get_tasks** even when the human names a directive
 
 ## STEP 3 — Load memory MCP
 
@@ -70,5 +70,5 @@ Audit performed during the **D-HEXCURSE-OMNIBUS-007** implementation chat in `N:
 ## RECOMMENDATIONS
 
 1. Keep **STEP 3 REQUIRED** text (shipped in this omnibus).
-2. For large omnibus directives, human should paste `docs/SESSION_START_PROMPT.md` **or** explicitly waive ritual in chat.
+2. For large omnibus directives, human should paste `docs/SESSION_START.md` **or** explicitly waive ritual in chat.
 3. After substantive code edits, run **semgrep** `security_check` on touched files before commit (process gate).

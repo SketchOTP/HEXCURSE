@@ -1,6 +1,6 @@
 # Agents — {{PROJECT_NAME}}
 
-Governed **Cursor** workspace. Rules in **`.cursor/rules/`** load automatically; this file is the human-facing contract. Paste your repo’s **session-start** document first each chat; **`HEXCURSE/PATHS.json`** lists the path under **`paths`**.
+Governed **Cursor** workspace. Rules in **`.cursor/rules/`** load automatically; this file is the human-facing contract. Paste your repo’s **session-start** document first each chat; **`HEXCURSE/PATHS.json`** → **`paths.sessionStart`** (e.g. **`HEXCURSE/SESSION_START.md`**).
 
 ## Project context
 

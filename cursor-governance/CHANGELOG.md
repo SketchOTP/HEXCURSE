@@ -9,7 +9,11 @@ All notable changes to **cursor-governance** are documented here.
 - `semgrep` MCP updated from deprecated uvx/stdio to Streamable HTTP endpoint `https://mcp.semgrep.ai/mcp` (#6)
 - Windows PowerShell: ConPTY detection for doctor + test hook (#14)
 - Linux: pampa path resolution (`mcp-server.js` / `src/mcp-server.js`), sudo fallback for npm global install (#15)
-- setup.js parity: bundled templates match source `AGENTS.md`, `SESSION_START_PROMPT.md`, and `.mdc` files (#9)
+- setup.js parity: bundled templates match source `AGENTS.md`, `SESSION_START.md`, and `.mdc` files (#9)
+
+### Changed
+
+- Session-start pack: **`SESSION_START_PROMPT.pack.md`** → **`SESSION_START.md`**; install writes **`HEXCURSE/SESSION_START.md`**; **`PATHS.json`** key **`sessionStartPrompt`** → **`sessionStart`**. Legacy **`SESSION_START_PROMPT.md`** paths still satisfy **`--doctor`**.
 
 ### Added
 
@@ -61,7 +65,7 @@ All notable changes to **cursor-governance** are documented here.
 ### Changed
 
 - `AGENTS.md` — complete rewrite for 17-server / 10-rule world; SESSION START steps **4a–4e**; DURING IMPLEMENTATION tool triggers; SESSION CLOSE expanded; **Forbidden** / **Mandatory order** aligned with **`mcp-usage.mdc`**
-- `docs/SESSION_START_PROMPT.md` — rewrite with steps **4a–4e** and 10-rule activation notice
+- `docs/SESSION_START_PROMPT.md` — rewrite with steps **4a–4e** and 10-rule activation notice (file later renamed to **`SESSION_START.md`**)
 - `docs/MCP_COORDINATION.md` — full rewrite; 17-server table; invocation order by session phase; coordination patterns; **DEGRADED_MODE** tiers; token budget section
 - `CURSOR.md` — 10-rule reference, 17-server quick ref, **New in v1.5.x**
 - `.cursor/rules/process-gates.mdc` — Semgrep pre-commit gate, ADR gate, session-close checklist (**`PROCESS_GATES_TEMPLATE`** in **`setup.js`**)
@@ -266,7 +270,7 @@ All notable changes to **cursor-governance** are documented here.
 
 - **`NORTH_STAR.md`** template at repo root on install (**`templates/NORTH_STAR.md`**); **`PATHS.json`** key **`northStar`**.
 - **`--run-hexcurse`** / **`--run-hexcurse-raw`**: expand **NORTH_STAR.md** → **`.taskmaster/docs/prd.txt`** (OpenAI-compatible chat, same model/URL as Taskmaster main unless **`HEXCURSE_EXPAND_MODEL`** set), run **`task-master parse-prd`**, sync **`HEXCURSE/DIRECTIVES.md`** **`## 📋 Queued`** from **`tasks.json`**. Skips DIRECTIVES sync if no **`HEXCURSE/`** pack (e.g. HexCurse source repo).
-- **AGENTS.md** / **SESSION_START_PROMPT.md** templates: **run HEXCURSE** / STEP 0 bridge instructions; session start **`@NORTH_STAR.md`**.
+- **AGENTS.md** / **SESSION_START.md** templates: **run HEXCURSE** / STEP 0 bridge instructions; session start **`@NORTH_STAR.md`**.
 - **`--doctor`**: optional note when **`NORTH_STAR.md`** is missing.
 
 ## [1.2.3] — 2026-03-30

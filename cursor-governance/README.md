@@ -16,9 +16,9 @@
 1. **New project:** fill **`HEXCURSE/NORTH_STAR.md`** (remove the **standalone** placeholder line **`NORTH_STAR_NOT_READY`** when your vision is written). **Existing codebase path:** that file is usually already drafted — review it, then use Cursor MCPs (**memory**, **repomix**, **Serena**, etc.) to refine reality on disk (the installer cannot call Cursor MCPs itself).
 2. **Either** run the **[Cursor headless CLI](https://cursor.com/docs/cli/headless)** from repo root (`agent -p --model composer-2 --trust --workspace .` with **`HEXCURSE/HEADLESS_KICKOFF.txt`** — see **`HEXCURSE/ONE_PROMPT.md`** for bash/PowerShell), **or** open **`HEXCURSE/ONE_PROMPT.md`**, copy **only** the **in-IDE fenced** block, paste it as the **entire first message** in a **new Agent** chat. The agent runs **`node …/setup.js --run-hexcurse`** using **`.cursor/hexcurse-installer.path`**, then full session start.
 
-**Manual bridge (no Cursor Agent UI):** **`node <path-to>/cursor-governance/setup.js --run-hexcurse`** (or **`--run-hexcurse-raw`**) from repo root, then paste **`HEXCURSE/SESSION_START_PROMPT.md`** in a new chat (or use headless **`agent`** with **`HEADLESS_KICKOFF.txt`**).
+**Manual bridge (no Cursor Agent UI):** **`node <path-to>/cursor-governance/setup.js --run-hexcurse`** (or **`--run-hexcurse-raw`**) from repo root, then paste **`HEXCURSE/SESSION_START.md`** in a new chat (or use headless **`agent`** with **`HEADLESS_KICKOFF.txt`**).
 
-**Daily work** (no NORTH_STAR change): paste **`HEXCURSE/SESSION_START_PROMPT.md`** as message 1 as before.
+**Daily work** (no NORTH_STAR change): paste **`HEXCURSE/SESSION_START.md`** as message 1 as before.
 
 That’s it for setup: **no second installer**. Optional: copy **`.cursor/rules/process-gates.mdc`** into Cursor **User / Project** rules for stricter compliance.
 

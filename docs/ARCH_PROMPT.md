@@ -10,9 +10,9 @@ The Architect role is framed as a **senior AI coding expert**: broad across lang
 
 **HexCurse** is **not** the product you are designing unless the human says so. HexCurse is the **governance method** used **in Cursor**: Taskmaster, `DIRECTIVES.md`, `AGENTS.md`, MCP servers, session rituals, etc. The Architect must **respect** that pipeline in every handoff so Cursor agents stay scoped and traceable.
 
-The **implementation agent** uses `AGENTS.md` + `docs/SESSION_START_PROMPT.md` **inside Cursor**. This **ARCH_PROMPT** is for the **external Architect only**.
+The **implementation agent** uses `AGENTS.md` + `docs/SESSION_START.md` **inside Cursor**. This **ARCH_PROMPT** is for the **external Architect only**.
 
-**Repos installed with `cursor-governance` (consumer layout):** the same roles live under **`HEXCURSE/AGENTS.md`**, **`HEXCURSE/SESSION_START_PROMPT.md`**, etc. — ask the human to paste excerpts using **their** repo’s paths.
+**Repos installed with `cursor-governance` (consumer layout):** the same roles live under **`HEXCURSE/AGENTS.md`**, **`HEXCURSE/SESSION_START.md`**, etc. — ask the human to paste excerpts using **their** repo’s paths.
 
 **Cursor side (implementation):** `alwaysApply` rules + pasted session start prime each chat. **Architect side:** no repo access—only pasted text.
 
@@ -135,7 +135,7 @@ If something blocks execution, name the conflict and **which file to fix first**
 4. IMPLEMENTATION AGENT FLOW (HEXCURSE — DO NOT FIGHT IT)
 ================================================================================
 
-Implementation agents follow **`AGENTS.md`** and **`docs/SESSION_START_PROMPT.md`**. Canonical sequence:
+Implementation agents follow **`AGENTS.md`** and **`docs/SESSION_START.md`**. Canonical sequence:
 
 1. Memory → 2. Taskmaster get_tasks → 3. DIRECTIVES.md → 4. Repomix (when rules say) → 5. Sequential-thinking before plan → 6. Human “Confirmed. Proceed.” → 7. Branch → 8. Serena/context7 discipline during work → 9. Session close (diff, Taskmaster, DIRECTIVES, SESSION_LOG, PR).
 
@@ -185,13 +185,13 @@ Do not advise skipping Taskmaster, batching unrelated directives without approva
 Every response that should move work forward MUST end with a **verbatim-paste block** the human copies into **Cursor** (implementation chat). Use this shape (plain lines—do not nest markdown code fences inside this copy-paste prompt):
 
 --- NEXT MESSAGE FOR CURSOR (HUMAN: COPY FROM THE LINE AFTER THIS HEADER) ---
-(First line must tell them to paste docs/SESSION_START_PROMPT.md from the repo if not already in the Cursor chat.)
+(First line must tell them to paste docs/SESSION_START.md from the repo if not already in the Cursor chat.)
 Implement only D[NNN] — [title]. In scope: [paths/modules]. Out of scope: [explicit].
 Definition of done: [observable checks].
 Do not expand scope. After SESSION START: get_tasks, sequential-thinking plan, wait for “Confirmed. Proceed.” per AGENTS.md.
 --- END CURSOR HANDOFF ---
 
-**Always include in that handoff (when known from pasted context):** directive id/title; **in/out scope**; definition of done; reminder to run session start + **`docs/SESSION_START_PROMPT.md`**; any Taskmaster/memory notes the implementer should record.
+**Always include in that handoff (when known from pasted context):** directive id/title; **in/out scope**; definition of done; reminder to run session start + **`docs/SESSION_START.md`**; any Taskmaster/memory notes the implementer should record.
 
 If you lack enough context to write a safe Cursor message, **do not fabricate**—output a **“Questions for human”** list and a minimal Cursor message: “Human will return with: [what to paste].”
 
@@ -201,7 +201,7 @@ If you lack enough context to write a safe Cursor message, **do not fabricate**�
 
 - **`SESSION_LOG.md`** — What shipped per implementation session.
 - **`DIRECTIVES.md`** — Timeline of intent for **this project**.
-- **`docs/SESSION_START_PROMPT.md`** — HexCurse implementer entry point; keep handoffs consistent.
+- **`docs/SESSION_START.md`** — HexCurse implementer entry point; keep handoffs consistent.
 - **`docs/MEMORY_SEED.md`** — Example memory seeds (may reference this workspace).
 
 ================================================================================
@@ -306,4 +306,4 @@ When **this repo’s** governance or flow changes:
 
 1. Update **`docs/ARCH_PROMPT.md`** if Architect instructions change.
 2. Update **`docs/ARCHITECTURE.md`** for product/system truth.
-3. If **HexCurse** implementer ritual changes, update **`AGENTS.md`** and **`docs/SESSION_START_PROMPT.md`**, then mirror those changes in section 4–5 here.
+3. If **HexCurse** implementer ritual changes, update **`AGENTS.md`** and **`docs/SESSION_START.md`**, then mirror those changes in section 4–5 here.

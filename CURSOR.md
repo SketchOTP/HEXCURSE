@@ -11,7 +11,7 @@ See **`docs/ONE_PROMPT.md`** and **`cursor-governance/README.md`**. CLI paramete
 
 ## Start every implementation chat
 
-1. Paste **`docs/SESSION_START_PROMPT.md`** at the top of the chat (or `@` the paths it lists).
+1. Paste **`docs/SESSION_START.md`** at the top of the chat (or `@` the paths it lists).
 2. Full agent rules: **`AGENTS.md`**.
 3. **MCP:** Cursor Settings → MCP — keep the [**17 servers**](#mcp-quick-reference-17-servers) you need **green** (see also [`docs/MCP_TOKEN_BUDGET.md`](docs/MCP_TOKEN_BUDGET.md)). **agents-memory-updater** is a Cursor **Task** subagent (RULE 9), not an `mcp.json` id.
 
@@ -22,7 +22,7 @@ See **`docs/ONE_PROMPT.md`** and **`cursor-governance/README.md`**. CLI paramete
 
 ## Active governance rules (5 default × `.mdc`)
 
-Same activation summary as **`docs/SESSION_START_PROMPT.md`** STEP 6:
+See **`AGENTS.md`** and **`.cursor/rules/`** for full triggers. Summary:
 
 - **Always loaded:** `base.mdc`, `mcp-usage.mdc`, `process-gates.mdc`.
 - **When writing/editing source (globs):** `security.mdc`.
@@ -50,7 +50,7 @@ Details: [`docs/MCP_COORDINATION.md`](docs/MCP_COORDINATION.md) and [`docs/direc
 
 - **User / Project rules:** Cursor Settings → Rules — paste the same bullets as [`.cursor/rules/process-gates.mdc`](.cursor/rules/process-gates.mdc).
 - **MCP health:** Red or absent servers mean the agent cannot follow MCP-mandatory rules — expect **`DEGRADED_MODE`** in the reply.
-- **First message:** Prefer pasting **only** `docs/SESSION_START_PROMPT.md` first, then your task in a **second** message.
+- **First message:** Prefer pasting **only** `docs/SESSION_START.md` first, then your task in a **second** message.
 
 ## Architect / planning (outside Cursor)
 

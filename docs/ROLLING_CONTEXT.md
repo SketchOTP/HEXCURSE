@@ -63,7 +63,7 @@ _(Last 3 session block(s) from SESSION_LOG — deterministic rollup, no LLM.)_
 **Taskmaster Task ID:** 1–10 manually created (parse-prd skipped: no ANTHROPIC_API_KEY / PERPLEXITY_API_KEY in `.env`)
 **Branch:** (not created — documentation-only setup session)
 **Files modified:** `.taskmaster/config.json`, `DIRECTIVES.md`, `SESSION_LOG.md` (post-task creation)
-**Files created:** `.cursor/rules/*`, `docs/ARCHITECTURE.md`, `AGENTS.md`, `DIRECTIVES.md`, `SESSION_LOG.md`, `.taskmaster/docs/prd.txt`, `.taskmaster/tasks/tasks.json`, `.serena/memories/`, `docs/SESSION_START_PROMPT.md`, `docs/QUICK_COMMAND_REFERENCE.md`, `docs/MEMORY_SEED.md`, `docs/PART0_MCP_TEMPLATE.json`
+**Files created:** `.cursor/rules/*`, `docs/ARCHITECTURE.md`, `AGENTS.md`, `DIRECTIVES.md`, `SESSION_LOG.md`, `.taskmaster/docs/prd.txt`, `.taskmaster/tasks/tasks.json`, `.serena/memories/`, `docs/SESSION_START.md`, `docs/QUICK_COMMAND_REFERENCE.md`, `docs/MEMORY_SEED.md`, `docs/PART0_MCP_TEMPLATE.json`
 **Outcome:** COMPLETE
 **Blockers logged to memory:** no
 **PR opened:** no

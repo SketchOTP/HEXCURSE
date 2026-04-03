@@ -104,7 +104,7 @@ Verify every file below exists. Record PRESENT / ABSENT for each in your running
 - [ ] `HEXCURSE/DIRECTIVES.md`
 - [ ] `HEXCURSE/NORTH_STAR.md`
 - [ ] `HEXCURSE/SESSION_LOG.md`
-- [ ] `HEXCURSE/SESSION_START_PROMPT.md`
+- [ ] `HEXCURSE/SESSION_START.md`
 - [ ] `HEXCURSE/CURSOR.md`
 - [ ] `HEXCURSE/ONE_PROMPT.md`
 - [ ] `HEXCURSE/HEADLESS_KICKOFF.txt`

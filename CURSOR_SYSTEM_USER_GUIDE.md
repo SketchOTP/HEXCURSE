@@ -1,6 +1,6 @@
 # CURSOR AI CODING SYSTEM — USER GUIDE
 # Your complete manual for setting up and running the system.
-# Legacy AI prompt pack (archived): **docs/archive/CURSOR_AGENT_SETUP_PROMPT_V2.md** — use **AGENTS.md** + **docs/SESSION_START_PROMPT.md** (this repo) or **HEXCURSE/** (consumer installs) instead.
+# Legacy AI prompt pack (archived): **docs/archive/CURSOR_AGENT_SETUP_PROMPT_V2.md** — use **AGENTS.md** + **docs/SESSION_START.md** (this repo) or **HEXCURSE/** (consumer installs) instead.
 # ─────────────────────────────────────────────────────────────────────────────
 
 **HexCurse default:** Taskmaster (CLI + MCP) is configured for **LM Studio** with **qwen3.5-2b** (~**8000** token context) at `http://100.80.17.40:1234/v1` (OpenAI-compatible API; Tailscale/LAN host — set **`HEXCURSE_LM_STUDIO_BASE_URL`** or **`.env`** if yours differs). Keep that LM Studio server reachable when using `task-master parse-prd` or MCP task generation. If your model’s identifier in LM Studio differs from `qwen3.5-2b`, run `task-master models --set-main "<exact-id>" --lmstudio --baseURL http://100.80.17.40:1234/v1` (or your URL).
@@ -299,9 +299,9 @@ Rules in `.cursor/rules/` help, but Cursor cannot force MCP calls. These habits 
 
 2. **MCP panel** — Settings → MCP: keep the full HexCurse stack **green** when you depend on it: **memory**, **taskmaster-ai**, **sequential-thinking**, **Serena**, **context7**, **repomix**, **gitmcp**, **github**, **agents-memory-updater** (names may vary slightly in your config). Red or absent servers mean the agent cannot obey “always use MCP X.”
 
-3. **First message discipline** — Message 1 = paste **only** the session-start block from **`docs/SESSION_START_PROMPT.md`** (this HexCurse source repo) or **`HEXCURSE/SESSION_START_PROMPT.md`** (other repos after **`setup.js`**; see **`HEXCURSE/PATHS.json`**). Put your actual question in **message 2** so the startup ritual is not skipped.
+3. **First message discipline** — Message 1 = paste **only** the session-start block from **`docs/SESSION_START.md`** (this HexCurse source repo) or **`HEXCURSE/SESSION_START.md`** (other repos after **`setup.js`**; see **`HEXCURSE/PATHS.json`**). Put your actual question in **message 2** so the startup ritual is not skipped.
 
-4. **Canonical session start** — Use whichever file exists in **your** repo: **`docs/SESSION_START_PROMPT.md`** at repo root, or the install pack’s **`HEXCURSE/SESSION_START_PROMPT.md`** — they carry the same ritual; paths differ by layout only.
+4. **Canonical session start** — Use whichever file exists in **your** repo: **`docs/SESSION_START.md`** at repo root, or the install pack’s **`HEXCURSE/SESSION_START.md`** — they carry the same ritual; paths differ by layout only.
 
 5. **Coordination doc** — Read **`docs/MCP_COORDINATION.md`** once; it explains how every MCP lines up with **`.cursor/rules/mcp-usage.mdc`** and session start/close (pack repos: **`HEXCURSE/docs/MCP_COORDINATION.md`**).
 
@@ -320,9 +320,9 @@ STEP A — Open a brand new chat.
   Ctrl+L or Cmd+L opens a new chat.
 
 STEP B — Paste the Session Start Prompt.
-  **This HexCurse governance repo:** open **`docs/SESSION_START_PROMPT.md`** and copy the whole block from the `@` lines through the carry-over placeholder.
+  **This HexCurse governance repo:** open **`docs/SESSION_START.md`** and copy the whole block from the `@` lines through the carry-over placeholder.
 
-  **Other repos with a `HEXCURSE/` install pack:** open **`HEXCURSE/SESSION_START_PROMPT.md`** (see **`HEXCURSE/PATHS.json`**) and copy the same style of block.
+  **Other repos with a `HEXCURSE/` install pack:** open **`HEXCURSE/SESSION_START.md`** (see **`HEXCURSE/PATHS.json`**) and copy the same style of block.
 
   **Otherwise / generic setup:** open docs/archive/CURSOR_AGENT_SETUP_PROMPT_V2.md, find PART 2 — SESSION START PROMPT, and copy from  ════ PASTE BELOW THIS LINE ════  to  ════ END OF PASTE ════
 

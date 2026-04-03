@@ -40,7 +40,7 @@ If someone runs the **full interactive install** from this repo root, **`writeGo
 
 ### 2.2 Consumer layout (typical install target)
 
-- Single folder **`HEXCURSE/`** holds the pack: **`AGENTS.md`**, **`DIRECTIVES.md`**, **`PATHS.json`**, **`NORTH_STAR.md`**, **`SESSION_START_PROMPT.md`**, **`SESSION_LOG.md`**, **`CURSOR.md`**, **`ONE_PROMPT.md`**, **`HEADLESS_KICKOFF.txt`**, **`README.md`**, **`docs/*.md`**, **`rules/*.mdc`** (canonical copy).
+- Single folder **`HEXCURSE/`** holds the pack: **`AGENTS.md`**, **`DIRECTIVES.md`**, **`PATHS.json`**, **`NORTH_STAR.md`**, **`SESSION_START.md`**, **`SESSION_LOG.md`**, **`CURSOR.md`**, **`ONE_PROMPT.md`**, **`HEADLESS_KICKOFF.txt`**, **`README.md`**, **`docs/*.md`**, **`rules/*.mdc`** (canonical copy).
 - **`.cursor/rules/`** receives the **same** `.mdc` content as **`HEXCURSE/rules/`** when those files are first written.
 - Repo root **`AGENTS.md`** is a **pointer** to **`HEXCURSE/AGENTS.md`** (from **`rootAgentsPointerMd()`**).
 
@@ -71,7 +71,7 @@ Written to **`HEXCURSE/PATHS.json`** on install (skip if exists). **`schema`: `h
 | `directives` | `HEXCURSE/DIRECTIVES.md` |
 | `architecture` | `HEXCURSE/docs/ARCHITECTURE.md` |
 | `archPrompt` | `HEXCURSE/docs/ARCH_PROMPT.md` |
-| `sessionStartPrompt` | `HEXCURSE/SESSION_START_PROMPT.md` |
+| `sessionStart` | `HEXCURSE/SESSION_START.md` |
 | `sessionLog` | `HEXCURSE/SESSION_LOG.md` |
 | `pathsManifest` | `HEXCURSE/PATHS.json` |
 | `packReadme` | `HEXCURSE/README.md` |
@@ -410,7 +410,7 @@ Documents **`OPENAI_API_KEY`**, **`OPENAI_BASE_URL`** for LM Studio, optional **
 | **`PROJECT_OVERVIEW.md`** | This file |
 | **`QUICK_COMMAND_REFERENCE.md`** | Quick command reference |
 | **`ROLLING_CONTEXT.md`** | Rolling context — HexCurse |
-| **`SESSION_START_PROMPT.md`** | SESSION START PROMPT |
+| **`SESSION_START.md`** | Session-start paste (one screen) |
 
 ---
 
@@ -462,7 +462,7 @@ After **`mergeMcpJson`**, **`main()`** performs the following in order:
    - **`HEXCURSE/SESSION_LOG.md`**
    - **`.taskmaster/docs/prd.txt`** (**`prdTxt`** — may include existing-repo lead note)
    - **`.serena/memories/.gitkeep`**
-   - **`HEXCURSE/SESSION_START_PROMPT.md`**
+   - **`HEXCURSE/SESSION_START.md`**
    - **`AGENTS.md`** at repo root (**`rootAgentsPointerMd`**)
    - **`HEXCURSE/NORTH_STAR.md`** (draft from **`northStarDraftMd`** or **`readBundledNorthStarTemplate`**)
    - **`HEXCURSE/CURSOR.md`**
@@ -578,7 +578,7 @@ Use this as a checklist of **everything that commonly exists** in the HexCurse *
 | File | Role |
 |------|------|
 | **`docs/PART0_MCP_TEMPLATE.json`** | Example **`~/.cursor/mcp.json`** fragment for Taskmaster + friends; may differ from live **`buildMcpServers`** (e.g. older Serena **`--project-root`** — **HexCurse `AGENTS.md` / installer use `--project`**). |
-| **`CURSOR_SYSTEM_USER_GUIDE.md`** | Extended end-user manual; complements **`AGENTS.md`** / **`SESSION_START_PROMPT.md`**. |
+| **`CURSOR_SYSTEM_USER_GUIDE.md`** | Extended end-user manual; complements **`AGENTS.md`** / **`SESSION_START.md`**. |
 | **Root `NORTH_STAR.md`** | Legacy location; **`resolveNorthStarPathForRead`** prefers **`HEXCURSE/NORTH_STAR.md`** when present. |
 | **`cursor-governance/test-input.js`** | **`readline`** smoke test (**`npm run smoke:readline`** in **`cursor-governance`**). |
 
@@ -621,4 +621,4 @@ Committed baseline: **`project_name: "HexCurse"`**, **`languages: [typescript]`*
 
 ---
 
-*End of PROJECT OVERVIEW. For line-level behavior, read **`cursor-governance/setup.js`**; for agent session ritual, read **`AGENTS.md`** and **`docs/SESSION_START_PROMPT.md`**.*
+*End of PROJECT OVERVIEW. For line-level behavior, read **`cursor-governance/setup.js`**; for agent session ritual, read **`AGENTS.md`** and **`docs/SESSION_START.md`**.*
