@@ -133,8 +133,7 @@
             "details": "",
             "status": "pending",
             "dependencies": [],
-            "testStrategy": "",
-            "parentId": "undefined"
+            "testStrategy": ""
           },
           {
             "id": 2,
@@ -143,8 +142,7 @@
             "details": "",
             "status": "pending",
             "dependencies": [],
-            "testStrategy": "",
-            "parentId": "undefined"
+            "testStrategy": ""
           }
         ]
       },
@@ -167,8 +165,7 @@
             "details": "",
             "status": "pending",
             "dependencies": [],
-            "testStrategy": "",
-            "parentId": "undefined"
+            "testStrategy": ""
           },
           {
             "id": 2,
@@ -177,8 +174,7 @@
             "details": "",
             "status": "pending",
             "dependencies": [],
-            "testStrategy": "",
-            "parentId": "undefined"
+            "testStrategy": ""
           }
         ]
       },
@@ -234,35 +230,12 @@
         ],
         "priority": "high",
         "subtasks": []
-      },
-      {
-        "id": "16",
-        "title": "Add --parse-prd-via-agent mode to setup.js",
-        "description": "Generate tasks.json from PRD via agent LLM context instead of outbound Taskmaster API call. Eliminates LM Studio dependency for parse-prd step. See DIRECTIVES.md D-HEXCURSE-AGENT-PARSE-006.",
-        "details": "",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "high",
-        "subtasks": []
-      },
-      {
-        "id": "17",
-        "title": "Add --parse-prd-via-agent mode to setup.js",
-        "description": "Generate tasks.json from PRD via agent LLM context instead of outbound Taskmaster API call. Eliminates LM Studio dependency for parse-prd step. See DIRECTIVES.md D-HEXCURSE-AGENT-PARSE-006.",
-        "details": "",
-        "testStrategy": "",
-        "status": "cancelled",
-        "dependencies": [],
-        "priority": "high",
-        "subtasks": [],
-        "updatedAt": "2026-04-03T09:13:48.777Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-03T09:13:48.777Z",
-      "taskCount": 17,
+      "lastModified": "2026-04-03T09:20:00.000Z",
+      "taskCount": 15,
       "completedCount": 6,
       "tags": [
         "master"

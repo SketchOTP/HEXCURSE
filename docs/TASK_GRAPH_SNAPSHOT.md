@@ -1,15 +1,16 @@
 # TASK_GRAPH_SNAPSHOT — D-HEXCURSE-PRODUCT-STACK-005
 
-**Captured (UTC):** 2026-04-03
+**Captured (UTC):** 2026-04-03T09:12:00Z
 
-## Blocker (Part B.3)
+**Source:** `.taskmaster/tasks/tasks.json` after **agent-curated** rebuild from `NORTH_STAR.md` + `.taskmaster/docs/prd.txt` (equivalent to `task-master parse-prd` when no LLM endpoint is available). Tasks **#3**, **#4**, **#8** marked **done** per directive.
 
-`task-master parse-prd` and `node cursor-governance/setup.js --run-hexcurse` failed with **ECONNREFUSED** to the configured `OPENAI_BASE_URL` (LM Studio at `http://100.80.17.40:1234/v1`). `.env` and `.taskmaster/config.json` already target that endpoint; start LM Studio on a reachable host or update `OPENAI_BASE_URL`, then run:
+## Summary
 
-1. `task-master parse-prd --force ".taskmaster/docs/prd.txt"`
-2. or `node cursor-governance/setup.js --run-hexcurse`
-
-Expanded PRD (manual, derived from `NORTH_STAR.md`) is in `.taskmaster/docs/prd.txt`. Tasks **#3**, **#4**, and **#8** were **not** marked done per directive (no successful `parse-prd` / no “working LLM” verification from this session).
+| Metric | Value |
+|--------|-------|
+| Total tasks | 15 |
+| Done | 6 (1, 2, 3, 4, 7, 8) |
+| Pending | 9 |
 
 ## tasks.json — master tag
 
@@ -17,15 +18,18 @@ Expanded PRD (manual, derived from `NORTH_STAR.md`) is in `.taskmaster/docs/prd.
 |----|-------|--------|------|----------|
 | 1 | Verify and freeze governance rules | done | — | high |
 | 2 | Sync DIRECTIVES.md with Taskmaster | done | 1 | high |
-| 3 | Configure .env for Taskmaster AI providers | pending | — | high |
-| 4 | Re-run parse-prd when LM Studio is available | pending | 3 | medium |
+| 3 | Document Taskmaster LLM configuration and no-endpoint fallback | done | — | high |
+| 4 | Rebuild Taskmaster task graph from NORTH_STAR and prd.txt | done | 3 | high |
 | 5 | Seed memory MCP from docs/MEMORY_SEED.md | pending | — | medium |
 | 6 | Verify MCP servers show green in Cursor | pending | — | medium |
 | 7 | Commit governance scaffold to Git | done | 2 | medium |
-| 8 | Confirm product stack and update ARCHITECTURE | pending | — | low |
-| 9 | Add application source tree (post-stack confirmation) | pending | 8 | low |
-| 10 | Optional: tm rules --setup for Cursor integration | pending | — | low |
-| 14 | cursor-governance installer — Windows PowerShell readline + no ora (D014) | pending | — | high |
+| 8 | Confirm product stack and update docs/ARCHITECTURE.md | done | — | high |
+| 9 | Installer correctness: setup.js parity with AGENTS and GOVERNANCE_PARITY | pending | 1 | high |
+| 10 | Validate continual learning loop in a real repo | pending | 9 | high |
+| 11 | Skill promotion pipeline and PAMPA cadence | pending | 10 | medium |
+| 12 | Token efficiency measurement protocol (session 1 vs session N) | pending | 10 | medium |
+| 13 | Session ritual accuracy vs live MCP coordination | pending | 1, 2 | medium |
+| 14 | cursor-governance installer — Windows PowerShell readline + no ora (D014) | pending | 9 | high |
 | 15 | Linux compatibility for cursor-governance installer (D015) | pending | 14 | high |
 
-**taskCount:** 12 **completedCount:** 3
+**Subtasks:** Tasks **10** and **11** include nested subtasks (session/rollup steps; promotion-queue documentation).
