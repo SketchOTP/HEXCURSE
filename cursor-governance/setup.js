@@ -2758,6 +2758,7 @@ async function appendGitignoreLines(cwd) {
     '.cursor/hooks/state/',
     '.cursor/hexcurse-installer.path',
     '.env',
+    '.lightrag/',
   ];
   const gi = path.join(cwd, '.gitignore');
   let body = '';
@@ -3371,7 +3372,7 @@ async function main() {
     applyTaskmasterProviderFromEnvironment(answers);
     console.log(
       chalk.dim(
-        `Taskmaster / LLM for this install: provider=${answers.provider} (from environment — set OPENAI_*, ANTHROPIC_* before install if needed).`
+        `Taskmaster / LLM for this install: provider=${answers.provider} (from environment).`
       )
     );
   }
@@ -3387,13 +3388,12 @@ async function main() {
   const skipped = [];
   const refreshGovernance = await resolveRefreshGovernance(cwd, useQuick, process.argv);
   if (refreshGovernance) {
-    console.log(
-      chalk.cyan('↻'),
-      chalk.dim('Refreshing: overwriting existing HEXCURSE/* and mirrored rules where present.')
-    );
+    console.log(chalk.cyan('↻'), chalk.dim('Refreshing: overwriting existing governance files.'));
   }
 
-  console.log(chalk.bold('\nWriting governance files into:'), cwd, chalk.dim(`(${HEXCURSE_ROOT}/ pack + .cursor/rules mirror)`));
+  console.log(chalk.bold('\nWriting governance files into:'), cwd);
+
+  // 1. Five lean rules
   await writeGovernanceRules(
     cwd,
     'base.mdc',
@@ -3412,6 +3412,8 @@ async function main() {
   await writeGovernanceRules(cwd, 'process-gates.mdc', PROCESS_GATES_TEMPLATE, written, skipped, refreshGovernance);
   await writeGovernanceRules(cwd, 'security.mdc', SECURITY_MDC_TEMPLATE, written, skipped, refreshGovernance);
   await writeGovernanceRules(cwd, 'adr.mdc', ADR_MDC_TEMPLATE, written, skipped, refreshGovernance);
+
+  // 2. Governance files — v2 minimal set (14 files)
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'PATHS.json'),
@@ -3420,110 +3422,16 @@ async function main() {
     skipped,
     refreshGovernance
   );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'README.md'),
-    hexcurseReadmeMd(answers.projectName.trim()),
-    written,
-    skipped,
-    refreshGovernance
-  );
+
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'AGENTS.md'),
-    agentsMd(
-      answers.projectName.trim(),
-      answers.purpose.trim(),
-      answers.stack.trim(),
-      answers.sacred.trim()
-    ),
+    agentsMd(answers.projectName.trim(), answers.purpose.trim(), answers.stack.trim(), answers.sacred.trim()),
     written,
     skipped,
     refreshGovernance
   );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'DIRECTIVES.md'),
-    directivesMd(answers.projectName.trim()),
-    written,
-    skipped,
-    refreshGovernance
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'ARCHITECTURE.md'),
-    architectureMd(
-      answers.projectName.trim(),
-      answers.purpose.trim(),
-      answers.stack.trim(),
-      answers.outOfScope.trim(),
-      answers.dod.trim()
-    ),
-    written,
-    skipped,
-    refreshGovernance
-  );
-  const prdNotesLead =
-    answers.repoKind === 'existing' && answers.northStarDraftMd
-      ? 'Existing-repo install path: PRD fields were extracted from an auto-drafted NORTH_STAR (repomix snapshot + your model). Refine HEXCURSE/NORTH_STAR.md in Cursor with MCPs as needed.'
-      : '';
-  await writeFileMaybeSkip(
-    cwd,
-    path.join('.taskmaster', 'docs', 'prd.txt'),
-    prdTxt(
-      answers.projectName.trim(),
-      answers.purpose.trim(),
-      answers.stack.trim(),
-      answers.modules.trim(),
-      constraintsBullets,
-      answers.outOfScope.trim(),
-      answers.dod.trim(),
-      prdNotesLead
-    ),
-    written,
-    skipped,
-    refreshGovernance
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'SESSION_START.md'),
-    sessionStartMd(answers.projectName.trim()),
-    written,
-    skipped,
-    refreshGovernance
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    'AGENTS.md',
-    rootAgentsPointerMd(answers.projectName.trim()),
-    written,
-    skipped,
-    refreshGovernance
-  );
-  if (answers.repoKind === 'existing') {
-    let rootEntries;
-    try {
-      rootEntries = fs.readdirSync(cwd, { withFileTypes: true });
-    } catch (_) {
-      rootEntries = [];
-    }
-    for (const ent of rootEntries) {
-      if (!ent.isDirectory()) continue;
-      const n = ent.name;
-      if (n === '.git' || n === 'node_modules' || n === HEXCURSE_ROOT || n.startsWith('.')) continue;
-      const subPkg = path.join(cwd, n, 'package.json');
-      if (fs.existsSync(subPkg)) {
-        await writeFileMaybeSkip(
-          cwd,
-          path.join(n, 'AGENTS.md'),
-          subAgentsPointerMd(answers.projectName.trim(), n),
-          written,
-          skipped,
-          refreshGovernance
-        );
-      }
-    }
-  }
+
   const northStarBody =
     answers.northStarDraftMd && String(answers.northStarDraftMd).trim().length > 150
       ? `${String(answers.northStarDraftMd).trim()}\n`
@@ -3536,54 +3444,43 @@ async function main() {
     skipped,
     refreshGovernance
   );
+
   await writeFileMaybeSkip(
     cwd,
-    path.join(HEXCURSE_ROOT, 'CURSOR.md'),
-    cursorPackMd(answers.projectName.trim()),
+    path.join(HEXCURSE_ROOT, 'SESSION_START.md'),
+    sessionStartMd(answers.projectName.trim()),
     written,
     skipped,
     refreshGovernance
   );
+
   await writeFileMaybeSkip(
     cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'CURSOR_MODES.md'),
-    cursorModesMd(),
+    path.join(HEXCURSE_ROOT, 'ONE_PROMPT.md'),
+    readBundledOnePromptTemplate(answers.projectName.trim()),
     written,
     skipped,
     refreshGovernance
   );
+
   await writeFileMaybeSkip(
     cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'MCP_TOKEN_BUDGET.md'),
-    mcpTokenBudgetMd(),
+    path.join(HEXCURSE_ROOT, 'ADR_LOG.md'),
+    adrLogStubMd(answers.projectName.trim()),
     written,
     skipped,
     refreshGovernance
   );
+
   await writeFileMaybeSkip(
     cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'MULTI_AGENT.md'),
-    multiAgentMd(),
+    path.join(HEXCURSE_ROOT, 'README.md'),
+    hexcurseReadmeMd(answers.projectName.trim()),
     written,
     skipped,
     refreshGovernance
   );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'ADR_LOG.md'),
-    adrLogStubMd(answers.projectName),
-    written,
-    skipped,
-    refreshGovernance
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'AGENT_HANDOFFS.md'),
-    agentHandoffsStubMd(),
-    written,
-    skipped,
-    refreshGovernance
-  );
+
   await writeFileMaybeSkip(
     cwd,
     path.join('.cursor', 'skills', 'README.md'),
@@ -3592,6 +3489,7 @@ async function main() {
     skipped,
     refreshGovernance
   );
+
   await writeFileMaybeSkip(
     cwd,
     path.join('.cursor', 'skills', '_TEMPLATE_SKILL.md'),
@@ -3601,10 +3499,53 @@ async function main() {
     refreshGovernance
   );
 
-  await tryIndexSkillsWithPampa(cwd);
+  await writeFileMaybeSkip(
+    cwd,
+    path.join('.taskmaster', 'docs', 'prd.txt'),
+    prdTxt(
+      answers.projectName.trim(),
+      answers.purpose.trim(),
+      answers.stack.trim(),
+      answers.modules.trim(),
+      constraintsBullets,
+      answers.outOfScope.trim(),
+      answers.dod.trim(),
+      ''
+    ),
+    written,
+    skipped,
+    refreshGovernance
+  );
 
+  await writeFileMaybeSkip(
+    cwd,
+    'AGENTS.md',
+    rootAgentsPointerMd(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+
+  // Optional: LightRAG doc (only if selected)
+  if (Array.isArray(answers.selectedOptionals) && answers.selectedOptionals.includes('lightrag')) {
+    const lightragNote = `# LightRAG — ${answers.projectName.trim()}\n\nLightRAG indexes your codebase for semantic search.\nThe agent can query existing patterns before writing new code.\n\nIndex builds automatically on first use.\nRe-index after major refactors by restarting the LightRAG MCP server in Cursor settings.\n`;
+    await writeFileMaybeSkip(
+      cwd,
+      path.join(HEXCURSE_ROOT, 'LIGHTRAG.md'),
+      lightragNote,
+      written,
+      skipped,
+      refreshGovernance
+    );
+  }
+
+  // Optional: multi-agent docs (only if --multi-agent was run, not default install)
+  // These are written by runMultiAgentSetup(), not here.
+
+  // 3. Gitignore
   await appendGitignoreLines(cwd);
 
+  // 4. Taskmaster
   console.log(chalk.bold('\nTaskmaster …'));
   if (!runCmd(cwd, 'task-master init --yes', 'task-master init')) {
     console.warn(chalk.yellow('⚠ task-master init reported failure — continuing.'));
@@ -3619,33 +3560,20 @@ async function main() {
   const parseMode = String(process.env.HEXCURSE_PARSE_PRD || 'cursor').trim().toLowerCase();
   const tmEnvNonInteractive = { ...taskmasterChildEnv(answers), CI: '1' };
 
-  let parseOk = false;
   if (parseMode === 'skip') {
     console.log(chalk.dim('Skipping PRD→tasks (HEXCURSE_PARSE_PRD=skip).'));
   } else if (parseMode === 'taskmaster') {
-    console.log(
-      chalk.bold('\nParse PRD (task-master CLI) …'),
-      chalk.dim('(HEXCURSE_PARSE_PRD=taskmaster — uses your Taskmaster API keys / LM Studio)')
-    );
-    parseOk = runCmd(
+    const parseOk = runCmd(
       cwd,
       `task-master parse-prd --force -i "${prdRel}"`,
       'task-master parse-prd',
       tmEnvNonInteractive
     );
-    if (!parseOk) {
-      console.warn(chalk.yellow('⚠ task-master parse-prd reported failure — continuing.'));
-      console.warn(
-        chalk.dim(
-          '  Tip: configure models/keys, or unset HEXCURSE_PARSE_PRD to use Cursor agent (default) for PRD→tasks.'
-        )
-      );
-    }
+    if (!parseOk) console.warn(chalk.yellow('⚠ task-master parse-prd reported failure — continuing.'));
   } else {
-    parseOk = tryParsePrdWithCursorAgent(cwd, prdAbs, tasksJsonPath);
+    const parseOk = tryParsePrdWithCursorAgent(cwd, prdAbs, tasksJsonPath);
     if (!parseOk && answers.provider === 'lmstudio') {
-      console.log(chalk.dim('Falling back to task-master parse-prd (local LM Studio, non-interactive).'));
-      parseOk = runCmd(
+      runCmd(
         cwd,
         `task-master parse-prd --force -i "${prdRel}"`,
         'task-master parse-prd',
@@ -3653,19 +3581,12 @@ async function main() {
       );
     }
     if (!parseOk) {
-      console.warn(
-        chalk.yellow('⚠'),
-        'PRD→tasks not generated — install Cursor CLI so `agent` is on PATH, set HEXCURSE_PARSE_PRD=taskmaster to use task-master only, or use --preset=lmstudio for local fallback after Cursor agent fails.'
-      );
-      console.warn(
-        chalk.dim(
-          '  Default path uses Cursor subscription (composer-1.5); it does not bill OpenAI via task-master.'
-        )
-      );
+      console.warn(chalk.yellow('⚠'), 'PRD→tasks not generated — run --parse-prd-via-agent after install.');
     }
   }
   await seedPlaceholderTasksJsonIfMissing(cwd);
 
+  // 5. Finalize
   await writeInstallerPathFile(cwd);
   await writeOnePromptFile(cwd, answers.projectName.trim());
 
