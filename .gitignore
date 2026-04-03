@@ -36,6 +36,9 @@ node_modules/
 # Repomix output (can be large; may mirror repo contents)
 repomix-output.xml
 
+# Cached agent prompt from --parse-prd-via-agent (local only)
+.taskmaster/agent-parse-prompt.txt
+
 # Local clones for one-off analysis (not part of HexCurse)
 .scratch-claw-code/
 .scratch-*/

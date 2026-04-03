@@ -547,6 +547,12 @@ async function runParsePrdViaAgent(cwd, args) {
 
   const prompt = buildAgentParsePrompt(prdContent, outPath);
   printAgentParsePrompt(prompt, outPath, dryRun);
+  if (!dryRun) {
+    const cachePath = path.join(cwd, '.taskmaster', 'agent-parse-prompt.txt');
+    fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+    fs.writeFileSync(cachePath, prompt, 'utf8');
+    console.log(`✓ Prompt also saved to: ${cachePath}\n`);
+  }
 }
 
 /** Parse --sessions=N from argv (default 5). */
@@ -3813,6 +3819,7 @@ function pathsManifestObject(installerMeta) {
       governanceMdcActive: '.cursor/rules/governance.mdc',
       taskmasterRoot: '.taskmaster',
       prd: '.taskmaster/docs/prd.txt',
+      agentParsePromptCache: '.taskmaster/agent-parse-prompt.txt',
       serenaMemories: '.serena/memories',
       rootAgentsPointer: 'AGENTS.md',
       continualLearningGuide: `${h}/docs/CONTINUAL_LEARNING.md`,
@@ -4026,6 +4033,7 @@ async function tryIndexSkillsWithPampa(cwd) {
 async function appendGitignoreLines(cwd) {
   const lines = [
     'repomix-output.xml',
+    path.join('.taskmaster', 'agent-parse-prompt.txt'),
     path.join('.taskmaster', 'tasks', 'tasks.json'),
     path.join('.serena', 'project.local.yml'),
     '.cursor/hooks/state/',
