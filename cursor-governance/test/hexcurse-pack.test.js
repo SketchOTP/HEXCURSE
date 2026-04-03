@@ -22,6 +22,7 @@ const {
 } = setupMain.hexcursePaths;
 
 const { validateTaskmasterSchema, buildAgentParsePrompt } = setupMain.hexcurseAgentParseHooks;
+const { isWindowsConPTY } = setupMain.hexcursePlatformTestHooks;
 
 const setupJs = path.join(__dirname, '..', 'setup.js');
 
@@ -334,6 +335,11 @@ function testParsePrdViaAgentApplyStripsMarkdownFences() {
   assert.ok(out.includes('dry-run: tasks.json not written'), out);
 }
 
+function testIsWindowsConPTYBoolean() {
+  const v = isWindowsConPTY();
+  assert.strictEqual(typeof v, 'boolean');
+}
+
 function testLearningRollupWritesToHexPack() {
   const cwd = mkTmp();
   const hexDir = path.join(cwd, HEXCURSE_ROOT, 'docs');
@@ -388,6 +394,7 @@ function run() {
     ['buildAgentParsePrompt contains schema and PRD', testBuildAgentParsePromptContainsSchemaAndPrd],
     ['parse-prd-via-agent apply strips markdown fences', testParsePrdViaAgentApplyStripsMarkdownFences],
     ['learning rollup integration', testLearningRollupWritesToHexPack],
+    ['isWindowsConPTY returns boolean', testIsWindowsConPTYBoolean],
   ];
   let failed = 0;
   for (const [name, fn] of tests) {

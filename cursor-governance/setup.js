@@ -3143,6 +3143,14 @@ function stdinIsTTY() {
   return process.stdin.isTTY === true;
 }
 
+/** Heuristic: Windows Terminal / VS Code / ConEmu ConPTY (may affect readline behavior). */
+function isWindowsConPTY() {
+  return (
+    process.platform === 'win32' &&
+    !!(process.env.WT_SESSION || process.env.ConEmuPID || process.env.TERM_PROGRAM === 'vscode')
+  );
+}
+
 /**
  * Line-buffered prompts via Node readline (works in Windows PowerShell ConPTY;
  * enquirer/prompts raw-mode input often freezes on Enter there).
@@ -4688,6 +4696,11 @@ main.hexcurseRefreshRulesTestHooks = {
 main.hexcurseAgentParseHooks = {
   validateTaskmasterSchema,
   buildAgentParsePrompt,
+};
+
+/** Test-only: Windows ConPTY heuristic. See test/hexcurse-pack.test.js */
+main.hexcursePlatformTestHooks = {
+  isWindowsConPTY,
 };
 
 if (require.main === module) {
