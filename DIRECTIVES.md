@@ -14,6 +14,7 @@
 - D-HEXCURSE-PRODUCT-STACK-005 (Taskmaster #3): Document Taskmaster LLM + no-endpoint fallback (`.env.example`, `ARCHITECTURE`) ✓ 2026-04-03
 - D-HEXCURSE-PRODUCT-STACK-005 (Taskmaster #4): Rebuild task graph from NORTH_STAR + prd.txt (agent-curated) ✓ 2026-04-03
 - D-HEXCURSE-PRODUCT-STACK-005 (Taskmaster #8): Confirm product stack in `docs/ARCHITECTURE.md` ✓ 2026-04-03
+- D-HEXCURSE-PRODUCT-STACK-005: Part B closed — `docs/TASK_GRAPH_SNAPSHOT.md`, cursor-governance **v1.5.9**, tasks #3/#4/#8 done ✓ 2026-04-03
 
 ---
 
