@@ -1040,34 +1040,20 @@ function runDoctor(cwd) {
           );
         }
       }
-      if (names.includes('github')) ok.push('mcp.json defines github server');
-      else if (ciRelaxed) warn.push('mcp.json has no github server entry (non-blocking in CI)');
-      else warn.push('mcp.json has no github server entry (optional — local git + push; add github MCP only for PR/issue automation)');
-      if (names.includes('jcodemunch')) ok.push('mcp.json defines jcodemunch server');
-      else if (ciRelaxed) warn.push('mcp.json has no jcodemunch entry (non-blocking in CI)');
-      else warn.push('mcp.json has no jcodemunch entry (recommended — RULE 10 / jcodemunch-mcp via uvx; installer merges it)');
-      if (names.includes('taskmaster-ai')) ok.push('mcp.json defines taskmaster-ai');
-      else if (ciRelaxed) warn.push('mcp.json has no taskmaster-ai entry (non-blocking in CI)');
-      else bad.push('mcp.json has no taskmaster-ai entry');
+      for (const id of MCP_CORE_IDS) {
+        if (names.includes(id)) ok.push(`mcp.json defines ${id} server (v2 core)`);
+        else if (ciRelaxed) warn.push(`mcp.json has no ${id} entry (v2 core — non-blocking in CI)`);
+        else bad.push(`mcp.json has no ${id} entry (v2 requires core: ${MCP_CORE_IDS.join(', ')})`);
+      }
       const mcpOptionalWarn = (id, hint) => {
         if (names.includes(id)) ok.push(`mcp.json defines ${id} server`);
-        else if (ciRelaxed) warn.push(`mcp.json has no ${id} entry (non-blocking in CI)`);
         else warn.push(`mcp.json has no ${id} entry (${hint})`);
       };
-      mcpOptionalWarn('context7', 'recommended — library API docs');
-      mcpOptionalWarn('repomix', 'recommended — structural repo map');
-      mcpOptionalWarn('serena', 'recommended — symbol-level edits');
-      mcpOptionalWarn('gitmcp', 'optional — niche GitHub library docs');
-      mcpOptionalWarn('gitmcp-adafruit-mpu6050', 'optional — Adafruit MPU6050 hardware docs via gitmcp.io');
-      mcpOptionalWarn('sequential-thinking', 'recommended — planning');
-      mcpOptionalWarn('memory', 'recommended — durable facts');
-      mcpOptionalWarn('supabase', 'optional — Supabase MCP when using Supabase backend');
-      mcpOptionalWarn('playwright', 'optional — UI verification after changes');
-      mcpOptionalWarn('semgrep', 'recommended — security.mdc');
-      mcpOptionalWarn('sentry', 'optional — error context');
-      mcpOptionalWarn('firecrawl', 'optional — research');
-      mcpOptionalWarn('linear', 'optional — sync Taskmaster with Linear when using Linear');
-      mcpOptionalWarn('pampa', 'optional — semantic skill search');
+      mcpOptionalWarn('playwright', 'optional — select at install for UI / browser work');
+      mcpOptionalWarn('semgrep', 'optional — select at install for security scans');
+      mcpOptionalWarn('supabase', 'optional — select at install when using Supabase');
+      mcpOptionalWarn('lightrag', 'optional — select at install for LightRAG codebase memory');
+      mcpOptionalWarn('custom', 'optional — select at install for a custom MCP server');
     } catch (e) {
       if (ciRelaxed) warn.push(`~/.cursor/mcp.json parse error (non-blocking in CI): ${e.message}`);
       else bad.push(`~/.cursor/mcp.json parse error: ${e.message}`);
@@ -1829,160 +1815,104 @@ function installGlobals(platform) {
   } else {
     console.warn(
       chalk.yellow('⚠'),
-      'uv install failed — install uv manually; Serena MCP needs uvx.'
+      'uv install failed — install uv manually; optional LightRAG MCP uses uvx.'
     );
   }
+}
+
+/** Fallback Supabase project ref when `SUPABASE_PROJECT_REF` is unset (same as pre-v2 installer). */
+const DEFAULT_SUPABASE_PROJECT_REF = 'dpivknupklbxjbrcntes';
+
+/** Optional MCP ids — prompt order and merge order after the four core servers. */
+const MCP_OPTIONAL_IDS_ORDER = ['playwright', 'semgrep', 'supabase', 'lightrag', 'custom'];
+
+/** v2 core MCP ids — doctor treats these as required (bad if missing when not CI-relaxed). */
+const MCP_CORE_IDS = ['github', 'context7', 'memory', 'taskmaster-ai'];
+
+/**
+ * Builds the `mcpServers` entries this installer merges into `~/.cursor/mcp.json` (v2: 4 core + selected optionals).
+ * Does not remove or overwrite existing keys — see `mergeMcpJson`.
+ */
+function buildMcpServers(answers) {
+  const taskmasterEnv = { ...(answers.taskmasterEnv || {}) };
+  const githubToken = String(answers.github || '').trim();
+  const selected = new Set(
+    Array.isArray(answers.selectedOptionals)
+      ? answers.selectedOptionals.map((s) => String(s).trim().toLowerCase())
+      : []
+  );
+
+  const servers = {};
+
+  servers.github = {
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-github'],
+    env: { GITHUB_PERSONAL_ACCESS_TOKEN: githubToken },
+  };
+  servers.context7 = {
+    command: 'npx',
+    args: ['-y', '@upstash/context7-mcp'],
+  };
+  servers.memory = {
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-memory'],
+  };
+  servers['taskmaster-ai'] = {
+    command: 'npx',
+    args: ['-y', '--package=task-master-ai', 'task-master-ai'],
+    env: { ...taskmasterEnv },
+  };
+
+  const supabaseRef =
+    String(process.env.SUPABASE_PROJECT_REF || '').trim() || DEFAULT_SUPABASE_PROJECT_REF;
+
+  for (const id of MCP_OPTIONAL_IDS_ORDER) {
+    if (!selected.has(id)) continue;
+    if (id === 'playwright') {
+      servers.playwright = {
+        command: 'npx',
+        args: ['-y', '@playwright/mcp'],
+      };
+    } else if (id === 'semgrep') {
+      servers.semgrep = {
+        type: 'streamable-http',
+        url: 'https://mcp.semgrep.ai/mcp',
+      };
+    } else if (id === 'supabase') {
+      servers.supabase = {
+        url: `https://mcp.supabase.com/mcp?project_ref=${supabaseRef}`,
+      };
+    } else if (id === 'lightrag') {
+      servers.lightrag = {
+        command: 'uvx',
+        args: ['lightrag-mcp'],
+      };
+    } else if (id === 'custom' && answers.customMcp) {
+      const c = answers.customMcp;
+      if (c.mode === 'url' && c.url) {
+        servers.custom = { type: 'streamable-http', url: c.url };
+      } else if (c.mode === 'stdio' && c.command) {
+        servers.custom = {
+          command: c.command,
+          args: Array.isArray(c.args) ? c.args : [],
+        };
+      }
+    }
+  }
+
+  return servers;
 }
 
 /**
- * Resolves the global pampa package MCP entry script for ~/.cursor/mcp.json (stdio).
- * Multi-strategy: npm root -g, pampa bin prefix, then conventional fallback (D-HEXCURSE-MCP-RECONCILE-003).
+ * Merges v2 lean MCP definitions into `~/.cursor/mcp.json`.
+ *
+ * **Migration:** Existing files keep any servers already present — this function only **adds** keys that are missing.
+ * Dropping servers from `buildMcpServers()` does not remove them on reinstall; developers must delete keys manually
+ * if they want a slimmer config. On parse failure, the file is backed up and replaced with a fresh object before merge.
  */
-function resolvePampaGlobalPath() {
-  try {
-    const globalRoot = execSync('npm root -g', { encoding: 'utf8' }).trim();
-    const candidate = path.join(globalRoot, 'pampa', 'mcp-server.js');
-    if (fs.existsSync(candidate)) return candidate;
-  } catch (_) {
-    /* try next */
-  }
-  try {
-    const globalRoot = execSync('npm root -g', { encoding: 'utf8' }).trim();
-    const candidateSrc = path.join(globalRoot, 'pampa', 'src', 'mcp-server.js');
-    if (fs.existsSync(candidateSrc)) return candidateSrc;
-  } catch (_) {
-    /* try next */
-  }
-  try {
-    const binPath = execSync(process.platform === 'win32' ? 'where pampa' : 'which pampa', {
-      encoding: 'utf8',
-    })
-      .trim()
-      .split(/\r?\n/)[0];
-    const parts = binPath.split(path.sep);
-    const prefixIdx = parts.lastIndexOf('bin');
-    if (prefixIdx !== -1) {
-      const prefix = parts.slice(0, prefixIdx).join(path.sep);
-      const candidate = path.join(prefix, 'lib', 'node_modules', 'pampa', 'mcp-server.js');
-      if (fs.existsSync(candidate)) return candidate;
-      const candidateSrc = path.join(prefix, 'lib', 'node_modules', 'pampa', 'src', 'mcp-server.js');
-      if (fs.existsSync(candidateSrc)) return candidateSrc;
-    }
-  } catch (_) {
-    /* fall through */
-  }
-  if (process.platform === 'win32') {
-    return path.join(
-      process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
-      'npm',
-      'node_modules',
-      'pampa',
-      'src',
-      'mcp-server.js'
-    );
-  }
-  const linuxBase = path.join('/usr/local/lib/node_modules/pampa');
-  const linuxMcp = path.join(linuxBase, 'mcp-server.js');
-  const linuxSrc = path.join(linuxBase, 'src', 'mcp-server.js');
-  if (fs.existsSync(linuxMcp)) return linuxMcp;
-  if (fs.existsSync(linuxSrc)) return linuxSrc;
-  return linuxMcp;
-}
-
-function buildMcpServers(taskmasterEnv, githubToken) {
-  const supabaseRef = process.env.SUPABASE_PROJECT_REF || 'dpivknupklbxjbrcntes';
-  return {
-    'taskmaster-ai': {
-      command: 'npx',
-      args: ['-y', '--package=task-master-ai', 'task-master-ai'],
-      env: { ...taskmasterEnv },
-    },
-    context7: {
-      command: 'npx',
-      args: ['-y', '@upstash/context7-mcp'],
-    },
-    repomix: {
-      command: 'npx',
-      args: ['-y', 'repomix', '--mcp'],
-    },
-    serena: {
-      command: 'uvx',
-      args: [
-        '--from',
-        'git+https://github.com/oraios/serena',
-        'serena-mcp-server',
-        '--project',
-        '${workspaceFolder}',
-      ],
-    },
-    gitmcp: {
-      url: 'https://gitmcp.io/docs',
-    },
-    'gitmcp-adafruit-mpu6050': {
-      url: 'https://gitmcp.io/adafruit/Adafruit_MPU6050',
-    },
-    'sequential-thinking': {
-      command: 'npx',
-      args: ['-y', '@modelcontextprotocol/server-sequential-thinking'],
-    },
-    memory: {
-      command: 'npx',
-      args: ['-y', '@modelcontextprotocol/server-memory'],
-    },
-    github: {
-      command: 'npx',
-      args: ['-y', '@modelcontextprotocol/server-github'],
-      env: { GITHUB_PERSONAL_ACCESS_TOKEN: githubToken },
-    },
-    jcodemunch: {
-      command: 'uvx',
-      args: ['jcodemunch-mcp'],
-    },
-    playwright: {
-      command: 'npx',
-      args: ['-y', '@playwright/mcp'],
-    },
-    semgrep: {
-      type: 'streamable-http',
-      url: 'https://mcp.semgrep.ai/mcp',
-    },
-    sentry: {
-      command: 'npx',
-      args: ['-y', '@sentry/mcp-server@latest'],
-      env: {
-        // @sentry/mcp-server reads SENTRY_ACCESS_TOKEN (not SENTRY_AUTH_TOKEN).
-        SENTRY_ACCESS_TOKEN:
-          process.env.SENTRY_ACCESS_TOKEN || process.env.SENTRY_AUTH_TOKEN || '',
-      },
-    },
-    firecrawl: {
-      command: 'npx',
-      args: ['-y', 'firecrawl-mcp'],
-      env: {
-        FIRECRAWL_API_KEY: process.env.FIRECRAWL_API_KEY || '',
-      },
-    },
-    linear: {
-      command: 'npx',
-      args: ['-y', '@mseep/linear-mcp'],
-      env: {
-        LINEAR_API_KEY: process.env.LINEAR_API_KEY || '',
-      },
-    },
-    pampa: {
-      command: process.platform === 'win32' ? 'node.exe' : 'node',
-      args: [resolvePampaGlobalPath()],
-      cwd: '${workspaceFolder}',
-    },
-    supabase: {
-      url: `https://mcp.supabase.com/mcp?project_ref=${supabaseRef}`,
-    },
-  };
-}
-
-function mergeMcpJson(taskmasterEnv, githubToken) {
+function mergeMcpJson(answers) {
   const mcpPath = path.join(os.homedir(), '.cursor', 'mcp.json');
-  const required = buildMcpServers(taskmasterEnv, githubToken);
+  const required = buildMcpServers(answers);
   let data = { mcpServers: {} };
   if (fs.existsSync(mcpPath)) {
     try {
@@ -2310,6 +2240,103 @@ function createBufferedPrompts(rawLines) {
   return { ask: buffAsk, choose: buffChoose, askRequired: buffAskRequired };
 }
 
+/** Quick-install / env: comma- or space-separated optional MCP ids (see MCP_OPTIONAL_IDS_ORDER). */
+function parseSelectedOptionalsFromEnv() {
+  const raw = String(process.env.HEXCURSE_SELECTED_MCP_OPTIONALS || '').trim();
+  if (!raw) return [];
+  const allowed = new Set(MCP_OPTIONAL_IDS_ORDER);
+  const out = [];
+  for (const part of raw.split(/[,;\s]+/).filter(Boolean)) {
+    const id = String(part).trim().toLowerCase();
+    if (allowed.has(id) && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+/** Quick-install: `HEXCURSE_CUSTOM_MCP_URL` or `HEXCURSE_CUSTOM_MCP_COMMAND` + optional JSON/string args. */
+function parseCustomMcpFromEnv() {
+  const url = String(process.env.HEXCURSE_CUSTOM_MCP_URL || '').trim();
+  if (url && /^https?:\/\//i.test(url)) return { mode: 'url', url };
+  const command = String(process.env.HEXCURSE_CUSTOM_MCP_COMMAND || '').trim();
+  if (!command) return null;
+  let args = [];
+  const argsRaw = String(process.env.HEXCURSE_CUSTOM_MCP_ARGS || '').trim();
+  if (argsRaw) {
+    try {
+      const parsed = JSON.parse(argsRaw);
+      if (Array.isArray(parsed)) args = parsed.map((x) => String(x));
+    } catch {
+      args = argsRaw.split(/\s+/).filter(Boolean);
+    }
+  }
+  return { mode: 'stdio', command, args };
+}
+
+async function askYesNo(askFn, question, defaultValue = false) {
+  const hint = defaultValue ? 'Y/n' : 'y/N';
+  const defStr = defaultValue ? 'y' : 'n';
+  const raw = String(await askFn(`${question} (${hint})`, defStr))
+    .trim()
+    .toLowerCase();
+  if (raw === 'y' || raw === 'yes') return true;
+  if (raw === 'n' || raw === 'no') return false;
+  return defaultValue;
+}
+
+/** Prompts for one custom MCP (stdio or streamable URL). */
+async function promptCustomMcp(chooseFn, askFn, askRequiredFn) {
+  const kind = await chooseFn('Custom MCP transport?', [
+    'Streamable URL (HTTPS)',
+    'stdio — local command',
+  ]);
+  if (String(kind || '').includes('URL')) {
+    const url = await askRequiredFn(
+      'MCP server URL (https://…)',
+      undefined,
+      (v) => /^https?:\/\//i.test(String(v || '').trim())
+    );
+    return { mode: 'url', url: String(url).trim() };
+  }
+  const command = await askRequiredFn('Command', 'npx', (v) => String(v || '').trim().length > 0);
+  const argsLine = await askFn('Args (space-separated)', '');
+  const args = String(argsLine || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  return { mode: 'stdio', command: String(command).trim(), args };
+}
+
+/** Five yes/no optional MCP questions (D-009 §2.2). */
+async function promptOptionalMcps(askFn, chooseFn, askRequiredFn) {
+  const selectedOptionals = [];
+  let customMcp = null;
+
+  if (await askYesNo(askFn, 'Do you build anything with a browser or UI?', false)) {
+    selectedOptionals.push('playwright');
+  }
+  if (await askYesNo(askFn, 'Do you ship code to users or need security scanning?', false)) {
+    selectedOptionals.push('semgrep');
+  }
+  if (await askYesNo(askFn, 'Do you use Supabase for your database or backend?', false)) {
+    selectedOptionals.push('supabase');
+  }
+  if (
+    await askYesNo(
+      askFn,
+      'Do you want deep codebase memory via LightRAG? (requires Python / uvx)',
+      false
+    )
+  ) {
+    selectedOptionals.push('lightrag');
+  }
+  if (await askYesNo(askFn, 'Do you have a custom MCP server to add?', false)) {
+    selectedOptionals.push('custom');
+    customMcp = await promptCustomMcp(chooseFn, askFn, askRequiredFn);
+  }
+
+  return { selectedOptionals, customMcp };
+}
+
 async function promptUser() {
   let chooseFn = choose;
   let askFn = ask;
@@ -2379,6 +2406,8 @@ async function promptUser() {
     console.error(chalk.red('GitHub token is missing or too short.'));
     process.exit(1);
   }
+
+  const { selectedOptionals, customMcp } = await promptOptionalMcps(askFn, chooseFn, askRequiredFn);
 
   const repoKindLabel = await chooseFn('New greenfield project, or existing codebase?', [
     'New project (you describe goals and stack)',
@@ -2489,6 +2518,8 @@ async function promptUser() {
     github: String(github).trim(),
     repoKind,
     northStarDraftMd,
+    selectedOptionals,
+    customMcp,
   };
 }
 
@@ -2987,6 +3018,8 @@ function buildQuickInstallAnswers(cwd, preset) {
     github: gh.token,
     repoKind,
     northStarDraftMd: null,
+    selectedOptionals: parseSelectedOptionalsFromEnv(),
+    customMcp: parseCustomMcpFromEnv(),
   };
 }
 
@@ -3030,25 +3063,12 @@ function printSummary(written, skipped, cwd, mcpResult, answers) {
   }
   console.log(
     chalk.yellow(
-      '\n⚠  MCP Token Budget: Each active server adds ~500–1000 tokens per tool to every request.\n' +
-        '   HexCurse now installs 17 servers. Disable project-specific servers in ~/.cursor/mcp.json\n' +
-        '   when not needed (e.g. disable gitmcp-adafruit-mpu6050 on non-hardware projects,\n' +
-        '   disable Supabase when working offline or on non-Supabase backends).\n' +
+      '\n⚠  MCP token budget: each active server adds ~500–1000 tokens of tool-description overhead per request.\n' +
+        '   v2 merges 4 core servers plus optionals you selected. Reinstall **never removes** existing `mcp.json` keys —\n' +
+        '   it only adds missing ones — so older 17-server configs stay until you delete keys manually.\n' +
         '   See HEXCURSE/docs/MCP_TOKEN_BUDGET.md for guidance.'
     )
   );
-  const pampaPath = resolvePampaGlobalPath();
-  if (!fs.existsSync(pampaPath)) {
-    console.log(
-      chalk.yellow(
-        '⚠  pampa: mcp-server.js not found at resolved path: ' +
-          pampaPath +
-          '\n' +
-          '   Install globally with: npm install -g pampa\n' +
-          '   Then re-run the installer to refresh the path in ~/.cursor/mcp.json'
-      )
-    );
-  }
   console.log('');
   console.log(chalk.bold('Files written:'));
   if (written.length === 0) {
@@ -3074,7 +3094,7 @@ function printSummary(written, skipped, cwd, mcpResult, answers) {
     String(answers.northStarDraftMd).trim().length > 150;
   if (draftedExisting) {
     console.log(
-      `  3. Review **HEXCURSE/NORTH_STAR.md** (installer drafted it from a repomix snapshot). Refine in Cursor using memory, repomix, and Serena MCPs, then open ${path.join(HEXCURSE_ROOT, 'ONE_PROMPT.md')} — paste the fenced block as your only first message in a new chat.`
+      `  3. Review **HEXCURSE/NORTH_STAR.md** (installer drafted it from a repomix snapshot). Refine in Cursor using memory, context7, and your merged MCPs, then open ${path.join(HEXCURSE_ROOT, 'ONE_PROMPT.md')} — paste the fenced block as your only first message in a new chat.`
     );
   } else {
     console.log(
@@ -3285,7 +3305,7 @@ async function main() {
 
   const cursorMcpPath = path.join(os.homedir(), '.cursor', 'mcp.json');
   console.log(chalk.bold(`\nMerging ${cursorMcpPath} …`));
-  const mcpResult = mergeMcpJson(answers.taskmasterEnv, answers.github);
+  const mcpResult = mergeMcpJson(answers);
 
   const written = [];
   const skipped = [];
@@ -3536,6 +3556,11 @@ main.hexcurseInstallTestHooks = {
 /** Test-only: quick-install answer shape. See test/hexcurse-pack.test.js */
 main.hexcurseQuickInstallTestHooks = {
   buildQuickInstallAnswers,
+};
+
+/** Test-only: v2 MCP merge shape. */
+main.hexcurseMcpTestHooks = {
+  buildMcpServers,
 };
 
 /** Test-only: sacred merge for --refresh-rules. See test/hexcurse-pack.test.js */

@@ -13,6 +13,7 @@ All notable changes to **cursor-governance** are documented here.
 
 ### Changed
 
+- **`buildMcpServers()`** (v2): **4 core** MCPs (github, context7, memory, taskmaster-ai) + **5 optional** picks at install (playwright, semgrep streamable-http, supabase, lightrag, custom). Merge still **adds-only** — never removes existing **`~/.cursor/mcp.json`** keys.
 - Session-start pack: **`SESSION_START_PROMPT.pack.md`** → **`SESSION_START.md`**; install writes **`HEXCURSE/SESSION_START.md`**; **`PATHS.json`** key **`sessionStartPrompt`** → **`sessionStart`**. Legacy **`SESSION_START_PROMPT.md`** paths still satisfy **`--doctor`**.
 
 ### Added

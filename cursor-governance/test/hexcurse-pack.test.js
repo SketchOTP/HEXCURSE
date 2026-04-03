@@ -86,9 +86,46 @@ function testSyncRulesRequiresRemoteUrl() {
   }
 }
 
-function testMcpNpmPackagesLinearAndPampaExist() {
-  execSync('npm view @mseep/linear-mcp name', { stdio: 'pipe' });
-  execSync('npm view pampa name', { stdio: 'pipe' });
+function testMcpNpmPackagesCoreMcpExist() {
+  execSync('npm view @modelcontextprotocol/server-github name', { stdio: 'pipe' });
+  execSync('npm view @upstash/context7-mcp name', { stdio: 'pipe' });
+  execSync('npm view @modelcontextprotocol/server-memory name', { stdio: 'pipe' });
+  execSync('npm view task-master-ai name', { stdio: 'pipe' });
+}
+
+function testBuildMcpServersCoreOnly() {
+  const { buildMcpServers } = setupMain.hexcurseMcpTestHooks;
+  const servers = buildMcpServers({
+    github: 'test-token',
+    taskmasterEnv: { OPENAI_API_KEY: 'x' },
+    selectedOptionals: [],
+  });
+  assert.deepStrictEqual(Object.keys(servers).sort(), [
+    'context7',
+    'github',
+    'memory',
+    'taskmaster-ai',
+  ]);
+}
+
+function testBuildMcpServersAllOptionals() {
+  const { buildMcpServers } = setupMain.hexcurseMcpTestHooks;
+  const servers = buildMcpServers({
+    github: 'g',
+    taskmasterEnv: {},
+    selectedOptionals: ['playwright', 'semgrep', 'supabase', 'lightrag', 'custom'],
+    customMcp: { mode: 'url', url: 'https://example.com/mcp' },
+  });
+  assert.ok(servers.playwright && servers.playwright.command === 'npx');
+  assert.strictEqual(servers.semgrep.type, 'streamable-http');
+  assert.strictEqual(servers.semgrep.url, 'https://mcp.semgrep.ai/mcp');
+  assert.ok(
+    servers.supabase &&
+      String(servers.supabase.url).includes('mcp.supabase.com') &&
+      String(servers.supabase.url).includes('project_ref=')
+  );
+  assert.strictEqual(servers.lightrag.command, 'uvx');
+  assert.strictEqual(servers.custom.url, 'https://example.com/mcp');
 }
 
 function testQuickInstallPresetOther() {
@@ -283,7 +320,9 @@ function run() {
     ['resolveNorthStar prefers pack', testResolveNorthStarPrefersPackOverLegacy],
     ['extract sacred CSV includes trailing bullets', testExtractSacredIncludesTrailingBullets],
     ['sync-rules requires HEXCURSE_RULES_REMOTE_URL', testSyncRulesRequiresRemoteUrl],
-    ['MCP npm packages linear + pampa exist', testMcpNpmPackagesLinearAndPampaExist],
+    ['MCP npm packages core v2 exist', testMcpNpmPackagesCoreMcpExist],
+    ['buildMcpServers core-only keys', testBuildMcpServersCoreOnly],
+    ['buildMcpServers all optionals shape', testBuildMcpServersAllOptionals],
     ['quick install preset other', testQuickInstallPresetOther],
     ['validateTaskmasterSchema rejects incomplete task', testValidateTaskmasterSchemaRejectsIncompleteTask],
     ['validateTaskmasterSchema accepts valid tasks', testValidateTaskmasterSchemaAcceptsValidTask],

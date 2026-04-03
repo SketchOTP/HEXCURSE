@@ -2,7 +2,7 @@
 
 ## Quick start — add HexCurse to **any** repo (one command, then Cursor)
 
-1. **Prereqs (once per machine):** Node.js + npm, Git, and usually Python (installer uses it for `uv` / Serena). Cursor must be installed separately.
+1. **Prereqs (once per machine):** Node.js + npm, Git, and usually Python (installer uses it for `uv` / optional LightRAG). Cursor must be installed separately.
 2. In a terminal, **`cd` to the target project root** (the repo you want governed — empty or existing).
 3. Run **one** of:
    - **`npx cursor-governance`** — after the package is on npm, or  
@@ -13,7 +13,7 @@
 
 ### After install — you only do two things
 
-1. **New project:** fill **`HEXCURSE/NORTH_STAR.md`** (remove the **standalone** placeholder line **`NORTH_STAR_NOT_READY`** when your vision is written). **Existing codebase path:** that file is usually already drafted — review it, then use Cursor MCPs (**memory**, **repomix**, **Serena**, etc.) to refine reality on disk (the installer cannot call Cursor MCPs itself).
+1. **New project:** fill **`HEXCURSE/NORTH_STAR.md`** (remove the **standalone** placeholder line **`NORTH_STAR_NOT_READY`** when your vision is written). **Existing codebase path:** that file is usually already drafted — review it, then use your merged MCPs (**memory**, **context7**, etc.) to refine reality on disk (the installer cannot call Cursor MCPs itself).
 2. **Either** run the **[Cursor headless CLI](https://cursor.com/docs/cli/headless)** from repo root (`agent -p --model composer-2 --trust --workspace .` with **`HEXCURSE/HEADLESS_KICKOFF.txt`** — see **`HEXCURSE/ONE_PROMPT.md`** for bash/PowerShell), **or** open **`HEXCURSE/ONE_PROMPT.md`**, copy **only** the **in-IDE fenced** block, paste it as the **entire first message** in a **new Agent** chat. The agent runs **`node …/setup.js --run-hexcurse`** using **`.cursor/hexcurse-installer.path`**, then full session start.
 
 **Manual bridge (no Cursor Agent UI):** **`node <path-to>/cursor-governance/setup.js --run-hexcurse`** (or **`--run-hexcurse-raw`**) from repo root, then paste **`HEXCURSE/SESSION_START.md`** in a new chat (or use headless **`agent`** with **`HEADLESS_KICKOFF.txt`**).
@@ -28,7 +28,7 @@ That’s it for setup: **no second installer**. Optional: copy **`.cursor/rules/
 
 **Usage:** In your project root, run `npx cursor-governance` (after publishing), or `node /path/to/cursor-governance/setup.js` from this package clone.
 
-**Non-interactive / CI:** Prefer **`node setup.js --quick --preset=lmstudio`** when you can set env vars. Use **`HEXCURSE_REPO_KIND=existing`** for the repomix-backed NORTH_STAR draft. Alternatively pipe answers: one line per prompt, e.g. `Get-Content answers.txt | node setup.js` (Windows) or `node setup.js < answers.txt`. Piped stdin is buffered in full so all prompts receive answers reliably on Windows. **Piped order change:** after provider credentials and optional GitHub token, the next line is **1 = new project** or **2 = existing codebase**; for **2**, then optional focus line (may be empty), then sacred constraints.
+**Non-interactive / CI:** Prefer **`node setup.js --quick --preset=lmstudio`** when you can set env vars. Use **`HEXCURSE_REPO_KIND=existing`** for the repomix-backed NORTH_STAR draft. Alternatively pipe answers: one line per prompt, e.g. `Get-Content answers.txt | node setup.js` (Windows) or `node setup.js < answers.txt`. Piped stdin is buffered in full so all prompts receive answers reliably on Windows. **Piped order change:** after provider credentials and optional GitHub token, **five** **`y`/`n`** lines for optional MCPs (browser/UI, security scan, Supabase, LightRAG, custom), then **1 = new project** or **2 = existing codebase**; for **2**, optional focus line (may be empty), then sacred constraints. **Quick optionals:** `HEXCURSE_SELECTED_MCP_OPTIONALS=playwright,semgrep` (comma-separated). **Custom MCP (quick):** `HEXCURSE_CUSTOM_MCP_URL=https://…` or `HEXCURSE_CUSTOM_MCP_COMMAND` + `HEXCURSE_CUSTOM_MCP_ARGS`.
 
 - **`node setup.js --help`** — CLI usage
 - **`node setup.js --version`** — package version (for support / upgrades)
@@ -38,9 +38,11 @@ That’s it for setup: **no second installer**. Optional: copy **`.cursor/rules/
 
 ---
 
-Installs global CLIs (`task-master-ai`, `repomix`, `uv`), merges `~/.cursor/mcp.json` with nine MCP servers (includes **jcodemunch** / `jcodemunch-mcp` via `uvx`), writes governance files into the **current working directory**, runs `task-master init` and `parse-prd`, and optionally creates an initial git commit.
+Installs global CLIs (`task-master-ai`, `repomix`, `uv`), merges `~/.cursor/mcp.json` with **4 core** MCP servers (github, context7, memory, taskmaster-ai) plus **install-time optional** picks (playwright, semgrep via streamable HTTP, supabase, lightrag, custom), writes governance files into the **current working directory**, runs `task-master init` and `parse-prd`, and optionally creates an initial git commit.
 
-**Requirements:** Node.js, npm, Git, Python (for `pip install uv` / Serena’s `uvx`).
+**MCP merge (v2):** The installer only **adds** server entries whose keys are not already present. It does **not** remove servers — so an older `mcp.json` with many entries keeps them until you delete keys manually.
+
+**Requirements:** Node.js, npm, Git, Python (for `pip install uv` / optional tooling).
 
 **Prompts:** Model provider (LM Studio / Anthropic / OpenAI / Other) and matching credentials, GitHub token (if not reused from env), **new vs existing codebase**, then either greenfield fields (name, purpose, stack, modules, sacred, out-of-scope, DOD) or **existing path** (optional focus, sacred) plus automatic **repomix** + **NORTH_STAR** draft.
 
