@@ -4,7 +4,7 @@ alwaysApply: true
 ---
 
 # PROJECT: HexCurse
-# PURPOSE: HexCurse is a project workspace that uses Cursor agent governance, Taskmaster orchestration, and MCP-backed tooling so implementation work stays scoped, documented, and traceable. The repository currently centers on governance artifacts and guides; the executable product’s shape and stack are **TBD — confirm before implementing**.  **Single source of truth (machinery):** **`docs/PROJECT_OVERVIEW.md`** — exhaustive, code-derived description of **cursor-governance** (`setup.js`), installer outputs, CLI modes, MCP merge, tests, and CI. This **`ARCHITECTURE.md`** stays the shorter system summary and product/TBD notes.
+# PURPOSE: HexCurse is a project workspace that uses Cursor agent governance, Taskmaster orchestration, and MCP-backed tooling so implementation work stays scoped, documented, and traceable. The **shipping product** is the **`cursor-governance` npm installer** (CLI, templates, MCP merge, doctor, NORTH_STAR bridge) plus the governance layer it stamps into repos. Application source code for **consumer** projects lives in those repos, not as a separate monolith app in this tree.  **Single source of truth (machinery):** **`docs/PROJECT_OVERVIEW.md`** — exhaustive, code-derived description of **cursor-governance** (`setup.js`), installer outputs, CLI modes, MCP merge, tests, and CI. This **`ARCHITECTURE.md`** stays the shorter system summary and product notes (**`NORTH_STAR.md`** is authoritative for intent).
 
 ## How this system runs (agent-first)
 - **Nothing runs unattended.** Governance works when the **Cursor agent** is aware of it: `alwaysApply` rules load here, but you must still execute session start from **`AGENTS.md`** or **`HEXCURSE/AGENTS.md`** (memory → Taskmaster → DIRECTIVES → repomix → **jcodemunch** index/outline → sequential-thinking → confirm → **local git branch**) every implementation chat — use whichever layout **this** repo has.
@@ -32,12 +32,19 @@ alwaysApply: true
 | Code intelligence | Serena MCP | Symbol-level navigation and edits when source tree exists |
 | Indexed exploration | jcodemunch MCP (`jcodemunch-mcp`) | Tree-sitter index, outlines, ranked retrieval, references, blast radius — local workspace |
 | Snapshot | Repomix | Compressed repo overview for large codebases |
-| Application runtime | TBD — confirm before implementing | Not yet selected |
+| UI / E2E | Playwright MCP | Browser verification when UI changes |
+| Security scan | Semgrep MCP | Pre-commit **security_check** (**process-gates.mdc**) |
+| Errors / incidents | Sentry MCP | Issue context before deep source reads |
+| Web research | Firecrawl MCP | External docs and pages |
+| Issue tracking | Linear MCP | Sync with Taskmaster when enabled |
+| Skills search | Pampa MCP | Semantic **`.cursor/skills/`** search |
+| Supabase backends | Supabase MCP | Schema, RLS, Auth, Edge Functions |
+| Application runtime | **Node.js** — `cursor-governance` package (`setup.js`, CLI, tests) | Installer and governance machinery; no separate app framework in this repo |
 
 ## Out of Scope
 - Production deployment and operations until explicitly in scope.
 - Committing secrets or tokens to the repo.
-- Choosing the application framework/language without human confirmation.
+- Non-Cursor IDEs, SaaS governance backends, multi-user features, GUI dashboards, custom MCP authoring, and model fine-tuning as **core** HexCurse v1.x scope (see **`NORTH_STAR.md`**).
 
 ## Code Behavior Rules
 - One task per session. Scope is fixed at confirmation. It does not expand.

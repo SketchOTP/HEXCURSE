@@ -56,6 +56,11 @@ Only **loading** `.cursor/rules/*.mdc` is automatic when Cursor opens a chat; **
 
 **Doctor (consumer):** With **`HEXCURSE/`** present and **`cursor-governance`** next to **`setup.js`**, **`--doctor`** prints a **template fingerprint** (hash of installer `templates/`) and a **file count** under **`HEXCURSE/docs/`** for quick drift checks after install or **`--refresh-rules`**.
 
+## Installer template parity (v1.6.1+)
+
+- **`cursor-governance/templates/AGENTS.md`** mirrors the repository root **`AGENTS.md`**. At install time, **`agentsMd()`** swaps the second-line title **`# HexCurse`** for the target project name.
+- **`cursor-governance/templates/SESSION_START_PROMPT.pack.md`** is emitted as **`HEXCURSE/SESSION_START_PROMPT.md`**. It tracks **`docs/SESSION_START_PROMPT.md`** (session ritual text) with **`@HEXCURSE/…`** paths and **`{{PROJECT_NAME}}`** for the one-line agent role. When you change ritual steps or semgrep wording, update **both** files (or regenerate the pack from `docs/` with the same transforms the installer uses).
+
 ## Related
 
 - **`docs/ARCHITECTURE.md`** — system map and stack.

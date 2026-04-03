@@ -33,7 +33,7 @@ HexCurse sessions must make **full, appropriate** use of available MCP tools. Ag
 8. **github** (optional) — Only when the human explicitly wants a GitHub PR, issue, or remote branch query; **not** for creating local branches or discovering files. Prefer **local git** (terminal) for branch/commit/push.
 9. **gitmcp** — Niche / firmware / hardware SDK docs not covered by context7 (RULE 7).
 10. **playwright** — After UI changes for verification when the server is available.
-11. **semgrep** — After substantive code writes and before commit (**process-gates.mdc**); **security_check** on touched files.
+11. **semgrep** — After substantive code writes and before commit (**process-gates.mdc**); **security_check** on touched files. Configure **Streamable HTTP** **`https://mcp.semgrep.ai/mcp`** in **`~/.cursor/mcp.json`** (no local **`SEMGREP_PATH`** / **`SEMGREP_APP_TOKEN`**).
 12. **sentry** — On runtime errors / triage when configured; fetch issue context before deep source reads.
 13. **firecrawl** — External research when context7 and local docs are insufficient.
 14. **linear** — When Linear is in use; sync issues with Taskmaster at session boundaries.
