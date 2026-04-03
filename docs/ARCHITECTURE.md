@@ -3,7 +3,7 @@
 ## Purpose
 HexCurse is a project workspace that uses Cursor agent governance, Taskmaster orchestration, and MCP-backed tooling so implementation work stays scoped, documented, and traceable. The **shipping product** is the **`cursor-governance` npm installer** (CLI, templates, MCP merge, doctor, NORTH_STAR bridge) plus the governance layer it stamps into repos. Application source code for **consumer** projects lives in those repos, not as a separate monolith app in this tree.
 
-**Single source of truth (machinery):** **`docs/PROJECT_OVERVIEW.md`** — exhaustive, code-derived description of **cursor-governance** (`setup.js`), installer outputs, CLI modes, MCP merge, tests, and CI. This **`ARCHITECTURE.md`** stays the shorter system summary and product/TBD notes.
+**Single source of truth (machinery):** **`docs/PROJECT_OVERVIEW.md`** — exhaustive, code-derived description of **cursor-governance** (`setup.js`), installer outputs, CLI modes, MCP merge, tests, and CI. This **`ARCHITECTURE.md`** stays the shorter system summary and product notes (**`NORTH_STAR.md`** is authoritative for intent).
 
 ## Tech Stack
 | Layer | Technology | Reason |
@@ -33,7 +33,7 @@ Authoritative product intent: repo-root **`NORTH_STAR.md`** (human-approved). Su
 **Node.js** — the installer is a CLI run from the terminal (including Cursor’s shell). Entry: **`cursor-governance/setup.js`** and packaged **`bin/`** scripts.
 
 ### LLM Provider(s)
-**User-configured, LLM-agnostic for HexCurse itself.** Taskmaster and the NORTH_STAR bridge use **OpenAI-compatible** endpoints via **`.env`** (`OPENAI_API_KEY`, `OPENAI_BASE_URL`) and **`.taskmaster/config.json`** (e.g. LM Studio with `qwen3.5-2b`). Same machinery can target Anthropic, OpenAI, or other providers if the user configures them.
+**User-configured, LLM-agnostic for HexCurse itself.** Taskmaster and the NORTH_STAR bridge use **OpenAI-compatible** endpoints via **`.env`** (`OPENAI_API_KEY`, `OPENAI_BASE_URL`) and **`.taskmaster/config.json`** (e.g. LM Studio with `qwen3.5-2b`). Same machinery can target Anthropic, OpenAI, or other providers if the user configures them. **Without a reachable LLM**, refresh the task graph by curating **`.taskmaster/tasks/tasks.json`** from **`NORTH_STAR.md`** and **`.taskmaster/docs/prd.txt`** (agent or human)—equivalent outcome to **`task-master parse-prd`** when the API is down.
 
 ### Database / Storage
 **File-based only** for core product — rules, skills, SESSION_LOG, ROLLING_CONTEXT, `.taskmaster/`. No required cloud database for governance. Optional **Supabase** (or other Postgres) only for optional MCPs such as Swarm Protocol when the user opts in.
