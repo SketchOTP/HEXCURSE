@@ -2,6 +2,30 @@
 
 All notable changes to **cursor-governance** are documented here.
 
+## [1.5.7] — 2026-04-03
+
+### Fixed
+
+- `linear` MCP: corrected package name from `@linear/mcp-server` to `@mseep/linear-mcp` (canonical merge; was already fixed in 1.5.2 — reconciliation confirms `buildMcpServers`)
+- `semgrep` MCP: added missing `SEMGREP_PATH` env var to server entry (always present, may be empty string)
+- `pampa` MCP: replaced `npx` launch with global `node` / `node.exe` + `resolvePampaGlobalPath()` (multi-strategy: `npm root -g`, `which`/`where` prefix, conventional fallback) and `cwd: ${workspaceFolder}`; install summary warns when resolved script is missing
+
+### Added
+
+- `gitmcp-adafruit-mpu6050` URL MCP server (Adafruit MPU6050 hardware library docs)
+- `supabase` URL MCP server (`SUPABASE_PROJECT_REF` env override; default `dpivknupklbxjbrcntes`)
+- `SEMGREP_PATH` env var documented in semgrep server entry
+- `SUPABASE_PROJECT_REF` in `buildMcpServers` and `PATHS.json` (`supabaseProjectRef`)
+- Doctor checks for all canonical servers including `gitmcp-adafruit-mpu6050` and `supabase` (warn-only, non-blocking in CI)
+- `MCP_USAGE_TEMPLATE` RULE 11 (gitmcp-adafruit-mpu6050) and RULE 12 (supabase)
+- `agentsMd` mandatory MCP list entries 11 and 12 for the new servers
+- `MCP_TOKEN_BUDGET.md` updated to 17-server table
+
+### Changed
+
+- `buildMcpServers()` key order matches canonical 17-server list (taskmaster-ai through supabase)
+- Server count references updated from 15 → 17 in `printSummary` and token budget template
+
 ## [1.5.6] — 2026-04-03
 
 ### Fixed
