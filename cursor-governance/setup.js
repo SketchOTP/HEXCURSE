@@ -950,34 +950,62 @@ async function writeOnePromptFile(cwd, projectName) {
 /** Prints health check from current working directory (target repo). */
 function runDoctor(cwd) {
   ensureHexcurseSourceRepoDoctorArtifacts(cwd);
-  const sourceRepo = isHexcurseGovernanceSourceRepo(cwd);
+
   const ok = [];
   const bad = [];
   const warn = [];
-  const hexRoot = path.join(cwd, HEXCURSE_ROOT);
-  const hexPaths = path.join(hexRoot, 'PATHS.json');
-  const legSess = path.join(cwd, 'docs', 'SESSION_START.md');
-  const legLegacy = path.join(cwd, 'docs', 'SESSION_START_PROMPT.md');
-  const hexSess = path.join(hexRoot, 'SESSION_START.md');
-  const hexLegacy = path.join(hexRoot, 'SESSION_START_PROMPT.md');
-  const hexAgents = path.join(hexRoot, 'AGENTS.md');
-  const rootAgents = path.join(cwd, 'AGENTS.md');
-  const mcpPath = path.join(os.homedir(), '.cursor', 'mcp.json');
-  const tmRoot = path.join(cwd, '.taskmaster');
-  const tasksJson = path.join(tmRoot, 'tasks', 'tasks.json');
+
   const ciRelaxed = isDoctorCiRelaxed();
   if (ciRelaxed) {
-    ok.push('Doctor CI mode: ~/.cursor/mcp.json + task-master PATH are non-blocking (set HEXCURSE_DOCTOR_CI=1 locally to match)');
+    ok.push('Doctor CI mode: mcp.json + task-master PATH checks are non-blocking');
   }
 
-  if (fs.existsSync(hexRoot)) {
+  const hexRoot = path.join(cwd, HEXCURSE_ROOT);
+  const hasHexRoot = fs.existsSync(hexRoot);
+
+  // 1. HEXCURSE/AGENTS.md
+  if (fs.existsSync(path.join(hexRoot, 'AGENTS.md'))) ok.push('HEXCURSE/AGENTS.md present');
+  else if (fs.existsSync(path.join(cwd, 'AGENTS.md'))) ok.push('Root AGENTS.md present');
+  else bad.push('No AGENTS.md found');
+
+  // 2. HEXCURSE/NORTH_STAR.md present and not a stub
+  const northStarPath = pathNorthStarPack(cwd);
+  const northLegacy = path.join(cwd, 'NORTH_STAR.md');
+  if (fs.existsSync(northStarPath)) {
+    const nsText = fs.readFileSync(northStarPath, 'utf8');
+    if (isNorthStarSubstantive(nsText)) ok.push('HEXCURSE/NORTH_STAR.md present and substantive');
+    else warn.push('HEXCURSE/NORTH_STAR.md is a stub — fill it in then run --parse-prd-via-agent');
+  } else if (fs.existsSync(northLegacy)) {
+    warn.push('Legacy root NORTH_STAR.md present — move to HEXCURSE/NORTH_STAR.md');
+  } else {
+    warn.push('HEXCURSE/NORTH_STAR.md missing — installer seeds it; fill it then run --parse-prd-via-agent');
+  }
+
+  // 3-5. Core rules
+  for (const rule of ['base.mdc', 'mcp-usage.mdc', 'process-gates.mdc']) {
+    const rp = path.join(cwd, '.cursor', 'rules', rule);
+    if (fs.existsSync(rp)) ok.push(`.cursor/rules/${rule} present`);
+    else bad.push(`.cursor/rules/${rule} missing — run install or --refresh-rules`);
+  }
+
+  // 6. security.mdc and adr.mdc (warn only if missing)
+  for (const rule of ['security.mdc', 'adr.mdc']) {
+    const rp = path.join(cwd, '.cursor', 'rules', rule);
+    if (!fs.existsSync(rp)) warn.push(`.cursor/rules/${rule} missing — run --refresh-rules`);
+  }
+
+  // 7. PATHS.json schema v2
+  if (hasHexRoot) {
+    const hexPaths = path.join(hexRoot, 'PATHS.json');
     if (fs.existsSync(hexPaths)) {
       try {
         const j = JSON.parse(fs.readFileSync(hexPaths, 'utf8'));
-        if (j.schema === 'hexcurse-paths-v1' && j.paths && typeof j.paths === 'object') {
-          ok.push('HEXCURSE/PATHS.json schema OK');
+        if (j.schema === 'hexcurse-paths-v2' && j.paths && typeof j.paths === 'object') {
+          ok.push('HEXCURSE/PATHS.json schema v2 OK');
+        } else if (j.schema === 'hexcurse-paths-v1') {
+          warn.push('HEXCURSE/PATHS.json is schema v1 — run --migrate-v2 to upgrade');
         } else {
-          bad.push('HEXCURSE/PATHS.json missing schema or paths object');
+          bad.push('HEXCURSE/PATHS.json missing valid schema or paths object');
         }
       } catch (e) {
         bad.push(`HEXCURSE/PATHS.json invalid JSON: ${e.message}`);
@@ -985,123 +1013,42 @@ function runDoctor(cwd) {
     } else {
       bad.push('HEXCURSE/ exists but PATHS.json is missing');
     }
-  } else {
-    ok.push('No HEXCURSE/ folder — legacy layout (PATHS.json not required)');
   }
 
-  if (fs.existsSync(hexSess)) ok.push('HEXCURSE/SESSION_START.md present');
-  else if (fs.existsSync(hexLegacy)) ok.push('HEXCURSE/SESSION_START_PROMPT.md present (legacy)');
-  else if (fs.existsSync(legSess)) ok.push('docs/SESSION_START.md present');
-  else if (fs.existsSync(legLegacy)) ok.push('Legacy docs/SESSION_START_PROMPT.md present');
-  else bad.push('No SESSION_START.md (HEXCURSE/ or docs/)');
+  // 8. SESSION_START.md
+  if (fs.existsSync(path.join(hexRoot, 'SESSION_START.md'))) {
+    ok.push('HEXCURSE/SESSION_START.md present');
+  } else if (!hasHexRoot) {
+    ok.push('No HEXCURSE/ pack — SESSION_START.md not required');
+  } else {
+    warn.push('HEXCURSE/SESSION_START.md missing — re-run install');
+  }
 
-  if (fs.existsSync(hexAgents)) ok.push('HEXCURSE/AGENTS.md present');
-  else if (fs.existsSync(rootAgents)) ok.push('Root AGENTS.md present');
-  else bad.push('No AGENTS.md');
-
-  if (fs.existsSync(path.join(cwd, '.cursor', 'rules', 'mcp-usage.mdc'))) ok.push('.cursor/rules/mcp-usage.mdc present');
-  else bad.push('.cursor/rules/mcp-usage.mdc missing');
-  if (fs.existsSync(path.join(cwd, '.cursor', 'rules', 'process-gates.mdc'))) ok.push('.cursor/rules/process-gates.mdc present');
-  else bad.push('.cursor/rules/process-gates.mdc missing');
-
-  const skillsDir = path.join(cwd, '.cursor', 'skills');
-  if (fs.existsSync(skillsDir)) ok.push('.cursor/skills/ present');
-  else warn.push('.cursor/skills/ missing — optional; create for procedural skills');
-
+  // 9. tasks.json
+  const tmRoot = path.join(cwd, '.taskmaster');
+  const tasksJson = path.join(tmRoot, 'tasks', 'tasks.json');
   if (fs.existsSync(tasksJson)) {
     try {
       const tasksData = JSON.parse(fs.readFileSync(tasksJson, 'utf8'));
       const tasks = (tasksData.master && tasksData.master.tasks) || tasksData.tasks || [];
       if (tasks.length === 0) {
-        warn.push(
-          'tasks.json exists but has 0 tasks — run --parse-prd-via-agent to generate task graph'
-        );
-      } else if (
-        tasks.length === 1 &&
-        tasks[0].title &&
-        tasks[0].title.toLowerCase().includes('placeholder')
-      ) {
-        warn.push(
-          'tasks.json contains only the placeholder stub — run --parse-prd-via-agent to generate real task graph'
-        );
+        warn.push('tasks.json has 0 tasks — run --parse-prd-via-agent');
+      } else if (tasks.length === 1 && tasks[0].title && tasks[0].title.toLowerCase().includes('placeholder')) {
+        warn.push('tasks.json contains only the placeholder stub — run --parse-prd-via-agent');
       } else {
         ok.push(`tasks.json has ${tasks.length} task(s)`);
       }
     } catch (e) {
-      warn.push('tasks.json exists but could not be parsed as valid JSON');
+      warn.push('tasks.json could not be parsed as valid JSON');
     }
-  } else if (fs.existsSync(tmRoot)) bad.push('.taskmaster/ exists but tasks/tasks.json missing');
-  else warn.push('.taskmaster/ not found — run task-master init when you use Taskmaster');
-
-  const northPack = pathNorthStarPack(cwd);
-  const northLegacy = path.join(cwd, 'NORTH_STAR.md');
-  if (fs.existsSync(northPack)) ok.push('HEXCURSE/NORTH_STAR.md present (north star bridge entry point)');
-  else if (fs.existsSync(northLegacy)) {
-    if (sourceRepo) {
-      ok.push('Repo-root NORTH_STAR.md present (HEXCURSE source layout)');
-    } else {
-      warn.push('Legacy repo-root NORTH_STAR.md present — move to HEXCURSE/NORTH_STAR.md for single-folder layout');
-    }
+  } else if (fs.existsSync(tmRoot)) {
+    bad.push('.taskmaster/ exists but tasks/tasks.json missing');
   } else {
-    warn.push('HEXCURSE/NORTH_STAR.md missing — installer seeds it; fill it then use --parse-prd-via-agent for tasks');
+    warn.push('.taskmaster/ not found — run task-master init');
   }
 
-  const cursorPack = path.join(cwd, HEXCURSE_ROOT, 'CURSOR.md');
-  if (fs.existsSync(cursorPack)) ok.push('HEXCURSE/CURSOR.md present');
-  else if (fs.existsSync(path.join(cwd, 'CURSOR.md'))) {
-    if (sourceRepo) {
-      ok.push('Repo-root CURSOR.md present (HEXCURSE source layout)');
-    } else {
-      warn.push('Legacy repo-root CURSOR.md present — use HEXCURSE/CURSOR.md');
-    }
-  }
-
-  const onePrompt = path.join(cwd, HEXCURSE_ROOT, 'ONE_PROMPT.md');
-  if (fs.existsSync(onePrompt)) ok.push('HEXCURSE/ONE_PROMPT.md present (single-message Cursor kickoff)');
-  else if (fs.existsSync(hexRoot)) warn.push('HEXCURSE/ONE_PROMPT.md missing — re-run install to regenerate');
-
-  const instPath = path.join(cwd, '.cursor', 'hexcurse-installer.path');
-  if (fs.existsSync(instPath)) ok.push('.cursor/hexcurse-installer.path present (path to setup.js for agents)');
-  else warn.push('.cursor/hexcurse-installer.path missing — run HEXCURSE install once to create it');
-
-  const rulesDir = path.join(cwd, '.cursor', 'rules');
-  if (fs.existsSync(rulesDir)) {
-    try {
-      const mdc = fs.readdirSync(rulesDir).filter((f) => f.endsWith('.mdc'));
-      ok.push(`.cursor/rules: ${mdc.length} rule file(s) — ${mdc.sort().join(', ')}`);
-    } catch (e) {
-      warn.push(`.cursor/rules: could not list (${e.message})`);
-    }
-  } else {
-    bad.push('.cursor/rules/ directory missing');
-  }
-
-  if (sourceRepo) {
-    ok.push('Layout: HEXCURSE source — no HEXCURSE/ pack (governance at repo root)');
-  } else if (fs.existsSync(hexRoot)) {
-    ok.push('Layout: consumer — HEXCURSE/ governance pack present');
-  } else {
-    ok.push('Layout: legacy — root-level docs without HEXCURSE/ pack');
-  }
-
-  if (fs.existsSync(hexRoot)) {
-    const templatesRoot = path.join(__dirname, 'templates');
-    if (fs.existsSync(templatesRoot)) {
-      try {
-        const fp = fingerprintTemplateDirectory(templatesRoot);
-        const hexDocs = path.join(cwd, HEXCURSE_ROOT, 'docs');
-        const docCount = fs.existsSync(hexDocs) ? countFilesRecursive(hexDocs, () => true) : 0;
-        ok.push(
-          `Template parity (consumer): ${fp.fileCount} installer template file(s), fingerprint sha256:${fp.fingerprintHex.slice(0, 16)}… — HEXCURSE/docs: ${docCount} file(s)`
-        );
-      } catch (e) {
-        warn.push(`Template parity check failed: ${e.message}`);
-      }
-    } else {
-      warn.push('installer templates/ not found next to setup.js — template parity skipped');
-    }
-  }
-
+  // 10. ~/.cursor/mcp.json + 4 core servers
+  const mcpPath = path.join(os.homedir(), '.cursor', 'mcp.json');
   if (fs.existsSync(mcpPath)) {
     migrateSentryMcpEnvInMcpJson(mcpPath);
     migrateSemgrepMcpInMcpJson(mcpPath);
@@ -1109,106 +1056,56 @@ function runDoctor(cwd) {
     try {
       const mj = JSON.parse(fs.readFileSync(mcpPath, 'utf8'));
       const names = mj.mcpServers && typeof mj.mcpServers === 'object' ? Object.keys(mj.mcpServers) : [];
-      const mcpServers = mj.mcpServers && typeof mj.mcpServers === 'object' ? mj.mcpServers : {};
-      const semgrepEntry = mcpServers.semgrep;
-      if (semgrepEntry) {
-        if (!semgrepEntry.command && !semgrepEntry.url) {
-          warn.push('semgrep entry has neither command nor url');
-        } else if (semgrepEntry.command && String(semgrepEntry.command).includes('uvx')) {
-          warn.push(
-            'semgrep MCP is using deprecated uvx/stdio pattern — update to streamable-http: https://mcp.semgrep.ai/mcp'
-          );
-        }
-      }
+      const mcpServers = mj.mcpServers || {};
+
       for (const id of MCP_CORE_IDS) {
-        if (names.includes(id)) ok.push(`mcp.json defines ${id} server (v2 core)`);
-        else if (ciRelaxed) warn.push(`mcp.json has no ${id} entry (v2 core — non-blocking in CI)`);
-        else bad.push(`mcp.json has no ${id} entry (v2 requires core: ${MCP_CORE_IDS.join(', ')})`);
+        if (names.includes(id)) ok.push(`mcp.json: ${id} present (core)`);
+        else if (ciRelaxed) warn.push(`mcp.json: ${id} missing (core — non-blocking in CI)`);
+        else bad.push(`mcp.json: ${id} missing (v2 core required)`);
       }
-      const mcpOptionalWarn = (id, hint) => {
-        if (names.includes(id)) ok.push(`mcp.json defines ${id} server`);
-        else warn.push(`mcp.json has no ${id} entry (${hint})`);
-      };
-      mcpOptionalWarn('playwright', 'optional — select at install for UI / browser work');
-      mcpOptionalWarn('semgrep', 'optional — select at install for security scans');
-      mcpOptionalWarn('supabase', 'optional — select at install when using Supabase');
-      mcpOptionalWarn('lightrag', 'optional — select at install for LightRAG codebase memory');
-      mcpOptionalWarn('custom', 'optional — select at install for a custom MCP server');
+
+      // Semgrep migration hint
+      const semgrepEntry = mcpServers.semgrep;
+      if (semgrepEntry && semgrepEntry.command && String(semgrepEntry.command).includes('uvx')) {
+        warn.push('semgrep MCP using deprecated uvx/stdio — update to streamable-http: https://mcp.semgrep.ai/mcp');
+      }
+
+      // 4 optional server checks (warn only)
+      for (const id of ['playwright', 'semgrep', 'supabase', 'lightrag']) {
+        if (!names.includes(id)) warn.push(`mcp.json: ${id} not installed (optional — select at install if needed)`);
+      }
     } catch (e) {
       if (ciRelaxed) warn.push(`~/.cursor/mcp.json parse error (non-blocking in CI): ${e.message}`);
       else bad.push(`~/.cursor/mcp.json parse error: ${e.message}`);
     }
   } else if (ciRelaxed) {
-    warn.push('~/.cursor/mcp.json missing (expected on CI runners — configure locally for MCP)');
+    warn.push('~/.cursor/mcp.json missing (expected on CI runners)');
   } else {
     bad.push('~/.cursor/mcp.json missing');
   }
 
-  if (fs.existsSync(hexRoot)) {
-    const mcpBudgetDoc = path.join(cwd, HEXCURSE_ROOT, 'docs', 'MCP_TOKEN_BUDGET.md');
-    if (!fs.existsSync(mcpBudgetDoc)) {
-      warn.push('HEXCURSE/docs/MCP_TOKEN_BUDGET.md missing — re-run install or copy from installer templates/');
-    }
-    const adrLogDoc = path.join(cwd, HEXCURSE_ROOT, 'docs', 'ADR_LOG.md');
-    if (!fs.existsSync(adrLogDoc)) {
-      warn.push('HEXCURSE/docs/ADR_LOG.md missing — re-run install for ADR stub');
-    }
-  }
-
-  for (const ruleName of ['base.mdc', 'security.mdc', 'adr.mdc']) {
-    const rp = path.join(cwd, '.cursor', 'rules', ruleName);
-    if (!fs.existsSync(rp)) {
-      warn.push(`.cursor/rules/${ruleName} missing — run install or --refresh-rules`);
-    }
-  }
-
-  if (fs.existsSync(skillsDir)) {
-    try {
-      const mdSkills = fs.readdirSync(skillsDir).filter((f) => f.endsWith('.md')).length;
-      if (mdSkills >= 3 && !fs.existsSync(path.join(cwd, '.pampa'))) {
-        warn.push(
-          '.cursor/skills has 3+ .md files but no .pampa/ index — run `npx -y --package=pampa pampa-mcp index .cursor/skills/` or re-run install'
-        );
-      }
-    } catch (e) {
-      warn.push(`.cursor/skills: could not check PAMPA index (${e.message})`);
-    }
-  }
-
-  try {
-    const rootEnts = fs.readdirSync(cwd, { withFileTypes: true });
-    for (const ent of rootEnts) {
-      if (!ent.isDirectory()) continue;
-      const n = ent.name;
-      if (n.startsWith('.') || n === 'node_modules' || n === HEXCURSE_ROOT) continue;
-      if ((n === 'cursor-governance' || n === 'hexcurse') && sourceRepo) continue;
-      const subPkg = path.join(cwd, n, 'package.json');
-      const subAgents = path.join(cwd, n, 'AGENTS.md');
-      if (fs.existsSync(subPkg) && !fs.existsSync(subAgents)) {
-        warn.push(
-          `Monorepo folder ${n}/ has package.json but no AGENTS.md — add hierarchical AGENTS.md (existing-repo install or copy template)`
-        );
-      }
-    }
-  } catch (e) {
-    warn.push(`Monorepo AGENTS.md scan failed: ${e.message}`);
-  }
-
+  // 11. task-master CLI
   try {
     execSync('task-master --version', { shell: true, stdio: 'pipe', encoding: 'utf8' });
     ok.push('task-master CLI on PATH');
   } catch (e) {
-    if (ciRelaxed) warn.push('task-master not on PATH (non-blocking in CI; install task-master-ai globally for local dev)');
-    else bad.push('task-master not on PATH (install task-master-ai globally)');
+    if (ciRelaxed) warn.push('task-master not on PATH (non-blocking in CI)');
+    else bad.push('task-master not on PATH — run: npm install -g task-master-ai');
   }
 
+  // installer path file
+  const instPath = path.join(cwd, '.cursor', 'hexcurse-installer.path');
+  if (fs.existsSync(instPath)) ok.push('.cursor/hexcurse-installer.path present');
+  else warn.push('.cursor/hexcurse-installer.path missing — run install once to create it');
+
+  // Print results
   console.log(chalk.cyan.bold('\nhexcurse-doctor'), chalk.dim(`cwd: ${cwd}\n`));
   ok.forEach((s) => console.log(chalk.green('✓'), s));
   warn.forEach((s) => console.log(chalk.yellow('!'), s));
   bad.forEach((s) => console.log(chalk.red('✗'), s));
   console.log('');
   if (bad.length) {
-    console.log(chalk.yellow('Fix blocking issues above, then re-run doctor or the installer.\n'));
+    console.log(chalk.yellow('Fix blocking issues above, then re-run --doctor or the installer.\n'));
     process.exitCode = 1;
   } else {
     console.log(chalk.green('No blocking issues.\n'));
