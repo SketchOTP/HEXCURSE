@@ -204,7 +204,7 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 
 **STEP 8.** Query **memory** — confirm discoveries were saved; write any missed.
 
-**STEP 9.** Update **DIRECTIVES.md**: move completed directive to **Completed** with date and git short hash.
+**STEP 9.** Update **DIRECTIVES.md**: move completed directive to **Completed** with date and git short hash. *(Skill promotion criteria: **STEP 14** + **`docs/SKILL_PROMOTION_GUIDE.md`** — not a substitute for this step.)*
 
 **STEP 10.** Write **SESSION_LOG.md** using the template below; include MCP utilization (used / not used + reasons).
 
@@ -214,7 +214,7 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 
 **STEP 13.** **agents-memory-updater** per **RULE 9** / **docs/CONTINUAL_LEARNING.md**. Optionally **`node cursor-governance/setup.js --learning-rollup`** if **lastRollupAt** is stale or **5+** sessions since rollup.
 
-**STEP 14.** If new skills were added under **`.cursor/skills/`**, re-index with **pampa** when applicable.
+**STEP 14.** **Skill promotion (before PAMPA):** If a reusable pattern from this session meets **all** four criteria in **`docs/SKILL_PROMOTION_GUIDE.md`** (≥2 sessions, non-trivial, repo/domain-specific, saved time or prevented mistakes), promote it under **`.cursor/skills/{skill-name}/`** with **`SKILL.md`** before closing. If new or updated skills exist, re-index with **pampa** when applicable.
 
 **STEP 15.** Confirm with the user before treating the session as closed.
 
@@ -253,6 +253,9 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 **Commit hash:** [git short hash]
 **MCP tools used (why):** [list]
 **MCP tools not used (reason each):** [list or "none — all relevant MCPs invoked"]
+**Token estimate:** ~{N} input / ~{N} output
+**Tool calls:** {N} total ({N} MCP, {N} file reads, {N} redundant)
+**Context efficiency:** {percentage of context used at peak}
 **Notes:** [anything the next session needs to know]
 
 ## Learned Workspace Facts
