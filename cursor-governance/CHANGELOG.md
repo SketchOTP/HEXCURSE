@@ -2,6 +2,23 @@
 
 All notable changes to **cursor-governance** are documented here.
 
+## [1.5.9] — 2026-04-03
+
+### Added
+- `NORTH_STAR.md` — confirmed product definition (human-approved); footer links task graph snapshot
+- `.taskmaster/docs/prd.txt` — PRD derived from NORTH_STAR (installer, learning loop, token efficiency)
+- `docs/TASK_GRAPH_SNAPSHOT.md` — Taskmaster task graph at D-HEXCURSE-PRODUCT-STACK-005 (agent-curated when `parse-prd` has no LLM)
+
+### Changed
+- `docs/ARCHITECTURE.md` — product stack confirmed from NORTH_STAR; LLM-offline task graph path documented
+- `.env.example` — note on rebuilding `tasks.json` without a live OpenAI-compatible endpoint
+- `.taskmaster/tasks/tasks.json` — 15 tasks aligned with product (installer, rituals, continual learning, measurement, D014/D015)
+
+### Fixed
+- Taskmaster **#3** — LLM / fallback documentation (done)
+- Taskmaster **#4** — task graph rebuilt (done; agent equivalent to `parse-prd`)
+- Taskmaster **#8** — ARCHITECTURE product stack (done)
+
 ## [1.5.8] — 2026-04-02
 
 ### Changed
