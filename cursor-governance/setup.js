@@ -1229,6 +1229,7 @@ function runDoctor(cwd) {
   }
 
   if (fs.existsSync(mcpPath)) {
+    migrateSentryMcpEnvInMcpJson(mcpPath);
     ok.push('~/.cursor/mcp.json present');
     try {
       const mj = JSON.parse(fs.readFileSync(mcpPath, 'utf8'));
@@ -2747,6 +2748,7 @@ function buildMcpServers(taskmasterEnv, githubToken) {
       command: 'uvx',
       args: ['semgrep-mcp'],
       env: {
+        SEMGREP_PATH: process.env.SEMGREP_PATH || '',
         SEMGREP_APP_TOKEN: process.env.SEMGREP_APP_TOKEN || '',
       },
     },
@@ -2754,7 +2756,9 @@ function buildMcpServers(taskmasterEnv, githubToken) {
       command: 'npx',
       args: ['-y', '@sentry/mcp-server@latest'],
       env: {
-        SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN || '',
+        // @sentry/mcp-server reads SENTRY_ACCESS_TOKEN (not SENTRY_AUTH_TOKEN).
+        SENTRY_ACCESS_TOKEN:
+          process.env.SENTRY_ACCESS_TOKEN || process.env.SENTRY_AUTH_TOKEN || '',
       },
     },
     firecrawl: {
@@ -2816,7 +2820,34 @@ function mergeMcpJson(taskmasterEnv, githubToken) {
       /* non-fatal — some filesystems ignore mode */
     }
   }
+  migrateSentryMcpEnvInMcpJson(mcpPath);
   return { mcpPath, added, kept };
+}
+
+/**
+ * @sentry/mcp-server reads SENTRY_ACCESS_TOKEN; older HexCurse templates used SENTRY_AUTH_TOKEN.
+ * Copies the value across so the MCP process receives a token when present.
+ */
+function migrateSentryMcpEnvInMcpJson(mcpPath) {
+  if (!fs.existsSync(mcpPath)) return;
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(mcpPath, 'utf8'));
+  } catch (e) {
+    return;
+  }
+  const sentry = data.mcpServers && data.mcpServers.sentry;
+  if (!sentry || !sentry.env || typeof sentry.env !== 'object') return;
+  const env = sentry.env;
+  if (env.SENTRY_AUTH_TOKEN != null && env.SENTRY_ACCESS_TOKEN == null) {
+    env.SENTRY_ACCESS_TOKEN = env.SENTRY_AUTH_TOKEN;
+    delete env.SENTRY_AUTH_TOKEN;
+    fs.writeFileSync(mcpPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+    console.log(
+      chalk.green('✓'),
+      'Migrated sentry MCP: env key SENTRY_AUTH_TOKEN → SENTRY_ACCESS_TOKEN (required by @sentry/mcp-server)'
+    );
+  }
 }
 
 /**
@@ -2852,16 +2883,21 @@ function mergeSwarmProtocolMcpServerIfMissing() {
   }
   const prev = data.mcpServers['swarm-protocol'] || {};
   const prevEnv = prev.env && typeof prev.env === 'object' ? { ...prev.env } : {};
+  const defaultLocalSwarm =
+    'postgresql://postgres:postgres@127.0.0.1:5432/swarm_protocol';
+  const envOut = { ...prevEnv };
+  // Do not embed DB credentials in mcp.json — use ~/.cursor/swarm-database.env (see bin/swarm-protocol-mcp.js).
+  if (envOut.DATABASE_URL === defaultLocalSwarm) delete envOut.DATABASE_URL;
+  if (!envOut.DATABASE_URL && !envOut.SWARM_DATABASE_URL) {
+    const fromShell = String(
+      process.env.SWARM_DATABASE_URL || process.env.DATABASE_URL || ''
+    ).trim();
+    if (fromShell) envOut.DATABASE_URL = fromShell;
+  }
   data.mcpServers['swarm-protocol'] = {
     command: 'node',
     args: [launcherPath],
-    env: {
-      ...prevEnv,
-      DATABASE_URL:
-        prevEnv.DATABASE_URL ||
-        String(process.env.SWARM_DATABASE_URL || process.env.DATABASE_URL || '').trim() ||
-        'postgresql://postgres:postgres@127.0.0.1:5432/swarm_protocol',
-    },
+    env: envOut,
   };
   fs.ensureDirSync(path.dirname(mcpPath));
   fs.writeFileSync(mcpPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
