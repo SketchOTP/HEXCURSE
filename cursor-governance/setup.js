@@ -3,7 +3,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const chalk = require('chalk');
 const crypto = require('crypto');
 const readline = require('readline');
@@ -296,6 +296,234 @@ function parseSetupArgv(argv) {
 /** True when argv includes --dry-run (for --sync-rules). */
 function argvHasDryRun(argv) {
   return argv.slice(2).some((a) => a === '--dry-run');
+}
+
+/** Validates agent-produced JSON before writing Taskmaster tasks.json. */
+function validateTaskmasterSchema(parsed) {
+  const errors = [];
+
+  if (!parsed || typeof parsed !== 'object') {
+    return { ok: false, errors: ['Root must be a JSON object'] };
+  }
+  if (!parsed.master || !Array.isArray(parsed.master.tasks)) {
+    return { ok: false, errors: ['Must have master.tasks array'] };
+  }
+
+  const tasks = parsed.master.tasks;
+  if (tasks.length < 5) {
+    errors.push(`Only ${tasks.length} tasks — expected at least 5`);
+  }
+
+  const ids = new Set();
+  tasks.forEach((t, i) => {
+    const prefix = `Task[${i}]`;
+    if (typeof t.id !== 'number') errors.push(`${prefix}: id must be integer, got ${typeof t.id}`);
+    if (!t.title || typeof t.title !== 'string') errors.push(`${prefix}: missing title`);
+    if (!t.description || typeof t.description !== 'string') errors.push(`${prefix}: missing description`);
+    if (!t.details || typeof t.details !== 'string') errors.push(`${prefix}: missing details`);
+    if (!t.testStrategy || typeof t.testStrategy !== 'string') errors.push(`${prefix}: missing testStrategy`);
+    if (!t.status) errors.push(`${prefix}: missing status`);
+    if (!['high', 'medium', 'low'].includes(t.priority)) {
+      errors.push(`${prefix}: invalid priority '${t.priority}'`);
+    }
+    if (!Array.isArray(t.dependencies)) errors.push(`${prefix}: dependencies must be array`);
+    if (!Array.isArray(t.subtasks)) errors.push(`${prefix}: subtasks must be array`);
+    ids.add(t.id);
+  });
+
+  tasks.forEach((t) => {
+    (t.dependencies || []).forEach((dep) => {
+      if (!ids.has(dep)) {
+        errors.push(`Task #${t.id}: dependency ${dep} references non-existent task`);
+      }
+      if (dep === t.id) {
+        errors.push(`Task #${t.id}: task depends on itself`);
+      }
+    });
+  });
+
+  return { ok: errors.length === 0, errors };
+}
+
+/** Builds the self-contained prompt for the Cursor agent to emit tasks JSON. */
+function buildAgentParsePrompt(prdContent, outPath) {
+  return `
+You are parsing a Product Requirements Document into a Taskmaster task graph.
+Read the PRD below and produce a JSON task list in the exact schema specified.
+
+## PRD
+
+${prdContent}
+
+## Output schema
+
+Respond with ONLY a valid JSON object — no markdown fences, no preamble, no explanation.
+The JSON must exactly match this schema:
+
+{
+  "master": {
+    "tasks": [
+      {
+        "id": <integer starting at 1>,
+        "title": "<concise task title, max 60 chars>",
+        "description": "<one sentence describing what this task delivers>",
+        "details": "<2-4 sentences of implementation guidance>",
+        "testStrategy": "<how to verify this task is complete>",
+        "status": "pending",
+        "dependencies": [<array of integer task ids this task depends on>],
+        "priority": "<high | medium | low>",
+        "subtasks": []
+      }
+    ]
+  }
+}
+
+## Rules for task generation
+
+1. Produce between 10 and 20 tasks. Too few means the PRD is not broken down enough.
+2. Tasks must cover the full scope of the PRD — do not skip phases or features.
+3. Dependencies must form a valid DAG — no circular dependencies.
+4. The first task must have no dependencies (it is always the foundation task).
+5. Priority rules:
+   - high: blocking other tasks, customer-facing, or on the critical path
+   - medium: important but not blocking
+   - low: nice-to-have, polish, or future-phase
+6. id values must be sequential integers starting at 1.
+7. Do not include tasks that are already done — this is a fresh task graph.
+8. testStrategy must be concrete and specific, not "test it works."
+9. Respond with ONLY the JSON object. No other text before or after.
+
+## Verification
+
+After generating the JSON, verify internally:
+- All dependency ids reference valid task ids in the list
+- No task depends on itself
+- The JSON is valid (no trailing commas, no unquoted strings)
+- id values are integers not strings
+- All required fields are present on every task
+
+If verification fails, fix the JSON before responding.
+`.trim();
+}
+
+/** Best-effort clipboard copy; never throws. */
+function tryClipboardCopy(text) {
+  try {
+    if (process.platform === 'win32') {
+      execFileSync('clip', { input: text, encoding: 'utf8' });
+      console.log('✓ Prompt copied to clipboard (Windows clip)\n');
+    } else if (process.platform === 'darwin') {
+      execSync('pbcopy', { input: text });
+      console.log('✓ Prompt copied to clipboard (pbcopy)\n');
+    } else {
+      try {
+        execSync('xclip -selection clipboard', { input: text });
+        console.log('✓ Prompt copied to clipboard (xclip)\n');
+      } catch {
+        try {
+          execSync('xsel --clipboard --input', { input: text });
+          console.log('✓ Prompt copied to clipboard (xsel)\n');
+        } catch {
+          /* clipboard unavailable */
+        }
+      }
+    }
+  } catch {
+    /* Clipboard not available — the printed prompt is sufficient */
+  }
+}
+
+/** Prints the agent prompt and optional clipboard copy; never writes files when dryRun. */
+function printAgentParsePrompt(prompt, outPath, dryRun) {
+  console.log('\n' + '═'.repeat(70));
+  console.log('  HexCurse — Parse PRD via Agent');
+  console.log('═'.repeat(70));
+  console.log('\nStep 1: Copy everything between the dashes and paste it into');
+  console.log('        the Cursor agent chat (or any LLM chat interface).\n');
+  console.log('─'.repeat(70));
+  console.log(prompt);
+  console.log('─'.repeat(70));
+  console.log('\nStep 2: When the agent responds with JSON, save the response to');
+  console.log('        a file (e.g. agent-response.json), then run:\n');
+  console.log(`        node cursor-governance/setup.js --parse-prd-via-agent \\`);
+  console.log(`          --apply=agent-response.json --out="${outPath}"\n`);
+  console.log('Step 3: Verify with: task-master list\n');
+
+  if (dryRun) {
+    console.log('(dry-run: no files written)\n');
+    return;
+  }
+
+  tryClipboardCopy(prompt);
+}
+
+/** Reads agent JSON from file, validates, writes tasks.json (unless dryRun). */
+async function applyAgentResponse(applyPath, outPath, dryRun) {
+  if (!fs.existsSync(applyPath)) {
+    console.error(`✗ Response file not found: ${applyPath}`);
+    process.exit(1);
+  }
+
+  let raw = fs.readFileSync(applyPath, 'utf8').trim();
+  raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    console.error('✗ Response is not valid JSON:', e.message);
+    console.error('  Check the file for markdown fences or extra text and try again.');
+    process.exit(1);
+  }
+
+  const validation = validateTaskmasterSchema(parsed);
+  if (!validation.ok) {
+    console.error('✗ Schema validation failed:');
+    validation.errors.forEach((e) => console.error('  -', e));
+    console.error('\n  Fix the JSON and re-run with --apply=<path>');
+    process.exit(1);
+  }
+
+  const tasks = parsed.master.tasks;
+  console.log(`✓ Parsed ${tasks.length} tasks from agent response`);
+  tasks.forEach((t) => console.log(`  #${t.id} [${t.priority}] ${t.title}`));
+
+  if (dryRun) {
+    console.log('\n(dry-run: tasks.json not written)\n');
+    return;
+  }
+
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify(parsed, null, 2) + '\n', 'utf8');
+  console.log(`\n✓ Written to: ${outPath}`);
+  console.log('  Run: task-master list\n');
+}
+
+/** Generate Taskmaster tasks from PRD via Cursor agent (no outbound LLM from setup.js). */
+async function runParsePrdViaAgent(cwd, args) {
+  const prdPath = args.prd || path.join(cwd, '.taskmaster', 'docs', 'prd.txt');
+  const outPath = args.out || path.join(cwd, '.taskmaster', 'tasks', 'tasks.json');
+  const dryRun = args['dry-run'] || false;
+  const applyPath = args.apply || null;
+
+  if (!fs.existsSync(prdPath)) {
+    console.error(`✗ PRD not found at: ${prdPath}`);
+    console.error('  Run the installer first, or specify --prd=<path>');
+    process.exit(1);
+  }
+  const prdContent = fs.readFileSync(prdPath, 'utf8').trim();
+  if (prdContent.length < 100) {
+    console.error(`✗ PRD at ${prdPath} appears to be a stub (${prdContent.length} chars)`);
+    console.error('  Write a substantive PRD before running --parse-prd-via-agent');
+    process.exit(1);
+  }
+
+  if (applyPath) {
+    return applyAgentResponse(applyPath, outPath, dryRun);
+  }
+
+  const prompt = buildAgentParsePrompt(prdContent, outPath);
+  printAgentParsePrompt(prompt, outPath, dryRun);
 }
 
 /** Parse --sessions=N from argv (default 5). */
