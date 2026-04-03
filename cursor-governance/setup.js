@@ -4967,6 +4967,12 @@ main.hexcurseRefreshRulesTestHooks = {
   extractSacredCsvFromBaseMdc,
 };
 
+/** Test-only: --parse-prd-via-agent schema and prompt. See test/hexcurse-pack.test.js */
+main.hexcurseAgentParseHooks = {
+  validateTaskmasterSchema,
+  buildAgentParsePrompt,
+};
+
 if (require.main === module) {
   main().catch((err) => {
     console.error(err);
