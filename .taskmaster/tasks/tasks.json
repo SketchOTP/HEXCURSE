@@ -109,12 +109,13 @@
         "description": "Keep merge, --doctor, --run-hexcurse, template embeds aligned with SESSION_START_PROMPT and embedded agentsMd/sessionStartMd.",
         "details": "Run HEXCURSE_DOCTOR_CI=1 doctor from repo root; npm run test:all in cursor-governance.",
         "testStrategy": "Doctor zero blocking; all tests green.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "1"
         ],
         "priority": "high",
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-03T09:43:25.730Z"
       },
       {
         "id": "10",
@@ -122,7 +123,7 @@
         "description": "Dogfood governed sessions until SESSION_LOG, ROLLING_CONTEXT, and .cursor/skills show real accumulated artifacts.",
         "details": "Per NORTH_STAR Current state: prove the self-improving loop beyond empty skills and empty rolling context.",
         "testStrategy": "After N sessions: non-empty skill file or rollup excerpt; memory entries for discoveries.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "9"
         ],
@@ -148,7 +149,8 @@
             "testStrategy": "",
             "parentId": "undefined"
           }
-        ]
+        ],
+        "updatedAt": "2026-04-03T09:48:32.926Z"
       },
       {
         "id": "11",
@@ -156,7 +158,7 @@
         "description": "Harden agents-memory-updater, skill-promotion-queue.json consumption, and PAMPA re-index after new skills.",
         "details": "Align with CONTINUAL_LEARNING.md and RULE 9 debounce; ensure skills are discoverable via pampa search.",
         "testStrategy": "Promote one skill end-to-end; pampa finds it by keyword.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "10"
         ],
@@ -182,7 +184,8 @@
             "testStrategy": "",
             "parentId": "undefined"
           }
-        ]
+        ],
+        "updatedAt": "2026-04-03T09:49:35.858Z"
       },
       {
         "id": "12",
@@ -190,12 +193,13 @@
         "description": "Define how to compare tool-call counts, redundant reads, and context size across sessions in the same repo.",
         "details": "Align with NORTH_STAR Definition of Done and docs/MCP_TOKEN_BUDGET.md; optional script or checklist.",
         "testStrategy": "Documented protocol produces comparable metrics for two sessions.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "10"
         ],
         "priority": "medium",
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-03T09:49:53.023Z"
       },
       {
         "id": "13",
@@ -203,13 +207,14 @@
         "description": "Audit SESSION_START_PROMPT and AGENTS.md steps against docs/MCP_COORDINATION.md and actual mcp.json merge.",
         "details": "Ensure 4a–4e and server list match installer output; fix doc drift before shipping.",
         "testStrategy": "Checklist walkthrough of SESSION START without DEGRADED_MODE on core servers.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "1",
           "2"
         ],
         "priority": "medium",
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-03T09:45:22.327Z"
       },
       {
         "id": "14",
@@ -217,12 +222,13 @@
         "description": "Verify readline prompts and console logging in setup.js on Windows; no enquirer/ora regressions.",
         "details": "Prerequisite for D015. Mark done when Windows path is verified.",
         "testStrategy": "Manual: full setup.js prompt flow in PowerShell.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "9"
         ],
         "priority": "high",
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-03T09:45:33.380Z"
       },
       {
         "id": "15",
@@ -230,12 +236,13 @@
         "description": "OS-aware Python/pip/uv and paths in setup.js only; no hardcoded Windows paths.",
         "details": "process.platform win32|linux|darwin; path.join; Linux python3/pip3 first per existing directive text.",
         "testStrategy": "node --check setup.js; smoke install on Linux.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           "14"
         ],
         "priority": "high",
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-03T09:46:02.510Z"
       },
       {
         "id": "16",
@@ -251,9 +258,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-03T09:34:51.735Z",
+      "lastModified": "2026-04-03T09:49:53.024Z",
       "taskCount": 16,
-      "completedCount": 8,
+      "completedCount": 15,
       "tags": [
         "master"
       ]

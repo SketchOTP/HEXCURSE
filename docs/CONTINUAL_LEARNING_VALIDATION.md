@@ -2,7 +2,7 @@
 
 ## Environment
 
-- HexCurse version: 1.6.0 (source installer under test; release target 1.6.1)
+- HexCurse version: **1.6.1** (installer used: `N:\\HexCurse\\cursor-governance\\setup.js` at tag **v1.6.1**)
 - Consumer repo: `N:\HexCurse-CL-Test` (fresh `git init` + `node N:\HexCurse\cursor-governance\setup.js --quick --preset=other`)
 
 ## Results

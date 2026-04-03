@@ -16,6 +16,7 @@
 - D-HEXCURSE-PRODUCT-STACK-005 (Taskmaster #8): Confirm product stack in `docs/ARCHITECTURE.md` ✓ 2026-04-03
 - D-HEXCURSE-PRODUCT-STACK-005: Part B closed — `docs/TASK_GRAPH_SNAPSHOT.md`, cursor-governance **v1.5.9**, tasks #3/#4/#8 done ✓ 2026-04-03
 - D-HEXCURSE-AGENT-PARSE-006 (Taskmaster #16): `--parse-prd-via-agent` in `setup.js` — PRD → agent prompt, `--apply` writes `tasks.json`, doctor stub check, PATHS `agentParsePromptCache` — cursor-governance **v1.6.0** ✓ 2026-04-03
+- D-HEXCURSE-OMNIBUS-007 (Taskmaster **#5, #6, #9–#15**): Semgrep Streamable HTTP, memory seed, installer parity, session ritual audit, Windows ConPTY + Linux Pampa/npm fallback, continual learning validation, skill promotion guide, token efficiency protocol — cursor-governance **v1.6.1** ✓ 2026-04-03 **1431f90**
 
 ---
 
@@ -34,16 +35,8 @@
 ---
 
 ## 📋 Queued
-<!-- Synced with `.taskmaster/tasks/tasks.json` — 2026-04-03 (15 tasks; #3 #4 #8 → done). -->
-- D005 (Taskmaster #5): Seed memory MCP from docs/MEMORY_SEED.md | Priority: MED | Depends on: —
-- D006 (Taskmaster #6): Verify MCP servers show green in Cursor | Priority: MED | Depends on: —
-- D009 (Taskmaster #9): Installer correctness — setup.js parity with AGENTS + GOVERNANCE_PARITY | Priority: HIGH | Depends on: D001
-- D010 (Taskmaster #10): Validate continual learning loop in a real repo | Priority: HIGH | Depends on: D009
-- D011 (Taskmaster #11): Skill promotion pipeline and PAMPA cadence | Priority: MED | Depends on: D010
-- D012 (Taskmaster #12): Token efficiency measurement protocol (session 1 vs N) | Priority: MED | Depends on: D010
-- D013 (Taskmaster #13): Session ritual accuracy vs live MCP coordination | Priority: MED | Depends on: D001, D002
-- D014 (Taskmaster #14): cursor-governance installer — Windows PowerShell readline + no ora | Priority: HIGH | Depends on: D009
-- D015 (Taskmaster #15): Linux compatibility for cursor-governance installer (`setup.js` only) | Priority: HIGH | Depends on: D014
+<!-- Synced with `.taskmaster/tasks/tasks.json` — 2026-04-03 (omnibus #5–#15 → done). -->
+- Taskmaster **#16** — `Add --parse-prd-via-agent mode to setup.js` (implemented in **v1.6.0**; **pending** in JSON — close or expand when you reconcile the graph) | Priority: HIGH
 
 ---
 
