@@ -2695,6 +2695,55 @@ function installGlobals(platform) {
   }
 }
 
+/**
+ * Resolves the global pampa package MCP entry script for ~/.cursor/mcp.json (stdio).
+ * Multi-strategy: npm root -g, pampa bin prefix, then conventional fallback (D-HEXCURSE-MCP-RECONCILE-003).
+ */
+function resolvePampaGlobalPath() {
+  try {
+    const globalRoot = execSync('npm root -g', { encoding: 'utf8' }).trim();
+    const candidate = path.join(globalRoot, 'pampa', 'mcp-server.js');
+    if (fs.existsSync(candidate)) return candidate;
+  } catch (_) {
+    /* try next */
+  }
+  try {
+    const globalRoot = execSync('npm root -g', { encoding: 'utf8' }).trim();
+    const candidateSrc = path.join(globalRoot, 'pampa', 'src', 'mcp-server.js');
+    if (fs.existsSync(candidateSrc)) return candidateSrc;
+  } catch (_) {
+    /* try next */
+  }
+  try {
+    const binPath = execSync(process.platform === 'win32' ? 'where pampa' : 'which pampa', {
+      encoding: 'utf8',
+    })
+      .trim()
+      .split(/\r?\n/)[0];
+    const parts = binPath.split(path.sep);
+    const prefixIdx = parts.lastIndexOf('bin');
+    if (prefixIdx !== -1) {
+      const prefix = parts.slice(0, prefixIdx).join(path.sep);
+      const candidate = path.join(prefix, 'lib', 'node_modules', 'pampa', 'mcp-server.js');
+      if (fs.existsSync(candidate)) return candidate;
+      const candidateSrc = path.join(prefix, 'lib', 'node_modules', 'pampa', 'src', 'mcp-server.js');
+      if (fs.existsSync(candidateSrc)) return candidateSrc;
+    }
+  } catch (_) {
+    /* fall through */
+  }
+  return process.platform === 'win32'
+    ? path.join(
+        process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+        'npm',
+        'node_modules',
+        'pampa',
+        'src',
+        'mcp-server.js'
+      )
+    : path.join('/usr/local/lib/node_modules/pampa', 'mcp-server.js');
+}
+
 function buildMcpServers(taskmasterEnv, githubToken) {
   return {
     'taskmaster-ai': {
@@ -2776,8 +2825,9 @@ function buildMcpServers(taskmasterEnv, githubToken) {
       },
     },
     pampa: {
-      command: 'npx',
-      args: ['-y', '--package=pampa', 'pampa-mcp'],
+      command: process.platform === 'win32' ? 'node.exe' : 'node',
+      args: [resolvePampaGlobalPath()],
+      cwd: '${workspaceFolder}',
     },
   };
 }
