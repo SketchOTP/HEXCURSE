@@ -222,13 +222,14 @@ Run from your target repository root with no flags to start the interactive inst
 `);
 }
 
-/** Returns 'install' | 'help' | 'version' | 'doctor' | 'refresh-rules' | 'multi-agent' | 'sync-rules' | 'parse-prd-via-agent'. */
+/** Returns 'install' | 'help' | 'version' | 'doctor' | 'refresh-rules' | 'migrate-v2' | 'multi-agent' | 'sync-rules' | 'parse-prd-via-agent'. */
 function parseSetupArgv(argv) {
   const flags = new Set(argv.slice(2).filter((a) => a.startsWith('-')));
   if (flags.has('--help') || flags.has('-h')) return 'help';
   if (flags.has('--version') || flags.has('-v')) return 'version';
   if (flags.has('--doctor')) return 'doctor';
   if (flags.has('--refresh-rules')) return 'refresh-rules';
+  if (flags.has('--migrate-v2')) return 'migrate-v2';
   if (flags.has('--multi-agent')) return 'multi-agent';
   if (flags.has('--sync-rules')) return 'sync-rules';
   if (flags.has('--parse-prd-via-agent')) return 'parse-prd-via-agent';
@@ -3194,6 +3195,223 @@ async function syncRemoteRules(cwd, { dryRun = false } = {}) {
   }
 }
 
+/** Migrates a v1 consumer install to v2: backs up HEXCURSE/ and .cursor/rules/, removes v1 artifacts, runs v2 install. */
+async function runMigrateV2(cwd) {
+  const pkg = readInstallerPackageJson();
+  console.log(chalk.bold(`HEXCURSE installer ${pkg.version}`), chalk.dim('— migrate-v2\n'));
+
+  const hexRoot = path.join(cwd, HEXCURSE_ROOT);
+  const pathsJsonPath = path.join(hexRoot, 'PATHS.json');
+
+  // Check this is actually a v1 install
+  if (!fs.existsSync(hexRoot)) {
+    console.log(chalk.yellow('No HEXCURSE/ folder found — nothing to migrate.'));
+    return;
+  }
+  if (fs.existsSync(pathsJsonPath)) {
+    try {
+      const j = JSON.parse(fs.readFileSync(pathsJsonPath, 'utf8'));
+      if (j.schema === 'hexcurse-paths-v2') {
+        console.log(chalk.green('✓'), 'Already on hexcurse-paths-v2 — no migration needed.');
+        return;
+      }
+    } catch (_) {}
+  }
+
+  // Backup HEXCURSE/
+  const backupHex = path.join(cwd, 'HEXCURSE.v1.backup');
+  console.log(chalk.cyan('→'), `Backing up HEXCURSE/ to HEXCURSE.v1.backup/`);
+  await fs.copy(hexRoot, backupHex, { overwrite: true });
+
+  // Backup .cursor/rules/
+  const rulesDir = path.join(cwd, '.cursor', 'rules');
+  const backupRules = path.join(cwd, '.cursor', 'rules.v1.backup');
+  if (fs.existsSync(rulesDir)) {
+    console.log(chalk.cyan('→'), 'Backing up .cursor/rules/ to .cursor/rules.v1.backup/');
+    await fs.copy(rulesDir, backupRules, { overwrite: true });
+  }
+
+  // Remove v1-specific files
+  const v1Removals = [
+    path.join(hexRoot, 'docs', 'SESSION_LOG.md'),
+    path.join(hexRoot, 'SESSION_LOG.md'),
+    path.join(hexRoot, 'docs', 'ROLLING_CONTEXT.md'),
+    path.join(hexRoot, 'docs', 'CONTINUAL_LEARNING.md'),
+    path.join(hexRoot, 'docs', 'GOVERNANCE_PARITY.md'),
+    path.join(hexRoot, 'docs', 'MCP_COORDINATION.md'),
+    path.join(hexRoot, 'docs', 'MEMORY_TAXONOMY.md'),
+    path.join(cwd, '.cursor', 'hooks', 'state', 'continual-learning.json'),
+    path.join(cwd, '.cursor', 'hooks', 'state', 'continual-learning-index.json'),
+    path.join(cwd, '.cursor', 'hooks', 'state', 'skill-promotion-queue.json'),
+  ];
+  for (const f of v1Removals) {
+    if (fs.existsSync(f)) {
+      await fs.remove(f);
+      console.log(chalk.dim('  removed:'), path.relative(cwd, f));
+    }
+  }
+
+  // Preserve NORTH_STAR content and sacred constraints
+  const northStarPath = path.join(hexRoot, 'NORTH_STAR.md');
+  const existingNorthStar = fs.existsSync(northStarPath)
+    ? await fs.readFile(northStarPath, 'utf8')
+    : null;
+
+  let sacredFromBase = '';
+  const baseMdcPath = path.join(cwd, '.cursor', 'rules', 'base.mdc');
+  if (fs.existsSync(baseMdcPath)) {
+    sacredFromBase = extractSacredCsvFromBaseMdc(await fs.readFile(baseMdcPath, 'utf8'));
+  }
+
+  // Preserve project name and purpose from existing AGENTS.md or PATHS.json
+  let projectName = 'my-project';
+  let purpose = 'TBD — fill in NORTH_STAR.md';
+  const agentsMdPath = path.join(hexRoot, 'AGENTS.md');
+  if (fs.existsSync(agentsMdPath)) {
+    projectName = extractProjectNameFromAgents(await fs.readFile(agentsMdPath, 'utf8')) || projectName;
+  }
+
+  console.log(chalk.cyan('→'), 'Running v2 install sequence with preserved project data…\n');
+
+  // Build minimal answers from preserved data
+  const answers = {
+    projectName,
+    purpose,
+    stack: 'TBD — confirm in NORTH_STAR.md',
+    modules: 'TBD',
+    sacred: sacredFromBase || 'no secrets in git; one directive per session',
+    outOfScope: 'TBD',
+    dod: 'Taskmaster parse-prd succeeds; SESSION_START.md exists',
+    provider: '',
+    taskmasterEnv: {},
+    github: process.env.GITHUB_PERSONAL_ACCESS_TOKEN || process.env.GITHUB_TOKEN || '',
+    repoKind: 'existing',
+    northStarDraftMd: existingNorthStar && isNorthStarSubstantive(existingNorthStar) ? existingNorthStar : null,
+    selectedOptionals: [],
+    customMcp: null,
+    supabaseProjectRef: process.env.SUPABASE_PROJECT_REF || '',
+  };
+
+  const installerPkg = readInstallerPackageJson();
+  const pathsMeta = {
+    installerName: 'hexcurse',
+    installerNpmPackage: installerPkg.name,
+    installerVersion: installerPkg.version,
+    generatedAt: new Date().toISOString(),
+  };
+
+  const written = [];
+  const skipped = [];
+  const refreshGovernance = true; // always overwrite on migration
+  const constraintsBullets = formatConstraintBullets(answers.sacred);
+
+  // Rewrite rules
+  await writeGovernanceRules(
+    cwd,
+    'base.mdc',
+    baseMdc(
+      answers.projectName.trim(),
+      answers.purpose.trim(),
+      constraintsBullets,
+      answers.stack.trim(),
+      answers.outOfScope.trim()
+    ),
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await writeGovernanceRules(cwd, 'mcp-usage.mdc', MCP_USAGE_TEMPLATE, written, skipped, refreshGovernance);
+  await writeGovernanceRules(cwd, 'process-gates.mdc', PROCESS_GATES_TEMPLATE, written, skipped, refreshGovernance);
+  await writeGovernanceRules(cwd, 'security.mdc', SECURITY_MDC_TEMPLATE, written, skipped, refreshGovernance);
+  await writeGovernanceRules(cwd, 'adr.mdc', ADR_MDC_TEMPLATE, written, skipped, refreshGovernance);
+
+  // Rewrite governance files
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'PATHS.json'),
+    `${JSON.stringify(pathsManifestObject(pathsMeta), null, 2)}\n`,
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'AGENTS.md'),
+    agentsMd(
+      answers.projectName.trim(),
+      answers.purpose.trim(),
+      answers.stack.trim(),
+      answers.sacred.trim()
+    ),
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'SESSION_START.md'),
+    sessionStartMd(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'ONE_PROMPT.md'),
+    readBundledOnePromptTemplate(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'ADR_LOG.md'),
+    adrLogStubMd(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'README.md'),
+    hexcurseReadmeMd(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+
+  // Restore NORTH_STAR if substantive
+  if (answers.northStarDraftMd) {
+    await fs.writeFile(northStarPath, answers.northStarDraftMd, 'utf8');
+    console.log(chalk.green('✓'), 'Preserved existing NORTH_STAR.md content.');
+  } else {
+    await writeFileMaybeSkip(
+      cwd,
+      path.join(HEXCURSE_ROOT, 'NORTH_STAR.md'),
+      readBundledNorthStarTemplate(answers.projectName.trim()),
+      written,
+      skipped,
+      refreshGovernance
+    );
+  }
+
+  await writeFileMaybeSkip(
+    cwd,
+    'AGENTS.md',
+    rootAgentsPointerMd(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await appendGitignoreLines(cwd);
+
+  console.log(chalk.green.bold('\n✓ Migration complete.'));
+  console.log(chalk.dim('  v1 backup:'), 'HEXCURSE.v1.backup/');
+  console.log(chalk.dim('  rules backup:'), '.cursor/rules.v1.backup/');
+  console.log(chalk.dim('  written:'), written.length, 'files');
+  console.log(chalk.dim('\nNext: fill HEXCURSE/NORTH_STAR.md, then run --doctor to verify.'));
+}
+
 /** Install LightRAG MCP when user selects it at install time. */
 async function installLightRAG(cwd) {
   const python = findPython();
@@ -3243,6 +3461,10 @@ async function main() {
   }
   if (mode === 'refresh-rules') {
     await runRefreshRules(process.cwd());
+    return;
+  }
+  if (mode === 'migrate-v2') {
+    await runMigrateV2(process.cwd());
     return;
   }
 
