@@ -21,6 +21,8 @@ const {
   resolveRollingContextPathForRollup,
 } = setupMain.hexcursePaths;
 
+const { validateTaskmasterSchema, buildAgentParsePrompt } = setupMain.hexcurseAgentParseHooks;
+
 const setupJs = path.join(__dirname, '..', 'setup.js');
 
 function mkTmp() {
@@ -150,6 +152,188 @@ function testQuickInstallPresetOther() {
   }
 }
 
+function testValidateTaskmasterSchemaRejectsIncompleteTask() {
+  const badInput = { master: { tasks: [{ id: 1, title: 'Test' }] } };
+  const r = validateTaskmasterSchema(badInput);
+  assert.strictEqual(r.ok, false);
+  assert.ok(r.errors.length > 0);
+}
+
+function testValidateTaskmasterSchemaAcceptsValidTasks() {
+  const goodInput = {
+    master: {
+      tasks: [
+        {
+          id: 1,
+          title: 'Foundation task',
+          description: 'Sets up the project',
+          details: 'Creates initial structure',
+          testStrategy: 'Run doctor',
+          status: 'pending',
+          dependencies: [],
+          priority: 'high',
+          subtasks: [],
+        },
+        {
+          id: 2,
+          title: 'Second task',
+          description: 'Builds on foundation',
+          details: 'Extends the structure',
+          testStrategy: 'Run tests',
+          status: 'pending',
+          dependencies: [1],
+          priority: 'medium',
+          subtasks: [],
+        },
+        {
+          id: 3,
+          title: 'Third task',
+          description: 'Completes the phase',
+          details: 'Finalizes the work',
+          testStrategy: 'Manual review',
+          status: 'pending',
+          dependencies: [1],
+          priority: 'low',
+          subtasks: [],
+        },
+        {
+          id: 4,
+          title: 'Fourth task',
+          description: 'Validates the output',
+          details: 'Runs validation suite',
+          testStrategy: 'Automated tests',
+          status: 'pending',
+          dependencies: [2, 3],
+          priority: 'high',
+          subtasks: [],
+        },
+        {
+          id: 5,
+          title: 'Fifth task',
+          description: 'Ships the release',
+          details: 'Packages and publishes',
+          testStrategy: 'npm publish dry-run',
+          status: 'pending',
+          dependencies: [4],
+          priority: 'high',
+          subtasks: [],
+        },
+      ],
+    },
+  };
+  const r = validateTaskmasterSchema(goodInput);
+  assert.strictEqual(r.ok, true, r.errors.join('; '));
+}
+
+function testParsePrdViaAgentExitsOnStubPrd() {
+  const cwd = mkTmp();
+  const stubPrd = path.join(cwd, 'stub-prd.txt');
+  fs.writeFileSync(stubPrd, 'short', 'utf8');
+  try {
+    execFileSync(process.execPath, [setupJs, '--parse-prd-via-agent', `--prd=${stubPrd}`, '--dry-run'], {
+      cwd,
+      stdio: 'pipe',
+      encoding: 'utf8',
+    });
+    assert.fail('expected stub PRD to exit 1');
+  } catch (e) {
+    assert.strictEqual(e.status, 1);
+    const out = `${e.stdout || ''}${e.stderr || ''}`;
+    assert.ok(out.includes('stub') || out.includes('chars'), out);
+  }
+}
+
+function testBuildAgentParsePromptContainsSchemaAndPrd() {
+  const prdSnippet = 'UNIQUE_PRD_SNIPPET_FOR_PROMPT_TEST_12345';
+  const p = buildAgentParsePrompt(prdSnippet, '/tmp/tasks.json');
+  for (const needle of ['master', 'tasks', 'id', 'dependencies', 'priority', 'pending']) {
+    assert.ok(p.includes(needle), `prompt should include ${needle}`);
+  }
+  assert.ok(p.includes(prdSnippet), 'prompt should embed PRD body');
+}
+
+function testParsePrdViaAgentApplyStripsMarkdownFences() {
+  const cwd = mkTmp();
+  const prdPath = path.join(cwd, 'prd.txt');
+  fs.writeFileSync(prdPath, 'x'.repeat(120), 'utf8');
+  const inner = {
+    master: {
+      tasks: [
+        {
+          id: 1,
+          title: 'Foundation',
+          description: 'Sets up project',
+          details: 'Creates structure',
+          testStrategy: 'Run doctor',
+          status: 'pending',
+          dependencies: [],
+          priority: 'high',
+          subtasks: [],
+        },
+        {
+          id: 2,
+          title: 'Task two',
+          description: 'Builds on one',
+          details: 'Extends it',
+          testStrategy: 'Run tests',
+          status: 'pending',
+          dependencies: [1],
+          priority: 'medium',
+          subtasks: [],
+        },
+        {
+          id: 3,
+          title: 'Task three',
+          description: 'Third phase',
+          details: 'Phase three work',
+          testStrategy: 'Manual check',
+          status: 'pending',
+          dependencies: [1],
+          priority: 'low',
+          subtasks: [],
+        },
+        {
+          id: 4,
+          title: 'Task four',
+          description: 'Fourth phase',
+          details: 'Phase four work',
+          testStrategy: 'Automated',
+          status: 'pending',
+          dependencies: [2, 3],
+          priority: 'high',
+          subtasks: [],
+        },
+        {
+          id: 5,
+          title: 'Task five',
+          description: 'Final phase',
+          details: 'Ships it',
+          testStrategy: 'npm publish dry-run',
+          status: 'pending',
+          dependencies: [4],
+          priority: 'high',
+          subtasks: [],
+        },
+      ],
+    },
+  };
+  const respPath = path.join(cwd, 'agent-response.json');
+  fs.writeFileSync(respPath, '```json\n' + JSON.stringify(inner) + '\n```\n', 'utf8');
+  const out = execFileSync(
+    process.execPath,
+    [
+      setupJs,
+      '--parse-prd-via-agent',
+      `--prd=${prdPath}`,
+      `--apply=${respPath}`,
+      '--dry-run',
+    ],
+    { cwd, stdio: 'pipe', encoding: 'utf8' }
+  );
+  assert.ok(out.includes('Parsed 5 tasks'), out);
+  assert.ok(out.includes('dry-run: tasks.json not written'), out);
+}
+
 function testLearningRollupWritesToHexPack() {
   const cwd = mkTmp();
   const hexDir = path.join(cwd, HEXCURSE_ROOT, 'docs');
@@ -198,6 +382,11 @@ function run() {
     ['sync-rules requires HEXCURSE_RULES_REMOTE_URL', testSyncRulesRequiresRemoteUrl],
     ['MCP npm packages linear + pampa exist', testMcpNpmPackagesLinearAndPampaExist],
     ['quick install preset other', testQuickInstallPresetOther],
+    ['validateTaskmasterSchema rejects incomplete task', testValidateTaskmasterSchemaRejectsIncompleteTask],
+    ['validateTaskmasterSchema accepts valid tasks', testValidateTaskmasterSchemaAcceptsValidTasks],
+    ['parse-prd-via-agent exits on stub PRD', testParsePrdViaAgentExitsOnStubPrd],
+    ['buildAgentParsePrompt contains schema and PRD', testBuildAgentParsePromptContainsSchemaAndPrd],
+    ['parse-prd-via-agent apply strips markdown fences', testParsePrdViaAgentApplyStripsMarkdownFences],
     ['learning rollup integration', testLearningRollupWritesToHexPack],
   ];
   let failed = 0;
