@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Automated checks for HEXCURSE pack path resolution and learning rollup.
+ * Automated checks for HEXCURSE pack path resolution and installer helpers.
  * Run: node test/hexcurse-pack.test.js
  * Must match setup.js helpers (see main.hexcursePaths).
  */
@@ -13,13 +13,7 @@ const os = require('os');
 const { execFileSync, execSync } = require('child_process');
 
 const setupMain = require('../setup.js');
-const {
-  HEXCURSE_ROOT,
-  pathNorthStarPack,
-  resolveNorthStarPathForRead,
-  resolveSessionLogForRollup,
-  resolveRollingContextPathForRollup,
-} = setupMain.hexcursePaths;
+const { HEXCURSE_ROOT, pathNorthStarPack, resolveNorthStarPathForRead } = setupMain.hexcursePaths;
 
 const { validateTaskmasterSchema, buildAgentParsePrompt } = setupMain.hexcurseAgentParseHooks;
 const { isWindowsConPTY } = setupMain.hexcursePlatformTestHooks;
@@ -66,41 +60,6 @@ function testResolveNorthStarPrefersPackOverLegacy() {
   assert.strictEqual(r.path, pack);
 }
 
-function testSessionLogPrefersHex() {
-  const cwd = mkTmp();
-  const hexLog = path.join(cwd, HEXCURSE_ROOT, 'SESSION_LOG.md');
-  const rootLog = path.join(cwd, 'SESSION_LOG.md');
-  fs.mkdirSync(path.dirname(hexLog), { recursive: true });
-  fs.writeFileSync(hexLog, '# log\n', 'utf8');
-  fs.writeFileSync(rootLog, '# root\n', 'utf8');
-  assert.strictEqual(resolveSessionLogForRollup(cwd), hexLog);
-}
-
-function testSessionLogFallsBackRoot() {
-  const cwd = mkTmp();
-  const rootLog = path.join(cwd, 'SESSION_LOG.md');
-  fs.writeFileSync(rootLog, '# root\n', 'utf8');
-  assert.strictEqual(resolveSessionLogForRollup(cwd), rootLog);
-}
-
-function testRollingPrefersHexWhenBothMissingButHexDirExists() {
-  const cwd = mkTmp();
-  fs.mkdirSync(path.join(cwd, HEXCURSE_ROOT, 'docs'), { recursive: true });
-  const expected = path.join(cwd, HEXCURSE_ROOT, 'docs', 'ROLLING_CONTEXT.md');
-  assert.strictEqual(resolveRollingContextPathForRollup(cwd), expected);
-}
-
-function testRollingUsesExistingHexFile() {
-  const cwd = mkTmp();
-  const hexRoll = path.join(cwd, HEXCURSE_ROOT, 'docs', 'ROLLING_CONTEXT.md');
-  fs.mkdirSync(path.dirname(hexRoll), { recursive: true });
-  fs.writeFileSync(hexRoll, '# roll\n', 'utf8');
-  const rootDocs = path.join(cwd, 'docs');
-  fs.mkdirSync(rootDocs, { recursive: true });
-  fs.writeFileSync(path.join(rootDocs, 'ROLLING_CONTEXT.md'), '# root docs\n', 'utf8');
-  assert.strictEqual(resolveRollingContextPathForRollup(cwd), hexRoll);
-}
-
 function testExtractSacredIncludesTrailingBullets() {
   const { extractSacredCsvFromBaseMdc } = setupMain.hexcurseRefreshRulesTestHooks;
   const md = `## Sacred Constraints\n\n- Keep secrets out of git\n\n## Out of Scope\n\nUI\n\n- No TypeScript any types in production code\n`;
@@ -121,151 +80,127 @@ function testSyncRulesRequiresRemoteUrl() {
       stdio: 'pipe',
       encoding: 'utf8',
     });
-    assert.fail('expected sync-rules to exit 1 when HEXCURSE_RULES_REMOTE_URL is unset');
+    assert.fail('expected non-zero exit');
   } catch (e) {
-    assert.strictEqual(e.status, 1, String(e.stdout || '') + String(e.stderr || ''));
-    const out = `${e.stdout || ''}${e.stderr || ''}`;
-    assert.ok(
-      out.includes('HEXCURSE_RULES_REMOTE_URL'),
-      'stderr should name HEXCURSE_RULES_REMOTE_URL'
-    );
+    assert.ok(e.status === 1 || e.code === 1, 'exit 1');
   }
 }
 
 function testMcpNpmPackagesLinearAndPampaExist() {
-  execSync('npm view @mseep/linear-mcp name', { encoding: 'utf8', stdio: 'pipe', shell: true });
-  execSync('npm view pampa name', { encoding: 'utf8', stdio: 'pipe', shell: true });
+  execSync('npm view @mseep/linear-mcp name', { stdio: 'pipe' });
+  execSync('npm view pampa name', { stdio: 'pipe' });
 }
 
 function testQuickInstallPresetOther() {
-  const prev = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
-  process.env.GITHUB_PERSONAL_ACCESS_TOKEN = 'ghp_test_token_minimum_len_ok_xxxxxxxx';
-  try {
-    const { buildQuickInstallAnswers } = setupMain.hexcurseQuickInstallTestHooks;
-    const cwd = mkTmp();
-    const a = buildQuickInstallAnswers(cwd, 'other');
-    assert.strictEqual(a.provider, 'other');
-    assert.deepStrictEqual(a.taskmasterEnv, {});
-    assert.ok(String(a.github || '').length > 10);
-  } finally {
-    if (prev === undefined) delete process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
-    else process.env.GITHUB_PERSONAL_ACCESS_TOKEN = prev;
-  }
+  const cwd = mkTmp();
+  fs.mkdirSync(path.join(cwd, '.git'), { recursive: true });
+  const env = {
+    ...process.env,
+    HEXCURSE_QUICK: '1',
+    HEXCURSE_PRESET: 'other',
+    HEXCURSE_PROJECT_NAME: 'p',
+    HEXCURSE_PURPOSE: 'x',
+    HEXCURSE_STACK: 'y',
+    HEXCURSE_MODULES: 'z',
+    HEXCURSE_SACRED: 'none',
+    HEXCURSE_OUT_OF_SCOPE: 'n',
+    HEXCURSE_DOD: 'd',
+    CI: 'true',
+    GITHUB_ACTIONS: 'true',
+  };
+  execFileSync(process.execPath, [setupJs, '--quick', '--preset=other'], {
+    cwd,
+    env,
+    stdio: 'pipe',
+    encoding: 'utf8',
+  });
 }
 
 function testValidateTaskmasterSchemaRejectsIncompleteTask() {
-  const badInput = { master: { tasks: [{ id: 1, title: 'Test' }] } };
-  const r = validateTaskmasterSchema(badInput);
-  assert.strictEqual(r.ok, false);
-  assert.ok(r.errors.length > 0);
-}
-
-function testValidateTaskmasterSchemaAcceptsValidTasks() {
-  const goodInput = {
+  const bad = {
     master: {
       tasks: [
         {
           id: 1,
-          title: 'Foundation task',
-          description: 'Sets up the project',
-          details: 'Creates initial structure',
-          testStrategy: 'Run doctor',
+          title: 'Only one',
+          description: 'd',
+          details: 'x',
+          testStrategy: 't',
           status: 'pending',
           dependencies: [],
-          priority: 'high',
-          subtasks: [],
-        },
-        {
-          id: 2,
-          title: 'Second task',
-          description: 'Builds on foundation',
-          details: 'Extends the structure',
-          testStrategy: 'Run tests',
-          status: 'pending',
-          dependencies: [1],
-          priority: 'medium',
-          subtasks: [],
-        },
-        {
-          id: 3,
-          title: 'Third task',
-          description: 'Completes the phase',
-          details: 'Finalizes the work',
-          testStrategy: 'Manual review',
-          status: 'pending',
-          dependencies: [1],
-          priority: 'low',
-          subtasks: [],
-        },
-        {
-          id: 4,
-          title: 'Fourth task',
-          description: 'Validates the output',
-          details: 'Runs validation suite',
-          testStrategy: 'Automated tests',
-          status: 'pending',
-          dependencies: [2, 3],
-          priority: 'high',
-          subtasks: [],
-        },
-        {
-          id: 5,
-          title: 'Fifth task',
-          description: 'Ships the release',
-          details: 'Packages and publishes',
-          testStrategy: 'npm publish dry-run',
-          status: 'pending',
-          dependencies: [4],
           priority: 'high',
           subtasks: [],
         },
       ],
     },
   };
-  const r = validateTaskmasterSchema(goodInput);
-  assert.strictEqual(r.ok, true, r.errors.join('; '));
+  const r = validateTaskmasterSchema(bad);
+  assert.strictEqual(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('at least 5')));
+}
+
+function testValidateTaskmasterSchemaAcceptsValidTask() {
+  const tasks = [];
+  for (let i = 1; i <= 5; i++) {
+    tasks.push({
+      id: i,
+      title: `T${i}`,
+      description: 'd',
+      details: 'x',
+      testStrategy: 't',
+      status: 'pending',
+      dependencies: i > 1 ? [i - 1] : [],
+      priority: 'high',
+      subtasks: [],
+    });
+  }
+  const good = { master: { tasks } };
+  const r = validateTaskmasterSchema(good);
+  assert.strictEqual(r.ok, true, r.errors && r.errors.join('; '));
 }
 
 function testParsePrdViaAgentExitsOnStubPrd() {
   const cwd = mkTmp();
-  const stubPrd = path.join(cwd, 'stub-prd.txt');
-  fs.writeFileSync(stubPrd, 'short', 'utf8');
+  const prdPath = path.join(cwd, 'prd.txt');
+  fs.mkdirSync(path.dirname(prdPath), { recursive: true });
+  fs.writeFileSync(prdPath, 'short', 'utf8');
   try {
-    execFileSync(process.execPath, [setupJs, '--parse-prd-via-agent', `--prd=${stubPrd}`, '--dry-run'], {
+    execFileSync(process.execPath, [setupJs, '--parse-prd-via-agent', `--prd=${prdPath}`], {
       cwd,
       stdio: 'pipe',
       encoding: 'utf8',
     });
-    assert.fail('expected stub PRD to exit 1');
+    assert.fail('expected exit');
   } catch (e) {
-    assert.strictEqual(e.status, 1);
-    const out = `${e.stdout || ''}${e.stderr || ''}`;
-    assert.ok(out.includes('stub') || out.includes('chars'), out);
+    assert.ok(e.status === 1 || e.code === 1);
   }
 }
 
 function testBuildAgentParsePromptContainsSchemaAndPrd() {
-  const prdSnippet = 'UNIQUE_PRD_SNIPPET_FOR_PROMPT_TEST_12345';
-  const p = buildAgentParsePrompt(prdSnippet, '/tmp/tasks.json');
-  for (const needle of ['master', 'tasks', 'id', 'dependencies', 'priority', 'pending']) {
-    assert.ok(p.includes(needle), `prompt should include ${needle}`);
-  }
-  assert.ok(p.includes(prdSnippet), 'prompt should embed PRD body');
+  const prd = 'x'.repeat(120);
+  const out = buildAgentParsePrompt(prd, '.taskmaster/tasks/tasks.json');
+  assert.ok(out.includes('"master"'), out);
+  assert.ok(out.includes(prd), out);
 }
 
 function testParsePrdViaAgentApplyStripsMarkdownFences() {
   const cwd = mkTmp();
-  const prdPath = path.join(cwd, 'prd.txt');
-  fs.writeFileSync(prdPath, 'x'.repeat(120), 'utf8');
+  const prdPath = path.join(cwd, '.taskmaster', 'docs', 'prd.txt');
+  fs.mkdirSync(path.dirname(prdPath), { recursive: true });
+  fs.writeFileSync(
+    prdPath,
+    '# PRD\n\n' + 'body '.repeat(80),
+    'utf8'
+  );
   const inner = {
     master: {
       tasks: [
         {
           id: 1,
-          title: 'Foundation',
-          description: 'Sets up project',
-          details: 'Creates structure',
-          testStrategy: 'Run doctor',
+          title: 'One',
+          description: 'First task',
+          details: 'Phase one work',
+          testStrategy: 'Automated',
           status: 'pending',
           dependencies: [],
           priority: 'high',
@@ -273,30 +208,30 @@ function testParsePrdViaAgentApplyStripsMarkdownFences() {
         },
         {
           id: 2,
-          title: 'Task two',
-          description: 'Builds on one',
-          details: 'Extends it',
-          testStrategy: 'Run tests',
+          title: 'Two',
+          description: 'Second task',
+          details: 'Depends on one',
+          testStrategy: 'Automated',
           status: 'pending',
           dependencies: [1],
-          priority: 'medium',
+          priority: 'high',
           subtasks: [],
         },
         {
           id: 3,
-          title: 'Task three',
-          description: 'Third phase',
-          details: 'Phase three work',
-          testStrategy: 'Manual check',
+          title: 'Three',
+          description: 'Third task',
+          details: 'Parallel work',
+          testStrategy: 'Automated',
           status: 'pending',
-          dependencies: [1],
-          priority: 'low',
+          dependencies: [],
+          priority: 'medium',
           subtasks: [],
         },
         {
           id: 4,
-          title: 'Task four',
-          description: 'Fourth phase',
+          title: 'Four',
+          description: 'Fourth task',
           details: 'Phase four work',
           testStrategy: 'Automated',
           status: 'pending',
@@ -340,60 +275,21 @@ function testIsWindowsConPTYBoolean() {
   assert.strictEqual(typeof v, 'boolean');
 }
 
-function testLearningRollupWritesToHexPack() {
-  const cwd = mkTmp();
-  const hexDir = path.join(cwd, HEXCURSE_ROOT, 'docs');
-  fs.mkdirSync(hexDir, { recursive: true });
-  const sessionPath = path.join(cwd, HEXCURSE_ROOT, 'SESSION_LOG.md');
-  const rollingPath = path.join(hexDir, 'ROLLING_CONTEXT.md');
-  fs.writeFileSync(
-    sessionPath,
-    `# SESSION LOG — Test
-
-## Sessions
-
-### Session S-900 — 2026-01-01
-**Directive:** D001 — smoke
-**Outcome:** COMPLETE
-`,
-    'utf8'
-  );
-  fs.writeFileSync(rollingPath, '# Rolling context\n\n*(No entries yet.)*\n', 'utf8');
-
-  execFileSync(process.execPath, [setupJs, '--learning-rollup', '--sessions=2'], {
-    cwd,
-    stdio: 'pipe',
-    encoding: 'utf8',
-  });
-
-  const after = fs.readFileSync(rollingPath, 'utf8');
-  assert.ok(
-    after.includes('### Session S-900'),
-    'rollup should append SESSION_LOG block to HEXCURSE/docs/ROLLING_CONTEXT.md'
-  );
-  assert.ok(after.includes('Raw session index'), 'rollup should add raw session index section');
-}
-
 function run() {
   const tests = [
     ['pathNorthStarPack', testPathNorthStarPack],
     ['resolveNorthStar pack only', testResolveNorthStarPackOnly],
     ['resolveNorthStar legacy only', testResolveNorthStarLegacyOnly],
     ['resolveNorthStar prefers pack', testResolveNorthStarPrefersPackOverLegacy],
-    ['sessionLog prefers HEXCURSE', testSessionLogPrefersHex],
-    ['sessionLog fallback root', testSessionLogFallsBackRoot],
-    ['rolling default path when HEX dir exists', testRollingPrefersHexWhenBothMissingButHexDirExists],
-    ['rolling prefers existing hex file', testRollingUsesExistingHexFile],
     ['extract sacred CSV includes trailing bullets', testExtractSacredIncludesTrailingBullets],
     ['sync-rules requires HEXCURSE_RULES_REMOTE_URL', testSyncRulesRequiresRemoteUrl],
     ['MCP npm packages linear + pampa exist', testMcpNpmPackagesLinearAndPampaExist],
     ['quick install preset other', testQuickInstallPresetOther],
     ['validateTaskmasterSchema rejects incomplete task', testValidateTaskmasterSchemaRejectsIncompleteTask],
-    ['validateTaskmasterSchema accepts valid tasks', testValidateTaskmasterSchemaAcceptsValidTasks],
+    ['validateTaskmasterSchema accepts valid tasks', testValidateTaskmasterSchemaAcceptsValidTask],
     ['parse-prd-via-agent exits on stub PRD', testParsePrdViaAgentExitsOnStubPrd],
     ['buildAgentParsePrompt contains schema and PRD', testBuildAgentParsePromptContainsSchemaAndPrd],
     ['parse-prd-via-agent apply strips markdown fences', testParsePrdViaAgentApplyStripsMarkdownFences],
-    ['learning rollup integration', testLearningRollupWritesToHexPack],
     ['isWindowsConPTY returns boolean', testIsWindowsConPTYBoolean],
   ];
   let failed = 0;

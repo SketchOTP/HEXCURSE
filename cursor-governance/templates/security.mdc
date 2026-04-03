@@ -17,7 +17,7 @@ Any time you generate new code, modify existing code, or complete a task that in
    - Report findings inline in the session.
    - Propose specific fixes for each finding before moving forward.
 3. If Semgrep returns MEDIUM findings:
-   - Log them in SESSION_LOG.md under a `## Security Notes` subsection.
+   - Log them in session_log.md under a `## Security Notes` subsection.
    - Proceed only after acknowledging the finding.
 4. LOW / INFO findings: log only, do not block.
 

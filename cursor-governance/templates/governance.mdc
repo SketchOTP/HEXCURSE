@@ -3,10 +3,10 @@ description: Governance artifact rules for HexCurse
 globs: [
   "AGENTS.md",
   "DIRECTIVES.md",
-  "SESSION_LOG.md",
+  "session_log.md",
   "HEXCURSE/AGENTS.md",
   "HEXCURSE/DIRECTIVES.md",
-  "HEXCURSE/SESSION_LOG.md",
+  "HEXCURSE/session_log.md",
   ".cursor/rules/**/*.mdc",
   "HEXCURSE/rules/**/*.mdc",
   ".cursor/skills/**/*.md"
@@ -27,7 +27,7 @@ alwaysApply: false
 - Omitting Taskmaster task IDs from in-progress directive blocks when tasks exist.
 
 ## File Naming Convention
-- **Source-style repo (this project):** `AGENTS.md`, `DIRECTIVES.md`, `SESSION_LOG.md` at repo root; prompts under **`docs/`**.
+- **Source-style repo (this project):** `AGENTS.md`, `DIRECTIVES.md`, `session_log.md` at repo root; prompts under **`docs/`**.
 - **Install-pack repo (other projects):** single **`HEXCURSE/`** tree — see **`HEXCURSE/PATHS.json`**.
 
 ## Testing Requirement

@@ -16,7 +16,7 @@ This rule activates only when `HEXCURSE/docs/MULTI_AGENT.md` exists and `HEXCURS
 
 ## File Conflict Prevention
 - Before writing to any file, call `swarm_check_conflicts` with the target file path.
-- If a conflict is detected, pause and notify the orchestrating agent via a SESSION_LOG.md entry tagged `[CONFLICT]`.
+- If a conflict is detected, pause and notify the orchestrating agent via a session_log.md entry tagged `[CONFLICT]`.
 - Never force-write over a locked file.
 
 ## Handoff Protocol

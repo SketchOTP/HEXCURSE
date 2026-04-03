@@ -12,11 +12,11 @@ You are the implementation agent for {{PROJECT_NAME}}.
 
 Execute the **SESSION START** sequence from **`AGENTS.md`** (consumer pack: **`HEXCURSE/AGENTS.md`**) **now**, in order, without skipping steps and without waiting to be asked. The following steps **must match** the canonical text in that file (including **4a–4e**):
 
-**STEP 0 (bridge — consumer only).** Only if the human did **not** paste ONE_PROMPT but asked to run HEXCURSE / refresh from NORTH_STAR in a **consumer** repo: use **`.cursor/hexcurse-installer.path`**, run **`node …/setup.js --run-hexcurse`** (or **`--run-hexcurse-raw`**), then continue at STEP 1 below. If **`HEXCURSE/NORTH_STAR.md`** (or legacy root **`NORTH_STAR.md`**) still has a **standalone** line that is only **`NORTH_STAR_NOT_READY`**, stop. *(This **source** repo: usually skip STEP 0 unless you are testing the bridge.)*
+**STEP 0 (bridge — consumer only).** Only if the human did **not** paste ONE_PROMPT but asked to refresh from NORTH_STAR in a **consumer** repo: use **`.cursor/hexcurse-installer.path`**, run **`node …/setup.js`** with **`--parse-prd-via-agent`** or your project’s documented bridge flags, then continue at STEP 1 below. If **`HEXCURSE/NORTH_STAR.md`** (or legacy root **`NORTH_STAR.md`**) still has a **standalone** line that is only **`NORTH_STAR_NOT_READY`**, stop. *(This **source** repo: usually skip STEP 0 unless you are testing the bridge.)*
 
 **STEP 1.** Read **`HEXCURSE/NORTH_STAR.md`** or legacy repo-root **`NORTH_STAR.md`** when present. **This source repo:** optional continuity read; there is no pack **`NORTH_STAR`** unless you add one.
 
-**STEP 2.** Read **`docs/ROLLING_CONTEXT.md`** when the file exists. In a consumer install, the same file is **`HEXCURSE/docs/ROLLING_CONTEXT.md`**.
+**STEP 2.** Read **`docs/rolling_context.md`** when the file exists. In a consumer install, the same file is **`HEXCURSE/docs/rolling_context.md`**.
 
 **STEP 3.** **REQUIRED:** Call Taskmaster **get_tasks** (MCP or CLI) before planning or writing implementation code — even when the human named a directive in chat. Identify the active task and next queued task. Report: `Active: D[NNN] — [title]. Next queued: D[NNN] — [title].` Then read **DIRECTIVES.md** (or **`HEXCURSE/DIRECTIVES.md`**) — confirm it matches Taskmaster. If out of sync, report and do not proceed until resolved.
 
@@ -26,9 +26,9 @@ Execute the **SESSION START** sequence from **`AGENTS.md`** (consumer pack: **`H
 
 **STEP 4b — repomix:** Run **`repomix --compress`**. Use the output as your structural map; do not load many individual files for overview.
 
-**STEP 4c — Semgrep security baseline:** If **semgrep** MCP is available (official **Streamable HTTP** at **`https://mcp.semgrep.ai/mcp`** — authenticate via Semgrep when prompted), run **`security_check`** on the last **5** git-modified files. Log findings under **`## Security Notes`** in **`HEXCURSE/SESSION_LOG.md`**. Do **not** proceed to implementation if **HIGH/CRITICAL** findings from a **previous** session remain unresolved.
+**STEP 4c — Semgrep security baseline:** If **semgrep** MCP is available (official **Streamable HTTP** at **`https://mcp.semgrep.ai/mcp`** — authenticate via Semgrep when prompted), run **`security_check`** on the last **5** git-modified files. Log findings under **`## Security Notes`** in **`HEXCURSE/session_log.md`**. Do **not** proceed to implementation if **HIGH/CRITICAL** findings from a **previous** session remain unresolved.
 
-**STEP 4d — Linear sync (if `LINEAR_API_KEY` set):** Call **linear** **`get_my_issues`** filtered to **In Progress**. Cross-reference with Taskmaster; create missing tasks for untracked issues. Log discrepancies in **HEXCURSE/SESSION_LOG.md**.
+**STEP 4d — Linear sync (if `LINEAR_API_KEY` set):** Call **linear** **`get_my_issues`** filtered to **In Progress**. Cross-reference with Taskmaster; create missing tasks for untracked issues. Log discrepancies in **HEXCURSE/session_log.md**.
 
 **STEP 4e — PAMPA skill search:** Call **pampa** to search **`.cursor/skills/`** for patterns relevant to the active task. Load matching skills before implementation.
 
@@ -51,7 +51,7 @@ Execute the **SESSION START** sequence from **`AGENTS.md`** (consumer pack: **`H
 
 **STEP 10.** Begin implementation (see **DURING IMPLEMENTATION**).
 
-**Optional:** If **`.cursor/hooks/state/continual-learning.json`** has **`pendingLearning: true`**, run **RULE 9** / **agents-memory-updater** early this session (after scope is clear) unless the human asked to skip continual learning.
+**Optional:** If **`.cursor/hooks/state/continual_learning.json`** has **`pendingLearning: true`**, run **RULE 9** / **agents-memory-updater** early this session (after scope is clear) unless the human asked to skip transcript mining.
 
 ---
 

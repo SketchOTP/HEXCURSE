@@ -1,7 +1,7 @@
 # AGENTS.md — AI Coder Rules of Engagement
 # HexCurse
 # Every AI agent working on this project MUST read this file at session start.
-# This file lives at the **repository root** in the **HexCurse / cursor-governance source repo**. When `cursor-governance/setup.js` installs governance into **another** project, the same role lives under **`HEXCURSE/AGENTS.md`** with **`HEXCURSE/PATHS.json`** — only one layout applies per repo.
+# This file lives at the **repository root** in the **HexCurse / installer package repository**. When `cursor-governance/setup.js` installs governance into **another** project, the same role lives under **`HEXCURSE/AGENTS.md`** with **`HEXCURSE/PATHS.json`** — only one layout applies per repo.
 
 ## How this system runs (agent-first)
 HexCurse governance is **fully driven by the Cursor agent** knowing and following this file, **`docs/SESSION_START_PROMPT.md`**, **`.cursor/rules/`** (10 `.mdc` rules), and **17 MCP servers**. It does **not** run as a background service. **When to use it:** every implementation chat — paste the session-start prompt (or `@` the paths it lists) at the top so Taskmaster, memory, and sequencing run.
@@ -43,7 +43,7 @@ Governance also uses **agents-memory-updater** (Task subagent / continual learni
 15. **pampa** — Semantic search over **`.cursor/skills/`** and project patterns.
 
 ### PROJECT-SPECIFIC — when the domain matches
-16. **gitmcp-adafruit-mpu6050** — MPU6050 / **Adafruit_MPU6050** driver or hardware tasks.
+16. **gitmcp-adafruit-mpu6050** — niche motion-sensor / I²C driver docs (use **gitmcp** when the task names a specific vendor library).
 17. **supabase** — Database, Auth, RLS, Edge Functions, backend schema (this project or consumer using Supabase).
 
 ## Mandatory MCP utilization
@@ -65,7 +65,7 @@ HexCurse sessions must make **full, appropriate** use of available MCP tools. Do
 13. **firecrawl** — External docs / sites when context7 is insufficient. **Do not** invent URLs or API shapes.
 14. **linear** — When Linear is in use; align issues with Taskmaster at close.
 15. **pampa** — When skills or past patterns may apply (**SESSION START** 4e).
-16. **gitmcp-adafruit-mpu6050** — MPU6050 work before driver code. **Do not** guess registers or library sequences.
+16. **gitmcp-adafruit-mpu6050** — motion-sensor driver work before register-level code. **Do not** guess registers or library sequences.
 17. **supabase** — Schema / RLS / data paths before queries in Supabase-backed work. **Do not** bypass MCP for schema truth when configured.
 
 ### Hard rule
@@ -79,7 +79,7 @@ If an MCP is **available** and **materially relevant**, you **must** use it. Ski
 - **Security-sensitive / any commit with source changes:** semgrep **security_check** before commit; resolve HIGH/CRITICAL.
 - **Research:** firecrawl + context7 — **never** rely on training data for current API specifics when tools are green.
 - **Bug triage:** sentry before reading source when issues are linked; hypothesis-first per **debugging.mdc**.
-- **Hardware / MPU6050:** gitmcp-adafruit-mpu6050 before driver code.
+- **Hardware / motion sensors:** **gitmcp-adafruit-mpu6050** (or **gitmcp**) before driver code when the task is sensor-specific.
 - **Tracked work (Linear):** linear sync at session close when **LINEAR_API_KEY** is set — issues must not drift from Taskmaster.
 - **Governance sync:** memory, taskmaster; local git for branch/worktree; github MCP only if remote actions are in scope.
 - **Research / integration:** context7 first; then firecrawl or gitmcp as needed.
@@ -97,27 +97,27 @@ If an MCP is **available** and **materially relevant**, you **must** use it. Ski
 - **Memory overriding** repo truth (Taskmaster, **DIRECTIVES.md**, **docs/ARCHITECTURE.md**, live tree beat stale memory).
 
 ### Session-close requirement
-State in the **final handoff** and **SESSION_LOG.md**: MCP tools used (and why); MCPs not used (explicit reason each). Follow **SESSION CLOSE** below.
+State in the **final handoff** and **session_log.md**: MCP tools used (and why); MCPs not used (explicit reason each). Follow **SESSION CLOSE** below.
 
 ## Continual learning (self-improve)
-HexCurse **closes the loop** from chat history into durable behavior: **memory MCP** plus **Learned Workspace Facts** in this file, via an **incremental transcript index**. Procedure: **docs/CONTINUAL_LEARNING.md** (index: **`.cursor/hooks/state/continual-learning-index.json`**).
+HexCurse **closes the loop** from chat history into durable behavior: **memory MCP** plus **Learned Workspace Facts** in this file, via an **incremental transcript index**. Procedure: **docs/CONTINUAL_LEARNING.md** (index: **`.cursor/hooks/state/continual_learning_index.json`**).
 
 - **On request:** If the human asks for continual learning, transcript mining, or **agents-memory-updater**, run that flow immediately (**mcp-usage.mdc RULE 9**).
-- **On session close:** If this session changed **governance** (rules, AGENTS, prompts, installer, DIRECTIVES, continual-learning docs), run **agents-memory-updater** once before final handoff unless it already ran or the human skipped it.
+- **On session close:** If this session changed **governance** (rules, AGENTS, prompts, installer, DIRECTIVES, **CONTINUAL_LEARNING** docs), run **agents-memory-updater** once before final handoff unless it already ran or the human skipped it.
 
 ## NORTH STAR → Taskmaster (consumer repos)
 
-- **Single human workflow (consumer repos):** Fill **`HEXCURSE/NORTH_STAR.md`** (remove the **standalone** placeholder line **`NORTH_STAR_NOT_READY`** under Vision when the vision is real). Then **either** run the **[Cursor headless CLI](https://cursor.com/docs/cli/headless)** with **`agent -p --model composer-2 --trust --workspace .`** and the prompt in **`HEXCURSE/HEADLESS_KICKOFF.txt`** (see **`HEXCURSE/ONE_PROMPT.md`**), **or** paste **only** the in-IDE fenced block from **`HEXCURSE/ONE_PROMPT.md`** as the **entire** first message in a new Agent chat — the agent runs **`setup.js --run-hexcurse`** using **`.cursor/hexcurse-installer.path`**, then **SESSION START** from STEP 0 below. Legacy repo-root **`NORTH_STAR.md`** is still accepted by the bridge until you migrate.
+- **Single human workflow (consumer repos):** Fill **`HEXCURSE/NORTH_STAR.md`** (remove the **standalone** placeholder line **`NORTH_STAR_NOT_READY`** under Vision when the vision is real). Then **either** run the **[Cursor headless CLI](https://cursor.com/docs/cli/headless)** with **`agent -p --model composer-2 --trust --workspace .`** and the kickoff text from **`HEXCURSE/ONE_PROMPT.md`**, **or** paste **only** the in-IDE fenced block from **`HEXCURSE/ONE_PROMPT.md`** as the **entire** first message in a new Agent chat — the agent runs **`node …/setup.js`** with **`--parse-prd-via-agent`** (or your documented bridge) using **`.cursor/hexcurse-installer.path`**, then **SESSION START** from STEP 0 below. Legacy repo-root **`NORTH_STAR.md`** is still accepted by the bridge until you migrate.
 - **This source repo** (no **`HEXCURSE/`**): **`docs/ONE_PROMPT.md`** explains the flow; templates live under **`cursor-governance/templates/`**.
-- **Manual bridge:** **`node <path>/cursor-governance/setup.js --run-hexcurse`** or **`--run-hexcurse-raw`** from the **consumer** repo root.
+- **Manual bridge:** **`node <path>/cursor-governance/setup.js --parse-prd-via-agent`** (or flags documented for your install) from the **consumer** repo root.
 
 ## SESSION START — Execute this sequence in order. Do not skip steps. Do not reorder.
 
-**STEP 0 (bridge — consumer only):** Only if the human did **not** paste ONE_PROMPT but asked to run HEXCURSE / refresh from NORTH_STAR in a **consumer** repo: use **`.cursor/hexcurse-installer.path`**, run **`node …/setup.js --run-hexcurse`** (or **`--run-hexcurse-raw`**), then continue at STEP 1 below. If **`HEXCURSE/NORTH_STAR.md`** (or legacy root **`NORTH_STAR.md`**) still has a **standalone** line that is only **`NORTH_STAR_NOT_READY`**, stop.
+**STEP 0 (bridge — consumer only):** Only if the human did **not** paste ONE_PROMPT but asked to refresh from NORTH_STAR in a **consumer** repo: use **`.cursor/hexcurse-installer.path`**, run **`node …/setup.js`** with **`--parse-prd-via-agent`** or your documented bridge flags, then continue at STEP 1 below. If **`HEXCURSE/NORTH_STAR.md`** (or legacy root **`NORTH_STAR.md`**) still has a **standalone** line that is only **`NORTH_STAR_NOT_READY`**, stop.
 
 **STEP 1.** Read **`HEXCURSE/NORTH_STAR.md`** or legacy repo-root **`NORTH_STAR.md`** when present (consumer). **This source repo:** optional continuity read; there is no pack **`NORTH_STAR`** unless you add one.
 
-**STEP 2.** Read **`docs/ROLLING_CONTEXT.md`** when the file exists. In a consumer install, the same file is **`HEXCURSE/docs/ROLLING_CONTEXT.md`**.
+**STEP 2.** Read **`docs/rolling_context.md`** when the file exists. In a consumer install, the same file is **`HEXCURSE/docs/rolling_context.md`**.
 
 **STEP 3.** **REQUIRED:** Call Taskmaster **get_tasks** (MCP or CLI) before planning or writing implementation code — even when the human named a directive in chat. Identify the active task and next queued task. Report: `Active: D[NNN] — [title]. Next queued: D[NNN] — [title].` Then read **DIRECTIVES.md** (or **`HEXCURSE/DIRECTIVES.md`**) — confirm it matches Taskmaster. If out of sync, report and do not proceed until resolved.
 
@@ -127,9 +127,9 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 
 **STEP 4b — repomix:** Run **`repomix --compress`**. Use the output as your structural map; do not load many individual files for overview.
 
-**STEP 4c — Semgrep security baseline:** If **semgrep** MCP is available (official **Streamable HTTP** at **`https://mcp.semgrep.ai/mcp`** — authenticate via Semgrep when prompted), run **`security_check`** on the last **5** git-modified files. Log findings under **`## Security Notes`** in **SESSION_LOG.md**. Do **not** proceed to implementation if **HIGH/CRITICAL** findings from a **previous** session remain unresolved.
+**STEP 4c — Semgrep security baseline:** If **semgrep** MCP is available (official **Streamable HTTP** at **`https://mcp.semgrep.ai/mcp`** — authenticate via Semgrep when prompted), run **`security_check`** on the last **5** git-modified files. Log findings under **`## Security Notes`** in **session_log.md**. Do **not** proceed to implementation if **HIGH/CRITICAL** findings from a **previous** session remain unresolved.
 
-**STEP 4d — Linear sync (if `LINEAR_API_KEY` set):** Call **linear** **`get_my_issues`** filtered to **In Progress**. Cross-reference with Taskmaster; create missing tasks for untracked issues. Log discrepancies in **SESSION_LOG.md**.
+**STEP 4d — Linear sync (if `LINEAR_API_KEY` set):** Call **linear** **`get_my_issues`** filtered to **In Progress**. Cross-reference with Taskmaster; create missing tasks for untracked issues. Log discrepancies in **session_log.md**.
 
 **STEP 4e — PAMPA skill search:** Call **pampa** to search **`.cursor/skills/`** for patterns relevant to the active task. Load matching skills before implementation.
 
@@ -161,13 +161,13 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 
 **When making a significant architectural decision:** append an ADR to **`docs/ADR_LOG.md`** immediately (**adr.mdc**).
 
-**When context window reaches ~70%:** write a **`## COMPACTION CHECKPOINT`** to **SESSION_LOG.md** (**memory-management.mdc**); prune stale tool output.
+**When context window reaches ~70%:** write a **`## COMPACTION CHECKPOINT`** to **session_log.md** (**memory-management.mdc**); prune stale tool output.
 
 **When research is needed:** **firecrawl** for external content; **context7** for library docs — never trust training data for current API specifics.
 
 **When database work is needed (Supabase):** **supabase** MCP for schema / RLS before queries — never raw SQL via terminal when MCP is available.
 
-**When hardware sensor work (MPU6050) needs docs:** **gitmcp-adafruit-mpu6050** before driver code.
+**When hardware sensor work needs vendor docs:** **gitmcp-adafruit-mpu6050** or **gitmcp** before driver code.
 
 **Code access:**
 - Do not read whole files for symbols. Use **jcodemunch** (**search_symbols**, **get_symbol_source**, **get_ranked_context**, …) and **Serena** **find_symbol** before edits.
@@ -194,7 +194,7 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 
 **STEP 3.** Mark Taskmaster task **done** (or update status) via **set_task_status**.
 
-**STEP 4.** Run **semgrep** **security_check** on **all** source files modified this session. **Do not** close with unresolved **HIGH/CRITICAL** findings. If **semgrep** is unavailable, note the exception in **SESSION_LOG.md** and in the handoff (**process-gates.mdc**).
+**STEP 4.** Run **semgrep** **security_check** on **all** source files modified this session. **Do not** close with unresolved **HIGH/CRITICAL** findings. If **semgrep** is unavailable, note the exception in **session_log.md** and in the handoff (**process-gates.mdc**).
 
 **STEP 5.** If UI work was done, run **playwright** final verification on affected flows.
 
@@ -206,13 +206,13 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 
 **STEP 9.** Update **DIRECTIVES.md**: move completed directive to **Completed** with date and git short hash. *(Skill promotion criteria: **STEP 14** + **`docs/SKILL_PROMOTION_GUIDE.md`** — not a substitute for this step.)*
 
-**STEP 10.** Write **SESSION_LOG.md** using the template below; include MCP utilization (used / not used + reasons).
+**STEP 10.** Write **session_log.md** using the template below; include MCP utilization (used / not used + reasons).
 
 **STEP 11.** Optional **github** PR if the human asked; otherwise they may **`git push`** and open a PR in the UI.
 
 **STEP 12.** Give the human the final commit message: `D[NNN]: [description] | verified clean`
 
-**STEP 13.** **agents-memory-updater** per **RULE 9** / **docs/CONTINUAL_LEARNING.md**. Optionally **`node cursor-governance/setup.js --learning-rollup`** if **lastRollupAt** is stale or **5+** sessions since rollup.
+**STEP 13.** **agents-memory-updater** per **RULE 9** / **docs/CONTINUAL_LEARNING.md** when transcript mining is due.
 
 **STEP 14.** **Skill promotion (before PAMPA):** If a reusable pattern from this session meets **all** four criteria in **`docs/SKILL_PROMOTION_GUIDE.md`** (≥2 sessions, non-trivial, repo/domain-specific, saved time or prevented mistakes), promote it under **`.cursor/skills/{skill-name}/`** with **`SKILL.md`** before closing. If new or updated skills exist, re-index with **pampa** when applicable.
 
@@ -236,9 +236,9 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 - [ ] Steps **4c–4e** run when applicable (semgrep baseline, Linear, PAMPA)
 - [ ] Sequential-thinking ran before plan shown
 - [ ] Semgrep run after substantive code changes; SESSION_CLOSE semgrep on all touched files
-- [ ] Git diff verified at close; SESSION_LOG entry appended
+- [ ] Git diff verified at close; session log entry appended
 - [ ] Taskmaster task marked done; DIRECTIVES.md updated if required
-- [ ] MCP utilization report (used / not used + reasons) in handoff and SESSION_LOG
+- [ ] MCP utilization report (used / not used + reasons) in handoff and session log
 - [ ] Continual learning (RULE 9): governance touch, transcript delta + debounce, or human request handled
 
 ### Session [S-NNN] — [YYYY-MM-DD]
@@ -280,8 +280,8 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 - **Unprimed chats** often skip Taskmaster and MCP sequencing despite rules — always paste **`docs/SESSION_START_PROMPT.md`** (or `@` its paths) at session start.
 - **`alwaysApply` rules do not run tools** — Cursor will not invoke Taskmaster/memory/MCP for the agent; compliance still requires **green MCP**, **first-message session-start paste**, and explicit **`DEGRADED_MODE`** when a server is missing (see **`process-gates.mdc`** / **`mcp-usage.mdc`**).
 - **LM Studio (OpenAI-compatible):** if calls reset or **`parse-prd`** fails, try **`127.0.0.1`** instead of **`localhost`** when the server binds IPv4 only (IPv6 **`::1`** vs IPv4 bind mismatch on some hosts). **`ECONNRESET`** or heavy structured steps can mean the model **context** is too small — align **`HEXCURSE_LM_STUDIO_MAX_CONTEXT`** with the loaded GGUF (see **`cursor-governance/setup.js`**).
-- **LM Studio on another machine:** When **`--run-hexcurse`** or Taskmaster runs on a **different host** than LM Studio (e.g. laptop vs desktop), set **`OPENAI_BASE_URL`** / **`HEXCURSE_LM_STUDIO_BASE_URL`** to a base URL **reachable from that host** (often the LM machine’s **LAN IP** and **`/v1`**). A **Tailscale-only** or **wrong-network** URL yields **fetch failed** / **ConnectTimeout** even when LM Studio responds locally on the server.
-- **Bridge `.env` vs shell:** For **`--run-hexcurse`** and related paths, **`cursor-governance/setup.js`** **`loadDotEnvFromFile`** uses **`forceKeys`** (**`OPENAI_BASE_URL`**, **`OPENAI_API_KEY`**, **`HEXCURSE_EXPAND_MODEL`**) so values from the **consumer repo `.env`** override stale **`export`**s in the shell (GET **`/v1/models`** via **`curl`** can succeed while Node **`fetch`** still used the wrong base URL before this behavior).
+- **LM Studio on another machine:** When **`setup.js`** or Taskmaster runs on a **different host** than LM Studio (e.g. laptop vs desktop), set **`OPENAI_BASE_URL`** / **`HEXCURSE_LM_STUDIO_BASE_URL`** to a base URL **reachable from that host** (often the LM machine’s **LAN IP** and **`/v1`**). A **Tailscale-only** or **wrong-network** URL yields **fetch failed** / **ConnectTimeout** even when LM Studio responds locally on the server.
+- **Bridge `.env` vs shell:** For **`setup.js`** bridge runs and related paths, **`cursor-governance/setup.js`** **`loadDotEnvFromFile`** uses **`forceKeys`** (**`OPENAI_BASE_URL`**, **`OPENAI_API_KEY`**, **`HEXCURSE_EXPAND_MODEL`**) so values from the **consumer repo `.env`** override stale **`export`**s in the shell (GET **`/v1/models`** via **`curl`** can succeed while Node **`fetch`** still used the wrong base URL before this behavior).
 - **`task-master-ai`** (global npm) may require **Node ≥ 20**; **Node 18** triggers **EBADENGINE** warnings — upgrade Node or accept the risk.
 - **`task-master parse-prd`** may **prompt to overwrite** existing tasks; **non-interactive** runs can **block** waiting for input — use a TTY, pipe confirmation, or supported non-interactive flags.
 - **`swarm-protocol-mcp` on npm:** The **`swarm-protocol-mcp`** package is **not** published; coordination may use **`cursor-governance/bin/swarm-protocol-mcp.js`** (installs **phuryn/swarm-protocol** from GitHub), which requires **PostgreSQL** / **`DATABASE_URL`** — first MCP start can be slow (**npm install** + **tsc**). **Supabase** works as the database: put the **Connection string (URI)** in **`~/.cursor/swarm-database.env`** (preferred — keeps `mcp.json` free of passwords) or set **`DATABASE_URL`** as a **User** env var; **`.env.example`** has the full pattern.
@@ -306,5 +306,5 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 - **Prime every implementation chat** with **`docs/SESSION_START_PROMPT.md`** (or `@` the paths it lists) before substantive work.
 - **Governance is on disk** — Taskmaster, DIRECTIVES, branches, and reads use the **local workspace**; **github** MCP is optional (push/PR in UI or on request).
 - The HexCurse installer should reuse a GitHub token from the user environment (e.g. **`GITHUB_TOKEN`**) or an existing entry in **`~/.cursor/mcp.json`** before prompting, so the same credential applies across repos when **github** MCP is desired.
-- **Taskmaster + LM Studio:** set **`HEXCURSE_LM_STUDIO_BASE_URL`** or **`LM_STUDIO_BASE_URL`** when the API is not on the default host (installer adds **`/v1`** if omitted). Set **`HEXCURSE_LM_STUDIO_MAX_CONTEXT`** to the loaded model’s context before **`setup.js`** or **`--run-hexcurse`** when **`parse-prd`** / large PRD inputs need capped **`maxTokens`** and task graph sizing (this repo defaults **`qwen3.5-2b`** ~**8000**).
+- **Taskmaster + LM Studio:** set **`HEXCURSE_LM_STUDIO_BASE_URL`** or **`LM_STUDIO_BASE_URL`** when the API is not on the default host (installer adds **`/v1`** if omitted). Set **`HEXCURSE_LM_STUDIO_MAX_CONTEXT`** to the loaded model’s context before **`setup.js`** when **`parse-prd`** / large PRD inputs need capped **`maxTokens`** and task graph sizing (this repo defaults **`qwen3.5-2b`** ~**8000**).
 - **Consumer rollout reports:** write each validation run to a **versioned** file under **`docs/`** (e.g. **`ROLLOUT_REPORT_v1.5.7.md`**); keep **`docs/ROLLOUT_REPORT.md`** as a historical artifact and add a **top forward pointer** when superseded so agents do not treat stale runs as current.

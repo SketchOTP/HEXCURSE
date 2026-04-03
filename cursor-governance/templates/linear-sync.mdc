@@ -9,7 +9,7 @@ globs: ".taskmaster/tasks/tasks.json, HEXCURSE/DIRECTIVES.md"
 ## On Session Start (if LINEAR_API_KEY is set)
 1. Call `linear` MCP `get_my_issues` filtered to `In Progress`.
 2. For each Linear issue not present in Taskmaster, create a corresponding Taskmaster task using `task-master add-task`.
-3. Log any new tasks created in SESSION_LOG.md.
+3. Log any new tasks created in session_log.md.
 
 ## On Task Completion
 When marking a Taskmaster task `done`:

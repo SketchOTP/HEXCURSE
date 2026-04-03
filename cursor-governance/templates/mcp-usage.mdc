@@ -10,7 +10,7 @@ alwaysApply: true
 
 ## SOURCE OF TRUTH — workspace (disk)
 
-HexCurse is enforced on **files in the open Cursor workspace on disk**. Taskmaster, DIRECTIVES, SESSION_LOG, repomix, **jcodemunch**, and Serena operate on **local paths** only.
+HexCurse is enforced on **files in the open Cursor workspace on disk**. Taskmaster, DIRECTIVES, session log, repomix, **jcodemunch**, and Serena operate on **local paths** only.
 
 - **Never** use the **github** MCP (or any remote API) to decide whether a file exists or to browse the tree — unpushed work exists only on disk.
 - After the human adds or saves files, read them via **workspace paths** (`read_file`, Serena, repomix on the local tree). If a tool cannot see a file that exists on disk, state that and suggest refreshing the workspace / confirming the path — **do not** assume GitHub reflects the working tree.
@@ -48,7 +48,7 @@ If an MCP tool is **available** and **materially relevant** to the task, the age
 - **Letting memory override repo-local sources of truth** for the active workspace (Taskmaster, DIRECTIVES, ARCHITECTURE, and the live codebase win over stale memory)
 
 ### Session-close requirement
-Each governed session must state (**in the final handoff and in SESSION_LOG.md** or **HEXCURSE/SESSION_LOG.md** if your repo uses the install pack):
+Each governed session must state (**in the final handoff and in session_log.md** or **HEXCURSE/session_log.md** if your repo uses the install pack):
 - Which MCP tools were used, and why
 - Any available MCPs not used, with explicit reason
 
@@ -82,7 +82,7 @@ AUTOMATIC during session: The moment you discover any of the following —
   → any "never do X" rule learned from experience
   Immediately write it to memory. Do not wait until session close.
   Do not ask permission. Just write it and continue.
-AUTOMATIC at session close: Before writing **SESSION_LOG.md** or **HEXCURSE/SESSION_LOG.md** —
+AUTOMATIC at session close: Before writing **session_log.md** or **HEXCURSE/session_log.md** —
   query memory to confirm the session's discoveries were saved.
 
 ## RULE 3 — sequential-thinking: ALWAYS fires before planning any directive
@@ -139,53 +139,22 @@ AUTOMATIC at directive start: The moment scope is confirmed by the human —
   unless the human says the branch already exists — then checkout that branch.
   Do not use **github** MCP to create the branch unless the human explicitly asks for a remote branch via API.
 AUTOMATIC at session close: After git diff verification —
-  ensure commits are ready locally; **SESSION_LOG** and DIRECTIVES updates are mandatory.
+  ensure commits are ready locally; **session log** and DIRECTIVES updates are mandatory.
   **Opening a PR via github MCP is optional** — only if the human asked for it this session. Default workflow: human runs `git push` and opens a PR in the GitHub UI if desired.
 AUTOMATIC when a blocker is discovered —
   write the blocker to **memory** and **DIRECTIVES.md** (Blockers field). **GitHub issue via github MCP is optional** — only if the human asked to file one.
 
-## RULE 9 — agents-memory-updater (continual learning): self-improve from transcripts
-AUTOMATIC when the human asks for continual learning, transcript mining,
-  agents-memory-updater, memory update from chats, or self-improve from
-  conversation history:
-  Invoke Task subagent_type agents-memory-updater (or equivalent) per
-  **docs/CONTINUAL_LEARNING.md** or **HEXCURSE/docs/CONTINUAL_LEARNING.md** — incremental index at
-  .cursor/hooks/state/continual-learning-index.json (see **HEXCURSE/PATHS.json** if present for
-  continualLearningIndex); parent transcripts only; refresh index mtimes;
-  classify per **docs/MEMORY_TAXONOMY.md** / **HEXCURSE/docs/MEMORY_TAXONOMY.md**; skill promotion queue
-  **.cursor/hooks/state/skill-promotion-queue.json**; high-signal memory + **AGENTS.md** subsection merges only; no secrets.
+## RULE 9 — agents-memory-updater: self-improve from transcripts
+AUTOMATIC when the human asks for transcript mining, agents-memory-updater, memory update from chats, or self-improve from conversation history:
+  Invoke Task subagent_type agents-memory-updater (or equivalent) per **docs/CONTINUAL_LEARNING.md** or **HEXCURSE/docs/CONTINUAL_LEARNING.md** when present — incremental index at `.cursor/hooks/state/continual_learning_index.json` (see **HEXCURSE/PATHS.json** for `continualLearningIndex` when installed); parent transcripts only; refresh index mtimes; classify per **docs/MEMORY_TAXONOMY.md** / **HEXCURSE/docs/MEMORY_TAXONOMY.md**; skill promotion queue **.cursor/hooks/state/skill-promotion-queue.json**; high-signal memory + **AGENTS.md** subsection merges only; no secrets.
 
-AUTOMATIC at session close, after SESSION_LOG steps when those apply,
-  when this session changed governance or agent-behavior sources (git diff or
-  confirmed scope), including any of: .cursor/rules/, AGENTS.md, HEXCURSE/AGENTS.md,
-  HEXCURSE/rules/, mcp-usage.mdc, base.mdc, cursor-governance/, CONTINUAL_LEARNING.md,
-  MEMORY_TAXONOMY.md, HEXCURSE/docs/MEMORY_TAXONOMY.md, docs/MEMORY_TAXONOMY.md,
-  ROLLING_CONTEXT.md, docs/ROLLING_CONTEXT.md, .cursor/skills/,
-  HEXCURSE/docs/ARCH_PROMPT.md, ARCH_PROMPT.md, docs/ARCH_PROMPT.md,
-  MCP_COORDINATION.md, HEXCURSE/docs/MCP_COORDINATION.md, docs/MCP_COORDINATION.md,
-  SESSION_START_PROMPT.md, HEXCURSE/SESSION_START_PROMPT.md, PATHS.json, HEXCURSE/PATHS.json,
-  DIRECTIVES.md, HEXCURSE/DIRECTIVES.md:
-  Before the final handoff message, run agents-memory-updater once unless you already
-  ran it this session or the human said to skip continual learning for this close.
-  **No debounce** for governance-touch closes.
+AUTOMATIC at session close, after session log steps when those apply, when this session changed governance or agent-behavior sources (git diff or confirmed scope), including rules, **AGENTS.md**, **DIRECTIVES.md**, **PATHS.json**, prompts under **docs/** or **HEXCURSE/docs/**, and **.cursor/skills/**:
+  Before the final handoff message, run agents-memory-updater once unless you already ran it this session or the human said to skip. **No debounce** for governance-touch closes.
 
-AUTOMATIC at session close for **implementation** work when **governance paths above did not change**:
-  If any **parent** transcript under this workspace is **new** or has **filesystem mtime** newer than
-  the `mtimeUtc` stored in **continual-learning-index.json** for that path, run **agents-memory-updater**
-  once — **debounced:** skip if **continual-learning.json** `lastMemoryUpdaterRunDateUtc` equals
-  **today's UTC date** (YYYY-MM-DD) unless the human asked for mining in this session. If you **skip** due
-  to debounce but transcript delta was real, set **`pendingLearning`: true** in **continual-learning.json**
-  so the next session can run RULE 9 early (**SESSION_START_PROMPT**). After a successful run, set
-  `lastMemoryUpdaterRunDateUtc` to today's UTC date and set **`pendingLearning`** to **false**.
+AUTOMATIC at session close for **implementation** work when those governance paths did not change:
+  If any **parent** transcript under this workspace is **new** or has **filesystem mtime** newer than the `mtimeUtc` stored in **continual_learning_index.json** for that path, run **agents-memory-updater** once — **debounced:** skip if **continual_learning.json** `lastMemoryUpdaterRunDateUtc` equals **today's UTC date** (YYYY-MM-DD) unless the human asked for mining in this session. If you **skip** due to debounce but transcript delta was real, set **`pendingLearning`: true** in **continual_learning.json** so the next session can run RULE 9 early. After a successful run, set `lastMemoryUpdaterRunDateUtc` to today's UTC date and set **`pendingLearning`** to **false**.
 
-OPTIONAL (recommended weekly or via OS cron): run `node cursor-governance/setup.js --learning-rollup`
-  from repo root to append **SESSION_LOG** excerpts to **HEXCURSE/docs/ROLLING_CONTEXT.md** (or legacy **docs/ROLLING_CONTEXT.md**; no LLM). If
-  **lastRollupAt** in **continual-learning.json** is **older than 14 days** or missing, prefer running this
-  at session close before final handoff when convenient.
-
-If none of: human request, governance touch, transcript delta (per index) — do not run
-  agents-memory-updater. **Quick exit:** if no high-signal content after scan, apply index mtime refresh only
-  and respond `No high-signal memory updates.`
+If none of: human request, governance touch, transcript delta (per index) — do not run agents-memory-updater. **Quick exit:** if no high-signal content after scan, apply index mtime refresh only and respond `No high-signal memory updates.`
 
 ## RULE 10 — jcodemunch: ALWAYS fires for local code exploration and impact when the server is available
 Package name: **`jcodemunch-mcp`** (MCP server name often **`jcodemunch`**). Spelling **jcodemuch** in chat maps to the same server.

@@ -11,7 +11,7 @@ alwaysApply: true
 - **Humans prime each chat** by pasting **`docs/SESSION_START_PROMPT.md`** or **`HEXCURSE/SESSION_START_PROMPT.md`** (or `@` the paths listed there; pack repos also have **`HEXCURSE/PATHS.json`**). Unprimed chats may skip MCP and Taskmaster — that is a **workflow gap**, not a missing daemon.
 - **Session priming:** If the human has not pasted the session-start block (or `@` its files) and you are about to plan or implement, **ask once**: run the SESSION START sequence from **`AGENTS.md`** / **`HEXCURSE/AGENTS.md`**, or did they intend to skip?
 - **Governance artifacts:** When editing directives, session log, or **`AGENTS.md`** (root or under **`HEXCURSE/**`), apply **`governance.mdc`** standards (Taskmaster sync, single In Progress, IDs).
-- **Continual learning:** Run **agents-memory-updater** per **mcp-usage.mdc RULE 9** and **`docs/CONTINUAL_LEARNING.md`** / **`HEXCURSE/docs/CONTINUAL_LEARNING.md`** — human request; governance paths touched (no debounce); or parent transcript delta + debounce via **`continual-learning.json`**. Optional **`setup.js --learning-rollup`** when rollup is stale.
+- **Continual learning:** Run **agents-memory-updater** per **mcp-usage.mdc RULE 9** and **`docs/CONTINUAL_LEARNING.md`** / **`HEXCURSE/docs/CONTINUAL_LEARNING.md`** — human request; governance paths touched (no debounce); or parent transcript delta + debounce via **`continual_learning.json`** when that state file exists.
 - **When:** every new implementation session; after major scope changes; **Architect** is **external** (not Cursor)—see **`docs/CURSOR_MODES.md`** or **`HEXCURSE/docs/CURSOR_MODES.md`**.
 
 ## Sacred Constraints (NEVER violate these)

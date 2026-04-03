@@ -15,7 +15,7 @@ Full MCP stack, session timeline, and rule mapping: **`docs/MCP_COORDINATION.md`
 5. **Libraries:** **context7** before external library/API calls when relevant — or **DEGRADED_MODE**.
 6. **Niche SDKs:** **gitmcp** for firmware / niche GitHub deps not covered as mainstream library docs — or **DEGRADED_MODE**.
 7. **Local git & disk:** Work branches with **local git** after scope confirm (**mcp-usage.mdc** RULE 8). **github** MCP is optional (remote PR/issue only). **Source of truth** is the workspace on disk — not GitHub.
-8. **Continual learning:** **agents-memory-updater** per **RULE 9** — human request; **governance** paths touched (no debounce); or **parent transcript delta** vs index with **debounce** via **continual-learning.json** `lastMemoryUpdaterRunDateUtc`. Optional `node cursor-governance/setup.js --learning-rollup` when **lastRollupAt** is stale (appends to **`HEXCURSE/docs/ROLLING_CONTEXT.md`** or legacy **`docs/ROLLING_CONTEXT.md`**). See **`docs/CONTINUAL_LEARNING.md`** (pack: **`HEXCURSE/docs/CONTINUAL_LEARNING.md`**).
+8. **Continual learning:** **agents-memory-updater** per **RULE 9** — human request; **governance** paths touched (no debounce); or **parent transcript delta** vs index with **debounce** via **continual_learning.json** `lastMemoryUpdaterRunDateUtc`. See **`docs/CONTINUAL_LEARNING.md`** (pack: **`HEXCURSE/docs/CONTINUAL_LEARNING.md`**) when those docs exist in your install.
 9. **Memory vs repo:** **Memory** does not override Taskmaster, DIRECTIVES, ARCHITECTURE, or the live tree.
 
 If any required MCP is missing or red in Cursor, announce **`DEGRADED_MODE`** and what you will not assume — do not silently skip.
