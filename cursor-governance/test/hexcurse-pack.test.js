@@ -15,7 +15,11 @@ const { execFileSync, execSync } = require('child_process');
 const setupMain = require('../setup.js');
 const { HEXCURSE_ROOT, pathNorthStarPack, resolveNorthStarPathForRead } = setupMain.hexcursePaths;
 
-const { validateTaskmasterSchema, buildAgentParsePrompt } = setupMain.hexcurseAgentParseHooks;
+const {
+  validateTaskmasterSchema,
+  buildAgentParsePrompt,
+  parseTaskmasterJsonFromText,
+} = setupMain.hexcurseAgentParseHooks;
 const { isWindowsConPTY } = setupMain.hexcursePlatformTestHooks;
 
 const setupJs = path.join(__dirname, '..', 'setup.js');
@@ -339,6 +343,25 @@ function testApplyTaskmasterProviderDefaultsLmStudio() {
   }
 }
 
+function testParseTaskmasterJsonFromTextStripsFence() {
+  const tasks = [1, 2, 3, 4, 5].map((id) => ({
+    id,
+    title: `Task ${id}`,
+    description: 'One line.',
+    details: 'More detail here for the task.',
+    testStrategy: 'Run automated checks.',
+    status: 'pending',
+    dependencies: id > 1 ? [id - 1] : [],
+    priority: 'medium',
+    subtasks: [],
+  }));
+  const inner = { master: { tasks } };
+  const wrapped = `Prefix\n\`\`\`json\n${JSON.stringify(inner)}\n\`\`\`\n`;
+  const r = parseTaskmasterJsonFromText(wrapped);
+  assert.strictEqual(r.ok, true, (r.errors || []).join('; '));
+  assert.strictEqual(r.parsed.master.tasks.length, 5);
+}
+
 function testApplyTaskmasterProviderAnthropicFromEnv() {
   const { applyTaskmasterProviderFromEnvironment } = setupMain.hexcurseInstallTestHooks;
   const saved = {
@@ -380,6 +403,7 @@ function run() {
     ['isWindowsConPTY returns boolean', testIsWindowsConPTYBoolean],
     ['applyTaskmasterProvider defaults lmstudio', testApplyTaskmasterProviderDefaultsLmStudio],
     ['applyTaskmasterProvider anthropic from env', testApplyTaskmasterProviderAnthropicFromEnv],
+    ['parseTaskmasterJsonFromText strips fence', testParseTaskmasterJsonFromTextStripsFence],
   ];
   let failed = 0;
   for (const [name, fn] of tests) {

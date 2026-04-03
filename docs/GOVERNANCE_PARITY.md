@@ -15,6 +15,7 @@ This document states **what governance claims** versus **what is automated**, so
 - **MCP tools** (memory, Taskmaster, jcodemunch, Serena, etc.) are **not** invoked by the filesystem or `alwaysApply` rules. The agent must call them; the human must keep MCP servers **green** in Cursor.
 - **Session start** (`docs/SESSION_START.md`) must be **pasted** (or `@` files) so the agent runs memory → Taskmaster → repomix → **jcodemunch** index/outline → sequential-thinking in order.
 - **Taskmaster** (`task-master` CLI) uses **HTTP** LLM providers (e.g. LM Studio via `OPENAI_*`). It is **not** the same process as [Cursor headless](https://cursor.com/docs/cli/headless) (`agent -p`).
+- **HEXCURSE install** (default): **PRD → tasks** uses **`agent -p`** (**`composer-1.5`**) first so **`task-master parse-prd`** does not call OpenAI/Anthropic unless **`HEXCURSE_PARSE_PRD=taskmaster`** or **`lmstudio`** fallback runs.
 - **`HEXCURSE_PREFLIGHT_CURSOR_AGENT=1`** only runs **`agent status`** before `parse-prd` in the north-star bridge; it does not replace Taskmaster’s LLM endpoint.
 
 ## What *is* automated in-repo

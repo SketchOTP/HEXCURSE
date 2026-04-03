@@ -3,7 +3,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
-const { execSync, execFileSync } = require('child_process');
+const { execSync, execFileSync, spawnSync } = require('child_process');
 const chalk = require('chalk');
 const crypto = require('crypto');
 const readline = require('readline');
@@ -190,7 +190,13 @@ Options:
     --apply=<path>        Read agent JSON response from file and write to tasks.json
 
   --quick, -q         Non-interactive install (requires GitHub token in env or ~/.cursor/mcp.json)
+  --refresh-governance  Overwrite existing HEXCURSE/* and mirrored .cursor/rules (default: skip if file exists)
   --preset=<name>     With --quick: lmstudio | anthropic | openai (default lmstudio). Or set HEXCURSE_PRESET.
+
+  PRD → tasks (install): Default uses Cursor CLI agent (composer-1.5) — no OpenAI/Anthropic spend via task-master.
+  HEXCURSE_PARSE_PRD=cursor | taskmaster | skip   (default cursor)
+  HEXCURSE_CURSOR_AGENT_MODEL   (default composer-1.5) — only for cursor mode; requires agent on PATH
+  Reinstall: HEXCURSE_REFRESH_GOVERNANCE=1 or --refresh-governance overwrites pack + rules (not tasks.json alone)
 
   Quick install env (all optional except tokens for your preset):
   HEXCURSE_PROJECT_NAME, HEXCURSE_PURPOSE, HEXCURSE_STACK, HEXCURSE_MODULES,
@@ -208,7 +214,7 @@ Options:
 
   Interactive install (v2): seven core questions — project name, purpose, GitHub token (skipped if
   token is reused from env/mcp.json), then y/n for Playwright, Semgrep, Supabase (if y: project ref line),
-  LightRAG, then y/n for custom MCP (if y: transport 1–3 where 3 = skip; URL and command prompts accept cancel/skip/q/0). Piped stdin: one
+  LightRAG, then y/n for custom MCP (if y: transport 1–3 where 3 = skip; URL and command prompts accept cancel/skip/q/0). If HEXCURSE/ already exists (TTY), you are asked whether to overwrite templates (**--refresh-governance** or **HEXCURSE_REFRESH_GOVERNANCE=1** skips the question / forces refresh; piped installs use the env var). Piped stdin: one
   line per answer in that order. Taskmaster LLM keys are **not** prompted — set ANTHROPIC_API_KEY,
   OPENAI_API_KEY / OPENAI_BASE_URL (or lm-studio defaults) in the environment before install.
 
@@ -291,6 +297,30 @@ function validateTaskmasterSchema(parsed) {
   });
 
   return { ok: errors.length === 0, errors };
+}
+
+/**
+ * Extracts and validates Taskmaster tasks.json shape from agent stdout (markdown fences OK).
+ * Returns { ok, parsed } or { ok: false, errors: string[] }.
+ */
+function parseTaskmasterJsonFromText(raw) {
+  let s = String(raw || '').trim();
+  s = s.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+  const i = s.indexOf('{');
+  const j = s.lastIndexOf('}');
+  if (i < 0 || j <= i) {
+    return { ok: false, errors: ['No JSON object found in agent output'] };
+  }
+  s = s.slice(i, j + 1);
+  let parsed;
+  try {
+    parsed = JSON.parse(s);
+  } catch (e) {
+    return { ok: false, errors: [`Invalid JSON: ${e.message}`] };
+  }
+  const v = validateTaskmasterSchema(parsed);
+  if (!v.ok) return { ok: false, errors: v.errors };
+  return { ok: true, parsed };
 }
 
 /** Builds the self-contained prompt for the Cursor agent to emit tasks JSON. */
@@ -412,25 +442,15 @@ async function applyAgentResponse(applyPath, outPath, dryRun) {
     process.exit(1);
   }
 
-  let raw = fs.readFileSync(applyPath, 'utf8').trim();
-  raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
-
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (e) {
-    console.error('✗ Response is not valid JSON:', e.message);
-    console.error('  Check the file for markdown fences or extra text and try again.');
-    process.exit(1);
-  }
-
-  const validation = validateTaskmasterSchema(parsed);
-  if (!validation.ok) {
+  const raw = fs.readFileSync(applyPath, 'utf8');
+  const parsedResult = parseTaskmasterJsonFromText(raw);
+  if (!parsedResult.ok) {
     console.error('✗ Schema validation failed:');
-    validation.errors.forEach((e) => console.error('  -', e));
+    (parsedResult.errors || []).forEach((e) => console.error('  -', e));
     console.error('\n  Fix the JSON and re-run with --apply=<path>');
     process.exit(1);
   }
+  const parsed = parsedResult.parsed;
 
   const tasks = parsed.master.tasks;
   console.log(`✓ Parsed ${tasks.length} tasks from agent response`);
@@ -478,6 +498,63 @@ async function runParsePrdViaAgent(cwd, args) {
     fs.writeFileSync(cachePath, prompt, 'utf8');
     console.log(`✓ Prompt also saved to: ${cachePath}\n`);
   }
+}
+
+/**
+ * Runs Cursor headless `agent` to turn PRD text into tasks.json (uses Cursor subscription — not OpenAI API via task-master).
+ * Returns true when tasks.json was written and validated.
+ */
+function tryParsePrdWithCursorAgent(cwd, prdPath, tasksOutPath) {
+  const platform = process.platform;
+  if (!commandOnPath('agent', platform)) {
+    return false;
+  }
+  const model = String(process.env.HEXCURSE_CURSOR_AGENT_MODEL || 'composer-1.5').trim();
+  let prdContent;
+  try {
+    prdContent = fs.readFileSync(prdPath, 'utf8').trim();
+  } catch {
+    return false;
+  }
+  if (prdContent.length < 80) {
+    console.warn(chalk.yellow('⚠'), 'PRD too short for Cursor agent parse — skipping.');
+    return false;
+  }
+  const prompt = buildAgentParsePrompt(prdContent, tasksOutPath);
+  console.log(
+    chalk.bold('\nParse PRD (Cursor agent CLI) …'),
+    chalk.dim(`model=${model} — no task-master cloud LLM call`)
+  );
+  const ws = path.resolve(cwd);
+  const r = spawnSync(
+    'agent',
+    ['-p', '--print', '--model', model, '--trust', '--workspace', ws, '--output-format', 'text'],
+    {
+      input: `${prompt}\n`,
+      encoding: 'utf8',
+      maxBuffer: 50 * 1024 * 1024,
+      windowsHide: true,
+    }
+  );
+  if (r.error) {
+    console.warn(chalk.yellow('⚠'), 'Cursor agent failed to start:', r.error.message);
+    return false;
+  }
+  if (r.status !== 0) {
+    console.warn(chalk.yellow('⚠'), `Cursor agent exited with code ${r.status}`);
+    if (r.stderr) console.warn(chalk.dim(String(r.stderr).slice(0, 800)));
+    return false;
+  }
+  const parsedResult = parseTaskmasterJsonFromText(r.stdout || '');
+  if (!parsedResult.ok) {
+    console.warn(chalk.yellow('⚠'), 'Could not parse tasks JSON from agent output:');
+    (parsedResult.errors || []).slice(0, 6).forEach((e) => console.warn(chalk.dim('  -'), e));
+    return false;
+  }
+  fs.mkdirSync(path.dirname(tasksOutPath), { recursive: true });
+  fs.writeFileSync(tasksOutPath, `${JSON.stringify(parsedResult.parsed, null, 2)}\n`, 'utf8');
+  console.log(chalk.green('✓'), `Wrote ${path.relative(cwd, tasksOutPath)} via Cursor agent`);
+  return true;
 }
 
 /** Extracts markdown body under ## {heading} until the next ## heading. */
@@ -2611,28 +2688,32 @@ Open **${HEXCURSE_ROOT}/SESSION_START.md** and paste its block into a new Cursor
 `;
 }
 
-/** Writes identical rule content to HEXCURSE/rules and .cursor/rules; skip both if canonical file exists. */
-async function writeGovernanceRules(cwd, basename, content, written, skipped) {
+/** Writes identical rule content to HEXCURSE/rules and .cursor/rules; skip both if canonical exists unless refresh. */
+async function writeGovernanceRules(cwd, basename, content, written, skipped, refreshGovernance = false) {
   const relPack = path.join(HEXCURSE_ROOT, 'rules', basename);
   const relCursor = path.join('.cursor', 'rules', basename);
   const fullPack = path.join(cwd, relPack);
-  if (await fs.pathExists(fullPack)) {
+  const fullCursor = path.join(cwd, relCursor);
+  const hadPack = await fs.pathExists(fullPack);
+  if (!refreshGovernance && hadPack) {
     skipped.push(relPack);
     skipped.push(relCursor);
     return;
   }
-  const fullCursor = path.join(cwd, relCursor);
   await fs.ensureDir(path.dirname(fullPack));
   await fs.ensureDir(path.dirname(fullCursor));
   await fs.writeFile(fullPack, content, 'utf8');
   await fs.writeFile(fullCursor, content, 'utf8');
   written.push(relPack);
   written.push(relCursor);
+  const verb = refreshGovernance && hadPack ? 'Refreshed' : 'Wrote';
+  console.log(chalk.green(`✓ ${verb}`), relPack, chalk.dim('+ .cursor mirror'));
 }
 
-async function writeFileMaybeSkip(cwd, rel, content, written, skipped) {
+async function writeFileMaybeSkip(cwd, rel, content, written, skipped, refreshGovernance = false) {
   const full = path.join(cwd, rel);
-  if (await fs.pathExists(full)) {
+  const existed = await fs.pathExists(full);
+  if (!refreshGovernance && existed) {
     skipped.push(rel);
     console.warn(chalk.yellow(`⚠ SKIP (exists): ${rel}`));
     return;
@@ -2640,7 +2721,7 @@ async function writeFileMaybeSkip(cwd, rel, content, written, skipped) {
   await fs.ensureDir(path.dirname(full));
   await fs.writeFile(full, content, 'utf8');
   written.push(rel);
-  console.log(chalk.green(`✓ Wrote ${rel}`));
+  console.log(chalk.green(`✓ ${refreshGovernance && existed ? 'Refreshed' : 'Wrote'} ${rel}`));
 }
 
 /** Best-effort: index .cursor/skills with PAMPA when CLI is available (warn-only on failure). */
@@ -2914,6 +2995,43 @@ function parsePresetFromArgv(argv) {
 
 function argvHasQuick(argv) {
   return argv.slice(2).some((a) => a === '--quick' || a === '-q');
+}
+
+/** True when install should overwrite existing HEXCURSE/* and mirrored rules. */
+function argvHasRefreshGovernance(argv) {
+  return argv.slice(2).some((a) => a === '--refresh-governance');
+}
+
+/** True for 1, true, yes (case-insensitive). */
+function envTruthy(v) {
+  const s = String(v || '').trim().toLowerCase();
+  return s === '1' || s === 'true' || s === 'yes';
+}
+
+/** True when HEXCURSE/PATHS.json already exists (prior install). */
+async function governancePackExists(cwd) {
+  return fs.pathExists(path.join(cwd, HEXCURSE_ROOT, 'PATHS.json'));
+}
+
+/**
+ * Interactive reinstall: offer to refresh templates when pack exists (TTY only).
+ * Quick / piped / explicit flag skip the prompt.
+ */
+async function resolveRefreshGovernance(cwd, useQuick, argv) {
+  if (argvHasRefreshGovernance(argv) || envTruthy(process.env.HEXCURSE_REFRESH_GOVERNANCE)) {
+    return true;
+  }
+  if (useQuick || !stdinIsTTY()) {
+    return false;
+  }
+  if (!(await governancePackExists(cwd))) {
+    return false;
+  }
+  return askYesNo(
+    ask,
+    'Overwrite existing governance files (HEXCURSE/* and mirrored .cursor/rules)? Custom edits there will be replaced.',
+    false
+  );
 }
 
 /** Builds install answers without prompts (for --quick). */
@@ -3288,6 +3406,13 @@ async function main() {
 
   const written = [];
   const skipped = [];
+  const refreshGovernance = await resolveRefreshGovernance(cwd, useQuick, process.argv);
+  if (refreshGovernance) {
+    console.log(
+      chalk.cyan('↻'),
+      chalk.dim('Refreshing: overwriting existing HEXCURSE/* and mirrored rules where present.')
+    );
+  }
 
   console.log(chalk.bold('\nWriting governance files into:'), cwd, chalk.dim(`(${HEXCURSE_ROOT}/ pack + .cursor/rules mirror)`));
   await writeGovernanceRules(
@@ -3301,25 +3426,28 @@ async function main() {
       answers.outOfScope.trim()
     ),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
-  await writeGovernanceRules(cwd, 'mcp-usage.mdc', MCP_USAGE_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'process-gates.mdc', PROCESS_GATES_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'security.mdc', SECURITY_MDC_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'adr.mdc', ADR_MDC_TEMPLATE, written, skipped);
+  await writeGovernanceRules(cwd, 'mcp-usage.mdc', MCP_USAGE_TEMPLATE, written, skipped, refreshGovernance);
+  await writeGovernanceRules(cwd, 'process-gates.mdc', PROCESS_GATES_TEMPLATE, written, skipped, refreshGovernance);
+  await writeGovernanceRules(cwd, 'security.mdc', SECURITY_MDC_TEMPLATE, written, skipped, refreshGovernance);
+  await writeGovernanceRules(cwd, 'adr.mdc', ADR_MDC_TEMPLATE, written, skipped, refreshGovernance);
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'PATHS.json'),
     `${JSON.stringify(pathsManifestObject(pathsMeta), null, 2)}\n`,
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'README.md'),
     hexcurseReadmeMd(answers.projectName.trim()),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
@@ -3331,14 +3459,16 @@ async function main() {
       answers.sacred.trim()
     ),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'DIRECTIVES.md'),
     directivesMd(answers.projectName.trim()),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
@@ -3351,7 +3481,8 @@ async function main() {
       answers.dod.trim()
     ),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   const prdNotesLead =
     answers.repoKind === 'existing' && answers.northStarDraftMd
@@ -3371,21 +3502,24 @@ async function main() {
       prdNotesLead
     ),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'SESSION_START.md'),
     sessionStartMd(answers.projectName.trim()),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
     'AGENTS.md',
     rootAgentsPointerMd(answers.projectName.trim()),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   if (answers.repoKind === 'existing') {
     let rootEntries;
@@ -3405,7 +3539,8 @@ async function main() {
           path.join(n, 'AGENTS.md'),
           subAgentsPointerMd(answers.projectName.trim(), n),
           written,
-          skipped
+          skipped,
+          refreshGovernance
         );
       }
     }
@@ -3419,63 +3554,72 @@ async function main() {
     path.join(HEXCURSE_ROOT, 'NORTH_STAR.md'),
     northStarBody,
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'CURSOR.md'),
     cursorPackMd(answers.projectName.trim()),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'docs', 'CURSOR_MODES.md'),
     cursorModesMd(),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'docs', 'MCP_TOKEN_BUDGET.md'),
     mcpTokenBudgetMd(),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'docs', 'MULTI_AGENT.md'),
     multiAgentMd(),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'docs', 'ADR_LOG.md'),
     adrLogStubMd(answers.projectName),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'docs', 'AGENT_HANDOFFS.md'),
     agentHandoffsStubMd(),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
     path.join('.cursor', 'skills', 'README.md'),
     cursorSkillsReadmeMd(),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
   await writeFileMaybeSkip(
     cwd,
     path.join('.cursor', 'skills', '_TEMPLATE_SKILL.md'),
     readBundledTemplateSkillMd(),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
 
   await tryIndexSkillsWithPampa(cwd);
@@ -3491,21 +3635,55 @@ async function main() {
   await patchTaskmasterConfigForLmStudioContext(cwd, answers);
 
   const prdRel = path.join('.taskmaster', 'docs', 'prd.txt');
-  const tmEnv = taskmasterChildEnv(answers);
-  if (
-    !runCmd(cwd, `task-master parse-prd --force "${prdRel}"`, 'task-master parse-prd', tmEnv)
-  ) {
-    console.warn(chalk.yellow('⚠ task-master parse-prd reported failure — continuing.'));
-    console.warn(
-      chalk.dim(
-        '  Tip: start LM Studio (or set API keys), then run: task-master parse-prd --force .taskmaster/docs/prd.txt'
-      )
+  const prdAbs = path.join(cwd, prdRel);
+  const tasksJsonPath = path.join(cwd, '.taskmaster', 'tasks', 'tasks.json');
+  const parseMode = String(process.env.HEXCURSE_PARSE_PRD || 'cursor').trim().toLowerCase();
+  const tmEnvNonInteractive = { ...taskmasterChildEnv(answers), CI: '1' };
+
+  let parseOk = false;
+  if (parseMode === 'skip') {
+    console.log(chalk.dim('Skipping PRD→tasks (HEXCURSE_PARSE_PRD=skip).'));
+  } else if (parseMode === 'taskmaster') {
+    console.log(
+      chalk.bold('\nParse PRD (task-master CLI) …'),
+      chalk.dim('(HEXCURSE_PARSE_PRD=taskmaster — uses your Taskmaster API keys / LM Studio)')
     );
-    console.warn(
-      chalk.dim(
-        '  If parse-prd still fails, set HEXCURSE_LM_STUDIO_MAX_CONTEXT to your real context (e.g. 4096 or 8000) before install, or use a larger-context GGUF / cloud for parse-prd.'
-      )
+    parseOk = runCmd(
+      cwd,
+      `task-master parse-prd --force -i "${prdRel}"`,
+      'task-master parse-prd',
+      tmEnvNonInteractive
     );
+    if (!parseOk) {
+      console.warn(chalk.yellow('⚠ task-master parse-prd reported failure — continuing.'));
+      console.warn(
+        chalk.dim(
+          '  Tip: configure models/keys, or unset HEXCURSE_PARSE_PRD to use Cursor agent (default) for PRD→tasks.'
+        )
+      );
+    }
+  } else {
+    parseOk = tryParsePrdWithCursorAgent(cwd, prdAbs, tasksJsonPath);
+    if (!parseOk && answers.provider === 'lmstudio') {
+      console.log(chalk.dim('Falling back to task-master parse-prd (local LM Studio, non-interactive).'));
+      parseOk = runCmd(
+        cwd,
+        `task-master parse-prd --force -i "${prdRel}"`,
+        'task-master parse-prd',
+        tmEnvNonInteractive
+      );
+    }
+    if (!parseOk) {
+      console.warn(
+        chalk.yellow('⚠'),
+        'PRD→tasks not generated — install Cursor CLI so `agent` is on PATH, set HEXCURSE_PARSE_PRD=taskmaster to use task-master only, or use --preset=lmstudio for local fallback after Cursor agent fails.'
+      );
+      console.warn(
+        chalk.dim(
+          '  Default path uses Cursor subscription (composer-1.5); it does not bill OpenAI via task-master.'
+        )
+      );
+    }
   }
   await seedPlaceholderTasksJsonIfMissing(cwd);
 
@@ -3552,6 +3730,8 @@ main.hexcurseRefreshRulesTestHooks = {
 main.hexcurseAgentParseHooks = {
   validateTaskmasterSchema,
   buildAgentParsePrompt,
+  parseTaskmasterJsonFromText,
+  tryParsePrdWithCursorAgent,
 };
 
 /** Test-only: Windows ConPTY heuristic. See test/hexcurse-pack.test.js */

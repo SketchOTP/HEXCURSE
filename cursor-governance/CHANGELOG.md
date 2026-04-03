@@ -2,6 +2,16 @@
 
 All notable changes to **HEXCURSE** (npm package **`cursor-governance`**) are documented here.
 
+## [2.0.2] — 2026-04-03
+
+### Added
+
+- **`--refresh-governance`** and **`HEXCURSE_REFRESH_GOVERNANCE=1`**: overwrite existing **`HEXCURSE/*`** and mirrored **`.cursor/rules`** on reinstall. Interactive TTY installs prompt once when the pack already exists (default **No**).
+
+### Changed
+
+- **PRD → tasks** during install: default **`HEXCURSE_PARSE_PRD=cursor`** runs Cursor headless **`agent -p`** with **`composer-1.5`** (override with **`HEXCURSE_CURSOR_AGENT_MODEL`**) so **task-master** does not call OpenAI/Anthropic for parse-prd. Fallback: **`task-master parse-prd`** only for **`lmstudio`** preset if Cursor agent fails, or when **`HEXCURSE_PARSE_PRD=taskmaster`**. **`HEXCURSE_PARSE_PRD=skip`** skips generation. Task-master parse-prd runs with **`CI=1`** to reduce interactive prompts.
+
 ## [2.0.1] — 2026-04-03
 
 ### Changed
