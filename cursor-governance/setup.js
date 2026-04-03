@@ -1420,10 +1420,18 @@ function readBundledAgentsPackMd() {
   return fs.readFileSync(path.join(__dirname, 'templates', 'AGENTS.md'), 'utf8');
 }
 
-/** Consumer HEXCURSE/AGENTS.md — template copy of repository root AGENTS.md. */
-function agentsMd(projectName) {
+/** Consumer HEXCURSE/AGENTS.md — generic template; placeholders {{PROJECT_NAME}}, {{PURPOSE}}, {{STACK}}, {{SACRED}}. */
+function agentsMd(projectName, purpose, stack, sacredRaw) {
   const name = String(projectName || 'Project').trim();
-  return readBundledAgentsPackMd().replace(/^# HexCurse$/m, `# ${name}`).replace(/\r\n/g, '\n');
+  const p = String(purpose || 'TBD — fill NORTH_STAR.md / ARCHITECTURE.md').trim();
+  const st = String(stack || 'TBD — confirm with maintainers').trim();
+  const sacred = formatConstraintBullets(sacredRaw || '');
+  return readBundledAgentsPackMd()
+    .replace(/\{\{PROJECT_NAME\}\}/g, name)
+    .replace(/\{\{PURPOSE\}\}/g, p)
+    .replace(/\{\{STACK\}\}/g, st)
+    .replace(/\{\{SACRED\}\}/g, sacred)
+    .replace(/\r\n/g, '\n');
 }
 
 function directivesMd(projectName) {
@@ -3313,7 +3321,12 @@ async function main() {
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'AGENTS.md'),
-    agentsMd(answers.projectName.trim()),
+    agentsMd(
+      answers.projectName.trim(),
+      answers.purpose.trim(),
+      answers.stack.trim(),
+      answers.sacred.trim()
+    ),
     written,
     skipped
   );
