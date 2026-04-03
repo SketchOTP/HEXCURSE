@@ -77,3 +77,28 @@
 
 **Reset context**
 > STOP all work. Read AGENTS.md, DIRECTIVES.md, and docs/ARCHITECTURE.md fresh. Check memory MCP. Then report: current directive, its scope, what you've done so far this session, and what remains. Wait for my confirmation before continuing.
+
+## New in v1.5.x
+
+### Sync rules from remote
+```bash
+node cursor-governance/setup.js --sync-rules
+```
+Fetches latest `.mdc` rules from the configured remote (requires **`HEXCURSE_RULES_REMOTE_URL`**).
+
+### Sync rules dry-run (preview only)
+```bash
+node cursor-governance/setup.js --sync-rules --dry-run
+```
+
+### Enable multi-agent mode
+```bash
+node cursor-governance/setup.js --multi-agent
+```
+Creates worktree scaffold, enables swarm-protocol MCP wiring where applicable, writes **`docs/MULTI_AGENT.md`** (pack: **`HEXCURSE/docs/MULTI_AGENT.md`**).
+
+### Re-index skills with PAMPA
+Run inside a session via the **pampa** MCP, or run doctor from repo root to surface index health:
+```bash
+HEXCURSE_DOCTOR_CI=1 node cursor-governance/setup.js --doctor
+```
