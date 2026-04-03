@@ -2,11 +2,11 @@
   "master": {
     "tasks": [
       {
-        "id": "1",
+        "id": 1,
         "title": "Verify and freeze governance rules",
-        "description": "Confirm .cursor/rules align with HexCurse.",
-        "details": "Review alwaysApply flags.",
-        "testStrategy": "",
+        "description": "Confirm .cursor/rules and alwaysApply flags match HexCurse sacred constraints and AGENTS.md.",
+        "details": "Review base.mdc, mcp-usage.mdc, process-gates.mdc; ensure 10-rule set is coherent.",
+        "testStrategy": "Manual review + doctor non-blocking rule count.",
         "status": "done",
         "dependencies": [],
         "priority": "high",
@@ -14,11 +14,99 @@
         "updatedAt": "2026-03-30T00:33:25.455Z"
       },
       {
-        "id": "2",
+        "id": 2,
         "title": "Sync DIRECTIVES.md with Taskmaster",
-        "description": "Populate Queued section from tasks.json IDs; document sync policy.",
-        "details": "Mirror task IDs D001+ to Taskmaster numeric ids.",
-        "testStrategy": "",
+        "description": "Keep Queued/Completed sections mirroring tasks.json; one In Progress directive at a time.",
+        "details": "After each task graph change, update DIRECTIVES.md IDs and dependency notes.",
+        "testStrategy": "Diff DIRECTIVES.md against task-master list.",
+        "status": "done",
+        "dependencies": [
+          "1"
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "updatedAt": "2026-04-03T08:45:48.898Z"
+      },
+      {
+        "id": 3,
+        "title": "Document Taskmaster LLM configuration and no-endpoint fallback",
+        "description": "Align .env.example and docs with OpenAI-compatible Taskmaster providers; document agent-curated task graph when parse-prd cannot reach an LLM.",
+        "details": "OPENAI_API_KEY + OPENAI_BASE_URL for LM Studio or cloud; never commit .env. When no LLM is available, maintain tasks.json from NORTH_STAR + prd.txt via agent (same outcome as parse-prd).",
+        "testStrategy": "Verify .env.example keys; confirm config.json provider entries documented in ARCHITECTURE.",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [],
+        "updatedAt": "2026-04-03T09:11:44.067Z"
+      },
+      {
+        "id": 4,
+        "title": "Rebuild Taskmaster task graph from NORTH_STAR and prd.txt",
+        "description": "Regenerate tasks covering installer quality, rituals, learning loop, token efficiency, and skill promotion—via parse-prd or equivalent agent curation.",
+        "details": "Source: NORTH_STAR.md + .taskmaster/docs/prd.txt. Target: 10–15 tasks, realistic dependencies, priorities high/medium/low.",
+        "testStrategy": "task-master list shows 8+ tasks aligned with product; no orphan stub tasks.",
+        "status": "done",
+        "dependencies": [
+          "3"
+        ],
+        "priority": "high",
+        "subtasks": [],
+        "updatedAt": "2026-04-03T09:11:48.304Z"
+      },
+      {
+        "id": 5,
+        "title": "Seed memory MCP from docs/MEMORY_SEED.md",
+        "description": "Write durable project facts into memory MCP when the server is enabled in Cursor.",
+        "details": "Run at session start per AGENTS.md; no secrets in seed content.",
+        "testStrategy": "Query memory for seeded keys after write.",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Verify MCP servers show green in Cursor",
+        "description": "Cross-check Settings > MCP against canonical 17-server inventory and docs/PART0_MCP_TEMPLATE.json.",
+        "details": "Log DEGRADED_MODE for any red server; fix env paths (e.g. SEMGREP_PATH, Pampa) per AGENTS Gotchas.",
+        "testStrategy": "Screenshot or list of green servers after install.",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Commit governance scaffold to Git",
+        "description": "Keep governance tree, docs, and .taskmaster under version control with clear commit messages.",
+        "details": "Use D[NNN]: description | status convention; never commit .env.",
+        "testStrategy": "git status clean after session close.",
+        "status": "done",
+        "dependencies": [
+          "2"
+        ],
+        "priority": "medium",
+        "subtasks": [],
+        "updatedAt": "2026-04-03T08:45:53.811Z"
+      },
+      {
+        "id": 8,
+        "title": "Confirm product stack and update docs/ARCHITECTURE.md",
+        "description": "Replace residual TBD product notes with NORTH_STAR Technology stack; add Product Stack (confirmed) section.",
+        "details": "Runtime Node/cursor-governance, file storage, LLM-agnostic Taskmaster, npm distribution, no core SaaS DB.",
+        "testStrategy": "Grep ARCHITECTURE for inappropriate TBD; human read of Product Stack section.",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [],
+        "updatedAt": "2026-04-03T09:11:52.498Z"
+      },
+      {
+        "id": 9,
+        "title": "Installer correctness: setup.js parity with AGENTS and GOVERNANCE_PARITY",
+        "description": "Keep merge, --doctor, --run-hexcurse, template embeds aligned with SESSION_START_PROMPT and embedded agentsMd/sessionStartMd.",
+        "details": "Run HEXCURSE_DOCTOR_CI=1 doctor from repo root; npm run test:all in cursor-governance.",
+        "testStrategy": "Doctor zero blocking; all tests green.",
         "status": "pending",
         "dependencies": [
           "1"
@@ -27,132 +115,160 @@
         "subtasks": []
       },
       {
-        "id": "3",
-        "title": "Configure .env for Taskmaster AI providers",
-        "description": "Set OPENAI_API_KEY and OPENAI_BASE_URL for LM Studio (see .env.example). Start LM Studio with qwen3.5-2b loaded.",
-        "details": "Never commit .env; modelId in .taskmaster/config.json must match the model name LM Studio exposes.",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "high",
-        "subtasks": []
-      },
-      {
-        "id": "4",
-        "title": "Re-run parse-prd when LM Studio is available",
-        "description": "Run task-master parse-prd --force .taskmaster/docs/prd.txt to refresh task graph.",
-        "details": "LM Studio must be running; replace or merge generated tasks per human preference.",
-        "testStrategy": "",
+        "id": 10,
+        "title": "Validate continual learning loop in a real repo",
+        "description": "Dogfood governed sessions until SESSION_LOG, ROLLING_CONTEXT, and .cursor/skills show real accumulated artifacts.",
+        "details": "Per NORTH_STAR Current state: prove the self-improving loop beyond empty skills and empty rolling context.",
+        "testStrategy": "After N sessions: non-empty skill file or rollup excerpt; memory entries for discoveries.",
         "status": "pending",
         "dependencies": [
-          "3"
+          "9"
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Run 5+ governed sessions with SESSION_LOG entries each close",
+            "description": "",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "testStrategy": "",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Capture before/after ROLLING_CONTEXT.md meaningful deltas",
+            "description": "",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "testStrategy": "",
+            "parentId": "undefined"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Skill promotion pipeline and PAMPA cadence",
+        "description": "Harden agents-memory-updater, skill-promotion-queue.json consumption, and PAMPA re-index after new skills.",
+        "details": "Align with CONTINUAL_LEARNING.md and RULE 9 debounce; ensure skills are discoverable via pampa search.",
+        "testStrategy": "Promote one skill end-to-end; pampa finds it by keyword.",
+        "status": "pending",
+        "dependencies": [
+          "10"
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Verify continual-learning-index.json mtime vs transcript policy",
+            "description": "",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "testStrategy": "",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Document promotion queue → .cursor/skills/ handoff",
+            "description": "",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "testStrategy": "",
+            "parentId": "undefined"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Token efficiency measurement protocol (session 1 vs session N)",
+        "description": "Define how to compare tool-call counts, redundant reads, and context size across sessions in the same repo.",
+        "details": "Align with NORTH_STAR Definition of Done and docs/MCP_TOKEN_BUDGET.md; optional script or checklist.",
+        "testStrategy": "Documented protocol produces comparable metrics for two sessions.",
+        "status": "pending",
+        "dependencies": [
+          "10"
         ],
         "priority": "medium",
         "subtasks": []
       },
       {
-        "id": "5",
-        "title": "Seed memory MCP from docs/MEMORY_SEED.md",
-        "description": "Write project constants via memory MCP when Cursor session has memory enabled.",
-        "details": "",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "medium",
-        "subtasks": []
-      },
-      {
-        "id": "6",
-        "title": "Verify MCP servers show green in Cursor",
-        "description": "Cross-check Settings > MCP against docs/PART0_MCP_TEMPLATE.json.",
-        "details": "",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "medium",
-        "subtasks": []
-      },
-      {
-        "id": "7",
-        "title": "Commit governance scaffold to Git",
-        "description": "Single logical commit with message D001: Governance scaffold | verified clean.",
-        "details": "",
-        "testStrategy": "",
+        "id": 13,
+        "title": "Session ritual accuracy vs live MCP coordination",
+        "description": "Audit SESSION_START_PROMPT and AGENTS.md steps against docs/MCP_COORDINATION.md and actual mcp.json merge.",
+        "details": "Ensure 4a–4e and server list match installer output; fix doc drift before shipping.",
+        "testStrategy": "Checklist walkthrough of SESSION START without DEGRADED_MODE on core servers.",
         "status": "pending",
         "dependencies": [
+          "1",
           "2"
         ],
         "priority": "medium",
         "subtasks": []
       },
       {
-        "id": "8",
-        "title": "Confirm product stack and update ARCHITECTURE",
-        "description": "Replace TBD sections with chosen language, framework, and module map.",
-        "details": "",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "low",
-        "subtasks": []
-      },
-      {
-        "id": "9",
-        "title": "Add application source tree (post-stack confirmation)",
-        "description": "Scaffold src/, tests, and build per confirmed stack.",
-        "details": "",
-        "testStrategy": "",
+        "id": 14,
+        "title": "cursor-governance installer — Windows PowerShell readline + no ora (D014)",
+        "description": "Verify readline prompts and console logging in setup.js on Windows; no enquirer/ora regressions.",
+        "details": "Prerequisite for D015. Mark done when Windows path is verified.",
+        "testStrategy": "Manual: full setup.js prompt flow in PowerShell.",
         "status": "pending",
         "dependencies": [
-          "8"
+          "9"
         ],
-        "priority": "low",
-        "subtasks": []
-      },
-      {
-        "id": "10",
-        "title": "Optional: tm rules --setup for Cursor integration",
-        "description": "Run task-master rules setup if recommended by Taskmaster version.",
-        "details": "",
-        "testStrategy": "",
-        "status": "pending",
-        "dependencies": [],
-        "priority": "low",
-        "subtasks": []
-      },
-      {
-        "id": "14",
-        "title": "cursor-governance installer — Windows PowerShell readline + no ora (D014)",
-        "description": "Verify readline prompts and console logging in cursor-governance/setup.js on Windows; no enquirer/ora.",
-        "details": "Prerequisite for D015. Mark done when Windows path is verified.",
-        "testStrategy": "Manual: run setup.js in PowerShell through full prompt flow.",
-        "status": "pending",
-        "dependencies": [],
         "priority": "high",
         "subtasks": []
       },
       {
-        "id": "15",
+        "id": 15,
         "title": "Linux compatibility for cursor-governance installer (D015)",
-        "description": "Scope: cursor-governance/setup.js only. OS-aware Python/pip/uv and paths; no hardcoded Windows paths.",
-        "details": "process.platform win32|linux|darwin. Print 'Detected platform: …' at start. findPython(): Linux/Mac python3 then python; Windows python first (keep py -3 fallbacks as needed). Pip: pip3-first on Linux/Mac, pip on Windows. uv: Windows pip install uv; Linux/Mac pip3 install uv, fallback curl -LsSf https://astral.sh/uv/install.sh | sh. Use path.join everywhere; mcp.json via os.homedir() only — audit for C:\\\\Users. Prerequisites check: Linux prefers python3. npm install -g failures: suggest sudo on Linux. node --check setup.js. Windows behavior unchanged.",
-        "testStrategy": "node --check setup.js; run installer on Linux and Windows; confirm python3/pip3 on Linux.",
+        "description": "OS-aware Python/pip/uv and paths in setup.js only; no hardcoded Windows paths.",
+        "details": "process.platform win32|linux|darwin; path.join; Linux python3/pip3 first per existing directive text.",
+        "testStrategy": "node --check setup.js; smoke install on Linux.",
         "status": "pending",
         "dependencies": [
           "14"
         ],
         "priority": "high",
         "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Add --parse-prd-via-agent mode to setup.js",
+        "description": "Generate tasks.json from PRD via agent LLM context instead of outbound Taskmaster API call. Eliminates LM Studio dependency for parse-prd step. See DIRECTIVES.md D-HEXCURSE-AGENT-PARSE-006.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "Add --parse-prd-via-agent mode to setup.js",
+        "description": "Generate tasks.json from PRD via agent LLM context instead of outbound Taskmaster API call. Eliminates LM Studio dependency for parse-prd step. See DIRECTIVES.md D-HEXCURSE-AGENT-PARSE-006.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-03-30T00:33:25.455Z",
-      "taskCount": 12,
-      "completedCount": 1,
+      "lastModified": "2026-04-03T09:11:52.498Z",
+      "taskCount": 15,
+      "completedCount": 6,
       "tags": [
         "master"
-      ]
+      ],
+      "created": "2026-04-03T09:12:16.595Z",
+      "description": "Tasks for master context",
+      "updated": "2026-04-03T09:13:04.501Z"
     }
   }
 }
