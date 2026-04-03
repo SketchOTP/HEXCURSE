@@ -1,6 +1,6 @@
 # MCP Token Budget — HexCurse
 
-Each active MCP server adds approximately 500–1,000 tokens of tool description overhead to every agent request, before any actual work begins.
+HexCurse now installs **17 servers**. Each active MCP server adds approximately 500–1,000 tokens of tool description overhead to every agent request, before any actual work begins.
 
 ## HexCurse Default Server Load
 
@@ -15,6 +15,8 @@ Each active MCP server adds approximately 500–1,000 tokens of tool description
 | repomix | ✅ Yes | Never |
 | gitmcp | ✅ Yes | Never |
 | jcodemunch | ✅ Yes | Never |
+| gitmcp-adafruit-mpu6050 | Project-specific | Non-hardware sessions |
+| supabase | When using Supabase backend | Frontend-only / offline sessions |
 | playwright | When doing UI work | Backend-only sessions |
 | semgrep | When writing code | Read-only research sessions |
 | sentry | When debugging errors | Greenfield sessions |
