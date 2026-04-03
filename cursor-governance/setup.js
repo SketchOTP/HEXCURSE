@@ -1675,6 +1675,16 @@ AUTOMATIC **during** implementation — prefer jcodemunch over brute force whene
   **\`invalidate_cache\`** + re-index when the index is clearly stale after large refactors.
 RELATIONSHIP TO **Serena** (RULE 4): jcodemunch is for **AST-rich discovery, ranking, import/reference graphs, and token-budgeted retrieval** on the indexed tree; Serena remains mandatory for **workspace symbol edits** (\`replace_symbol_body\`, \`insert_after_symbol\`, etc.) and precise \`find_symbol\` / \`find_referencing_symbols\` when you are editing. When **both** are green, use jcodemunch **first** for broad or fuzzy discovery and impact; then Serena for surgical edits. Do **not** use **github** remote search as a substitute for local jcodemunch + disk.
 HARD RULE: If jcodemunch is **available** and the session touches **application/source code** (not markdown-only governance with zero code reads), you must **not** skip indexing + at least one retrieval pass that jcodemunch serves better than opening whole files — unless you state **DEGRADED_MODE: jcodemunch — reason** in the handoff.
+
+## RULE 11 — gitmcp-adafruit-mpu6050: hardware / sensor library lookups (Adafruit MPU6050)
+AUTOMATIC: When the task involves the **Adafruit MPU6050** sensor, I²C wiring, register maps, or the **Adafruit_MPU6050** Arduino / CircuitPython library —
+  query **gitmcp-adafruit-mpu6050** for current docs, examples, and API references on **gitmcp.io** before writing or refactoring driver code.
+  Do not rely on training data for hardware-specific register behavior or library call sequences.
+
+## RULE 12 — supabase: database and backend via Supabase MCP
+AUTOMATIC: When this project uses **Supabase** (Postgres, Auth, RLS, Edge Functions) —
+  use the **supabase** MCP for schema inspection, query execution, RLS policy verification, Edge Function management, and auth configuration.
+  Prefer MCP-driven checks over guessing from memory or ad hoc dashboard-only workflows when the server is available.
 `;
 
 const SECURITY_MDC_TEMPLATE = `---
@@ -1977,6 +1987,8 @@ HexCurse sessions must make **full, appropriate** use of available MCP tools. Do
 6. **Serena** — Symbol-aware navigation/edits instead of broad whole-file reads when applicable.
 7. **context7** — Library/API/framework verification before assumptions.
 8. **github** (optional) — Remote PR/issue when explicitly requested; local git for branch/commit/push.
+11. **gitmcp-adafruit-mpu6050** — For any task involving the Adafruit MPU6050 sensor library: fetch current docs, examples, and register maps via this server before writing driver code. Do not rely on training data for hardware library specifics.
+12. **supabase** — For all database operations: use the Supabase MCP for schema inspection, query execution, RLS policy verification, Edge Function management, and auth configuration. Never interact with the Supabase dashboard manually when the MCP can do it.
 
 ### Hard rule
 If an MCP is **available** and **materially relevant**, you **must** use it. Skipping requires an **explicit reason** in the session report.
@@ -3379,6 +3391,7 @@ function pathsManifestObject(installerMeta) {
       multiAgentMdcActive: '.cursor/rules/multi-agent.mdc',
       linearSyncMdcCanonical: `${h}/rules/linear-sync.mdc`,
       linearSyncMdcActive: '.cursor/rules/linear-sync.mdc',
+      supabaseProjectRef: process.env.SUPABASE_PROJECT_REF || 'dpivknupklbxjbrcntes',
       mcpTokenBudget: `${h}/docs/MCP_TOKEN_BUDGET.md`,
       multiAgentDoc: `${h}/docs/MULTI_AGENT.md`,
       adrLog: `${h}/docs/ADR_LOG.md`,
@@ -3903,11 +3916,24 @@ function printSummary(written, skipped, cwd, mcpResult, answers) {
   console.log(
     chalk.yellow(
       '\n⚠  MCP Token Budget: Each active server adds ~500–1000 tokens per tool to every request.\n' +
-        '   HexCurse now installs 15 servers. Disable project-specific servers in ~/.cursor/mcp.json\n' +
-        '   when not needed (e.g. disable Figma on backend-only sessions, disable Sentry when offline).\n' +
+        '   HexCurse now installs 17 servers. Disable project-specific servers in ~/.cursor/mcp.json\n' +
+        '   when not needed (e.g. disable gitmcp-adafruit-mpu6050 on non-hardware projects,\n' +
+        '   disable Supabase when working offline or on non-Supabase backends).\n' +
         '   See HEXCURSE/docs/MCP_TOKEN_BUDGET.md for guidance.'
     )
   );
+  const pampaPath = resolvePampaGlobalPath();
+  if (!fs.existsSync(pampaPath)) {
+    console.log(
+      chalk.yellow(
+        '⚠  pampa: mcp-server.js not found at resolved path: ' +
+          pampaPath +
+          '\n' +
+          '   Install globally with: npm install -g pampa\n' +
+          '   Then re-run the installer to refresh the path in ~/.cursor/mcp.json'
+      )
+    );
+  }
   console.log('');
   console.log(chalk.bold('Files written:'));
   if (written.length === 0) {
