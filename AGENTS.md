@@ -4,9 +4,9 @@ Governed **Cursor** workspace. Rules in **`.cursor/rules/`** load automatically;
 
 ## Project context
 
-**Purpose:** This workspace ships the **`cursor-governance`** npm installer (**`setup.js`**, templates, MCP merge, doctor, tests) and governance docs. Application code for consumer projects lives in those repos, not here. **`docs/PROJECT_OVERVIEW.md`** is the machinery source of truth; **`NORTH_STAR.md`** is authoritative for product intent.
+**Purpose:** This workspace ships **HEXCURSE** (the **`cursor-governance/`** npm installer: **`setup.js`**, templates, MCP merge, doctor, tests) and governance docs. Application code for consumer projects lives in those repos, not here. **`docs/PROJECT_OVERVIEW.md`** is the machinery source of truth; **`NORTH_STAR.md`** is authoritative for product intent.
 
-**Stack:** **Node.js** — **`cursor-governance`** package; **Cursor**; **Taskmaster**; MCP servers per **`~/.cursor/mcp.json`**. Full table: **`docs/ARCHITECTURE.md`**.
+**Stack:** **Node.js** — **HEXCURSE** installer package under **`cursor-governance/`**; **Cursor**; **Taskmaster**; MCP servers per **`~/.cursor/mcp.json`**. Full table: **`docs/ARCHITECTURE.md`**.
 
 **Sacred constraints**
 
@@ -44,6 +44,25 @@ If a required tool is missing or red, announce **DEGRADED_MODE** with the server
 1. **Tasks** — Update Taskmaster (**set_task_status**, expand/split tasks if needed).
 2. **Memory** — Write durable discoveries to **memory** MCP.
 3. **Skills** — Promote repeatable patterns into **`.cursor/skills/`** when your project’s criteria are met.
+
+## Learned Workspace Facts
+
+Sourced from transcript mining (**RULE 9**); see **`docs/MEMORY_TAXONOMY.md`**. Subsections match memory buckets; no secrets.
+
+### Architecture
+
+- **`--parse-prd-via-agent`** (`cursor-governance/setup.js` in this repo — `runParsePrdViaAgent` / `applyAgentResponse`): emits the PRD→tasks prompt and validates agent JSON locally; **no outbound HTTP or LLM** from Node in that mode. **`--dry-run`** must not write **`.taskmaster/tasks/tasks.json`** or **`.taskmaster/agent-parse-prompt.txt`**.
+- Interactive install v2: **`promptUser()`** asks a short fixed sequence (project, purpose, GitHub token reuse, optional MCPs); **`applyTaskmasterProviderFromEnvironment(answers)`** fills Taskmaster MCP env from **`ANTHROPIC_*` / `OPENAI_*`** after prompts — not from in-installer provider credential questions.
+
+### Gotcha
+
+- If **`OPENAI_BASE_URL`** / Taskmaster’s LLM is unreachable, **`task-master parse-prd`** and **`setup.js --run-hexcurse`** fail; rebuild **`.taskmaster/tasks/tasks.json`** from **`NORTH_STAR.md`** + **`.taskmaster/docs/prd.txt`** (see **`.env.example`**, **`docs/ARCHITECTURE.md`**).
+- Optional **PAMPA** **`npx`** indexing during install can hit **EPERM** on Windows npm cache; **`--learning-rollup`** and other state can still be validated without a successful PAMPA index.
+- **`installNpmGlobalPackage`** (`setup.js`): **no `sudo` on Windows**; on Unix, **`sudo npm install -g`** falls back to **`npm install -g --prefix ~/.npm-global`** when sudo fails.
+
+### Workflow
+
+- Directive **memory seeding** (e.g. omnibus Phase 2): use **memory** MCP inside a governed Cursor session — not as a substitute from a shell-only script.
 
 ## Forbidden
 

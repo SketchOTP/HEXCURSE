@@ -1,6 +1,12 @@
 # Changelog
 
-All notable changes to **cursor-governance** are documented here.
+All notable changes to **HEXCURSE** (npm package **`cursor-governance`**) are documented here.
+
+## [2.0.1] — 2026-04-03
+
+### Changed
+
+- User-facing installer branding: **HEXCURSE** (banner, `--help`, doctor strings, `PATHS.json` installer metadata). Npm package name stays **`cursor-governance`** for registry continuity; **`hexcurse`** added as an additional **`bin`** alias (same entry as **`cursor-governance`**).
 
 ## [1.6.1] — 2026-04-03
 

@@ -1,11 +1,11 @@
-# PROJECT OVERVIEW — HexCurse (single source of truth, code-derived)
+# PROJECT OVERVIEW — HEXCURSE (single source of truth, code-derived)
 
-This document is the **onboarding and handoff reference** for anyone taking over the HexCurse / **cursor-governance** codebase. Every technical claim below is tied to **files in this repository** (primarily **`cursor-governance/setup.js`**). It does **not** invent product features: the **application runtime** is **TBD** until humans confirm (see **`docs/ARCHITECTURE.md`**).
+This document is the **onboarding and handoff reference** for anyone taking over **HEXCURSE** (installer code under **`cursor-governance/`**). Every technical claim below is tied to **files in this repository** (primarily **`cursor-governance/setup.js`**). It does **not** invent product features: the **application runtime** is **TBD** until humans confirm (see **`docs/ARCHITECTURE.md`**).
 
 | Item | Value |
 |------|--------|
-| **Installer npm package** | `cursor-governance` |
-| **Installer version** | `1.5.8` (`cursor-governance/package.json`) |
+| **Product name** | HEXCURSE (CLI **`hexcurse`**; npm package **`cursor-governance`**) |
+| **Installer version** | from `cursor-governance/package.json` |
 | **Root npm package** | `hexcurse` (`package.json`, `private: true`) |
 | **Authoritative implementation** | `cursor-governance/setup.js` (~3.6k lines) |
 
@@ -17,8 +17,8 @@ This document is the **onboarding and handoff reference** for anyone taking over
 
 ### 1.1 Two different “products” in one tree
 
-1. **HexCurse governance system** — Markdown rules, Cursor **`.mdc`** rules, Taskmaster, MCP coordination docs, session rituals. **Lives in this repo** at root + **`docs/`** + **`.cursor/rules/`** (source layout).
-2. **cursor-governance installer** — Node CLI that **writes** the governance pack into **another** repo’s working directory (or a fresh folder). **Implementation:** **`cursor-governance/setup.js`**.
+1. **HEXCURSE governance system** — Markdown rules, Cursor **`.mdc`** rules, Taskmaster, MCP coordination docs, session rituals. **Lives in this repo** at root + **`docs/`** + **`.cursor/rules/`** (source layout).
+2. **HEXCURSE installer** — Node CLI (npm **`cursor-governance`**, command **`hexcurse`**) that **writes** the governance pack into **another** repo’s working directory (or a fresh folder). **Implementation:** **`cursor-governance/setup.js`**.
 
 ### 1.2 Source repo fingerprint (this repository)
 
@@ -209,7 +209,7 @@ Installer **appends** these lines if missing (exact match per line):
 
 - **`writeInstallerPathFile`** — **`.cursor/hexcurse-installer.path`** contains absolute path to **`setup.js`**.
 - **`writeOnePromptFile`**, **`writeHeadlessKickoffFile`** — overwrite **`HEXCURSE/ONE_PROMPT.md`** and **`HEXCURSE/HEADLESS_KICKOFF.txt`**.
-- **`tryGitCommit`** — **`git init`** if needed, **`git add .`**, **`git commit -m "chore: cursor-governance scaffold"`** (failure non-fatal).
+- **`tryGitCommit`** — **`git init`** if needed, **`git add .`**, **`git commit -m "chore: HEXCURSE scaffold"`** (failure non-fatal).
 - **`printSummary`**.
 
 ---

@@ -1,12 +1,14 @@
-# cursor-governance
+# HEXCURSE installer
 
-## Quick start — add HexCurse to **any** repo (one command, then Cursor)
+Published on npm as **`cursor-governance`**; global CLI commands **`hexcurse`** and **`cursor-governance`** are the same binary.
+
+## Quick start — add HEXCURSE to **any** repo (one command, then Cursor)
 
 1. **Prereqs (once per machine):** Node.js + npm, Git, and usually Python (installer uses it for `uv` / optional LightRAG). Cursor must be installed separately.
 2. In a terminal, **`cd` to the target project root** (the repo you want governed — empty or existing).
 3. Run **one** of:
-   - **`npx cursor-governance`** — after the package is on npm, or  
-   - **`node <path-to>/cursor-governance/setup.js`** — from a clone of the HexCurse repo (this folder).
+   - **`npx hexcurse`** or **`npx cursor-governance`** — after the package is on npm, or  
+   - **`node <path-to>/cursor-governance/setup.js`** — from a clone of the HEXCURSE source repo (this folder).
 4. **Interactive (default):** answer the prompts — you will be asked **new project vs existing codebase**. **Existing codebase** runs **`npx repomix --compress`** (no Cursor MCP inside the CLI), then uses **your chosen model provider** (same credentials as Taskmaster) to draft **`NORTH_STAR.md`** and to fill PRD-derived fields; you skip greenfield questions (project name defaults to the folder name). **Faster:** **`node setup.js --quick --preset=lmstudio`** (or `anthropic` / `openai`) — set **`HEXCURSE_REPO_KIND=existing`** to run the same repomix + draft path non-interactively; optional **`HEXCURSE_HUMAN_FOCUS`** for a one-line goal. Quick mode still requires **`GITHUB_TOKEN`** (or token in **`~/.cursor/mcp.json`**) and a reachable LLM for **`parse-prd`** / the draft step (LM Studio default **`http://100.80.17.40:1234/v1`** — override with **`HEXCURSE_LM_STUDIO_BASE_URL`**, **`LM_STUDIO_BASE_URL`**, or **`OPENAI_BASE_URL`** if yours differs; `/v1` is added if omitted). Override fields with env vars: **`HEXCURSE_PROJECT_NAME`**, **`HEXCURSE_PURPOSE`**, **`HEXCURSE_REPO_SNAPSHOT_MAX_CHARS`** (default **120000** — caps text sent to the installer LLM), **`HEXCURSE_LM_STUDIO_MODEL`** (default **`qwen3.5-2b`**), **`HEXCURSE_LM_STUDIO_MAX_CONTEXT`** (default **8000** when unset for Taskmaster caps), etc. (`node setup.js --help`).
 5. The script writes **`HEXCURSE/`** (including **`NORTH_STAR.md`**, **`CURSOR.md`**, **`AGENTS.md`**, **`docs/`** — all governance under one folder), **`.cursor/rules/`**, **`.taskmaster/`**, root **`AGENTS.md`** (pointer into the pack), **`HEXCURSE/ONE_PROMPT.md`**, **`HEXCURSE/HEADLESS_KICKOFF.txt`** (prompt for [Cursor headless CLI](https://cursor.com/docs/cli/headless) with **`agent -p --model composer-2`**), **`.cursor/hexcurse-installer.path`** (gitignored path to **`setup.js`**), aligns **Taskmaster** models to your provider (so the first **`parse-prd`** does not default to missing Anthropic/Perplexity keys), writes **`.env`** for LM Studio when missing, merges **`~/.cursor/mcp.json`**, and seeds a **placeholder `tasks.json`** only if **`parse-prd`** still fails.
 6. **Restart Cursor** and open that project folder.
@@ -50,7 +52,7 @@ Installs global CLIs (`task-master-ai`, `repomix`, `uv`), merges `~/.cursor/mcp.
 
 Existing governance files and existing MCP server entries are **never overwritten** (skipped / preserved).
 
-**Install layout:** Governance files are written under **`HEXCURSE/`** (see `HEXCURSE/PATHS.json`); Cursor rules are mirrored under `.cursor/rules/`; root **`AGENTS.md`** is usually a **pointer** into the pack (this **HexCurse** source repo instead keeps the **full** `AGENTS.md` at root — see roadmap row “This repo”). **Architect prompt:** **`HEXCURSE/docs/ARCH_PROMPT.md`** (from **`templates/ARCH_PROMPT.md`**) for planning-only Cursor chats.
+**Install layout:** Governance files are written under **`HEXCURSE/`** (see `HEXCURSE/PATHS.json`); Cursor rules are mirrored under `.cursor/rules/`; root **`AGENTS.md`** is usually a **pointer** into the pack (this **HEXCURSE** source repo instead keeps the **full** `AGENTS.md` at root — see roadmap row “This repo”). **Architect prompt:** **`HEXCURSE/docs/ARCH_PROMPT.md`** (from **`templates/ARCH_PROMPT.md`**) for planning-only Cursor chats.
 
 **Continual learning:** seeds **`.cursor/hooks/state/continual-learning-index.json`** and **`continual-learning.json`** (gitignored dir), and adds **`HEXCURSE/docs/CONTINUAL_LEARNING.md`**. Installed **mcp-usage.mdc** includes **RULE 9**: run **agents-memory-updater** when asked and **after sessions that change governance** (self-improve loop).
 
@@ -86,7 +88,7 @@ The published tarball includes only what the installer needs at runtime:
 | Path | Role |
 |------|------|
 | **`setup.js`** | Full CLI: install, **`--doctor`**, **`--run-hexcurse`**, **`--quick`**, etc. |
-| **`bin/cursor-governance.js`** | **`npx cursor-governance`** entry (runs **`setup.js`**) |
+| **`bin/cursor-governance.js`** | **`npx hexcurse`** / **`npx cursor-governance`** entry (runs **`setup.js`**) |
 | **`templates/`** | All governance markdown and **`.mdc`** templates copied into target repos |
 | **`README.md`**, **`CHANGELOG.md`**, **`LICENSE`**, **`INSTALL.md`** | Docs, license, and **machine/network/LM Studio** prerequisites (read **`INSTALL.md`** before debugging **`fetch failed`**) |
 
@@ -102,13 +104,13 @@ These are directions, not promises — pick what matches your goals:
 
 | Area | Idea |
 |------|------|
-| **Upgrade path** | **`setup.js --refresh-rules`** (shipped) — refresh `mcp-usage.mdc` + `base.mdc` from the package; optional future `cursor-governance upgrade` for semver bumps. |
+| **Upgrade path** | **`setup.js --refresh-rules`** (shipped) — refresh `mcp-usage.mdc` + `base.mdc` from the package; optional future **`hexcurse upgrade`** / npm bump flow for semver. |
 | **Dry run** | `--dry-run` listing files that would be written/skipped (no MCP merge, no globals). |
 | **Pinning** | Optional `mcp.json` / npx args with explicit package versions for air-gapped or high-compliance teams. |
 | **Health check** | **`setup.js --doctor`** (shipped) — layout, MCP entries, `task-master` CLI; `PATHS.json` when `HEXCURSE/` exists. |
 | **Cursor Rules sync** | **`--refresh-rules`** writes both `.cursor/rules` and `HEXCURSE/rules/` when present. |
 | **Telemetry** | Opt-in anonymous “install succeeded” — only if you want usage data; default off. |
 | **Templates** | Optional “flavors” (e.g. firmware vs web) swapping `base.mdc` snippets without forking the whole installer. |
-| **This repo** | The **HexCurse / cursor-governance** source tree uses **repo root + `docs/`** (no nested **`HEXCURSE/`** here). **`setup.js`** writes a single **`HEXCURSE/`** pack in **other** projects with **all** governed artifacts inside it (consumers); legacy repo-root **`NORTH_STAR.md`** / **`CURSOR.md`** are no longer created on new installs. |
+| **This repo** | The **HEXCURSE** source tree uses **repo root + `docs/`** and a **`cursor-governance/`** subfolder for the published installer (no nested **`HEXCURSE/`** pack here). **`setup.js`** writes a single **`HEXCURSE/`** pack in **other** projects with **all** governed artifacts inside it (consumers); legacy repo-root **`NORTH_STAR.md`** / **`CURSOR.md`** are no longer created on new installs. |
 
 **Reality check:** “Best ever” is mostly **consistency** (agents follow rules), **fast feedback** (doctor, clear errors), and **low ceremony** (token reuse, one folder, `PATHS.json`) — you are already most of the way there; the table above is polish and scale.

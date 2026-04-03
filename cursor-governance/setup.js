@@ -60,7 +60,7 @@ function readInstallerPackageJson() {
     const p = path.join(__dirname, 'package.json');
     return JSON.parse(fs.readFileSync(p, 'utf8'));
   } catch (e) {
-    return { name: 'cursor-governance', version: 'unknown' };
+    return { name: 'hexcurse', version: 'unknown' };
   }
 }
 
@@ -166,10 +166,11 @@ function readBundledOnePromptTemplate(projectName) {
 
 function printCliHelp() {
   console.log(`
-cursor-governance — HexCurse installer (writes into the current working directory)
+HEXCURSE installer (writes into the current working directory)
 
   node setup.js [options]
-  cursor-governance [options]   (if installed globally)
+  hexcurse [options]              (if installed globally — same as cursor-governance)
+  cursor-governance [options]     (npm package name; alias of hexcurse)
 
 Options:
   --help, -h          Show this message
@@ -177,7 +178,7 @@ Options:
   --doctor            Verify governance layout, PATHS.json, task-master, ~/.cursor/mcp.json (from repo root)
   --refresh-rules     Rewrite the 5 default .mdc rules (base, mcp-usage, process-gates, security, adr; uses AGENTS.md + ARCHITECTURE.md for base). Use --multi-agent for multi-agent.mdc.
   --multi-agent       Enable parallel agent orchestration via git worktrees and swarm-protocol MCP
-  --sync-rules        Fetch latest governance rules from the HexCurse GitHub source and update .cursor/rules/ (optional --dry-run)
+  --sync-rules        Fetch latest governance rules from the HEXCURSE GitHub source and update .cursor/rules/ (optional --dry-run)
   --parse-prd-via-agent   Generate tasks.json from PRD using the Cursor agent's
                           own LLM — no outbound API call required from setup.js.
                           Prints a structured prompt to stdout for pasting into
@@ -383,7 +384,7 @@ function tryClipboardCopy(text) {
 /** Prints the agent prompt and optional clipboard copy; never writes files when dryRun. */
 function printAgentParsePrompt(prompt, outPath, dryRun) {
   console.log('\n' + '═'.repeat(70));
-  console.log('  HexCurse — Parse PRD via Agent');
+  console.log('  HEXCURSE — Parse PRD via Agent');
   console.log('═'.repeat(70));
   console.log('\nStep 1: Copy everything between the dashes and paste it into');
   console.log('        the Cursor agent chat (or any LLM chat interface).\n');
@@ -757,7 +758,7 @@ async function generateNorthStarFromExistingRepo({
   humanFocus,
   projectName,
 }) {
-  const system = `You document an existing software repository for HexCurse governance.
+  const system = `You document an existing software repository for HEXCURSE governance.
 Output Markdown only. Do not wrap the full document in a fenced code block.
 First heading must be exactly: # North Star
 
@@ -854,7 +855,7 @@ async function writeInstallerPathFile(cwd) {
   try {
     await fs.ensureDir(path.dirname(full));
     await fs.writeFile(full, `${self}\n`, 'utf8');
-    console.log(chalk.green('✓'), 'Wrote', rel, chalk.dim('(absolute path to cursor-governance setup.js)'));
+    console.log(chalk.green('✓'), 'Wrote', rel, chalk.dim('(absolute path to HEXCURSE setup.js)'));
   } catch (e) {
     console.warn(chalk.yellow('⚠'), 'Could not write', rel, e.message);
   }
@@ -960,7 +961,7 @@ function runDoctor(cwd) {
   if (fs.existsSync(northPack)) ok.push('HEXCURSE/NORTH_STAR.md present (north star bridge entry point)');
   else if (fs.existsSync(northLegacy)) {
     if (sourceRepo) {
-      ok.push('Repo-root NORTH_STAR.md present (HexCurse / cursor-governance source layout)');
+      ok.push('Repo-root NORTH_STAR.md present (HEXCURSE source layout)');
     } else {
       warn.push('Legacy repo-root NORTH_STAR.md present — move to HEXCURSE/NORTH_STAR.md for single-folder layout');
     }
@@ -972,7 +973,7 @@ function runDoctor(cwd) {
   if (fs.existsSync(cursorPack)) ok.push('HEXCURSE/CURSOR.md present');
   else if (fs.existsSync(path.join(cwd, 'CURSOR.md'))) {
     if (sourceRepo) {
-      ok.push('Repo-root CURSOR.md present (HexCurse / cursor-governance source layout)');
+      ok.push('Repo-root CURSOR.md present (HEXCURSE source layout)');
     } else {
       warn.push('Legacy repo-root CURSOR.md present — use HEXCURSE/CURSOR.md');
     }
@@ -984,7 +985,7 @@ function runDoctor(cwd) {
 
   const instPath = path.join(cwd, '.cursor', 'hexcurse-installer.path');
   if (fs.existsSync(instPath)) ok.push('.cursor/hexcurse-installer.path present (path to setup.js for agents)');
-  else warn.push('.cursor/hexcurse-installer.path missing — run cursor-governance install once to create it');
+  else warn.push('.cursor/hexcurse-installer.path missing — run HEXCURSE install once to create it');
 
   const rulesDir = path.join(cwd, '.cursor', 'rules');
   if (fs.existsSync(rulesDir)) {
@@ -999,7 +1000,7 @@ function runDoctor(cwd) {
   }
 
   if (sourceRepo) {
-    ok.push('Layout: HexCurse source — no HEXCURSE/ pack (governance at repo root)');
+    ok.push('Layout: HEXCURSE source — no HEXCURSE/ pack (governance at repo root)');
   } else if (fs.existsSync(hexRoot)) {
     ok.push('Layout: consumer — HEXCURSE/ governance pack present');
   } else {
@@ -1020,7 +1021,7 @@ function runDoctor(cwd) {
         warn.push(`Template parity check failed: ${e.message}`);
       }
     } else {
-      warn.push('cursor-governance/templates not found next to setup.js — template parity skipped');
+      warn.push('installer templates/ not found next to setup.js — template parity skipped');
     }
   }
 
@@ -1069,7 +1070,7 @@ function runDoctor(cwd) {
   if (fs.existsSync(hexRoot)) {
     const mcpBudgetDoc = path.join(cwd, HEXCURSE_ROOT, 'docs', 'MCP_TOKEN_BUDGET.md');
     if (!fs.existsSync(mcpBudgetDoc)) {
-      warn.push('HEXCURSE/docs/MCP_TOKEN_BUDGET.md missing — re-run install or copy from cursor-governance/templates');
+      warn.push('HEXCURSE/docs/MCP_TOKEN_BUDGET.md missing — re-run install or copy from installer templates/');
     }
     const adrLogDoc = path.join(cwd, HEXCURSE_ROOT, 'docs', 'ADR_LOG.md');
     if (!fs.existsSync(adrLogDoc)) {
@@ -1103,7 +1104,7 @@ function runDoctor(cwd) {
       if (!ent.isDirectory()) continue;
       const n = ent.name;
       if (n.startsWith('.') || n === 'node_modules' || n === HEXCURSE_ROOT) continue;
-      if (n === 'cursor-governance' && sourceRepo) continue;
+      if ((n === 'cursor-governance' || n === 'hexcurse') && sourceRepo) continue;
       const subPkg = path.join(cwd, n, 'package.json');
       const subAgents = path.join(cwd, n, 'AGENTS.md');
       if (fs.existsSync(subPkg) && !fs.existsSync(subAgents)) {
@@ -1150,7 +1151,7 @@ async function writeGovernanceRuleForceful(cwd, basename, content, hasHexDir) {
 /** Overwrites rule files from bundled templates; rebuilds base.mdc from repo docs when possible. */
 async function runRefreshRules(cwd) {
   const pkg = readInstallerPackageJson();
-  console.log(chalk.bold(`cursor-governance ${pkg.version}`), chalk.dim('— refresh-rules\n'));
+  console.log(chalk.bold(`HEXCURSE installer ${pkg.version}`), chalk.dim('— refresh-rules\n'));
 
   const hexAgents = path.join(cwd, HEXCURSE_ROOT, 'AGENTS.md');
   const rootAgents = path.join(cwd, 'AGENTS.md');
@@ -1569,8 +1570,8 @@ function cursorModesMd() {
 }
 
 /**
- * True for the HexCurse / cursor-governance source repository (root package.json name hexcurse,
- * no consumer HEXCURSE/ pack, installer lives under cursor-governance/).
+ * True for the HEXCURSE source repository (root `package.json` name `hexcurse`,
+ * no consumer HEXCURSE/ pack, installer lives under `cursor-governance/`).
  */
 function isHexcurseGovernanceSourceRepo(cwd) {
   try {
@@ -1620,7 +1621,7 @@ ${outOfScope}
 ${dod}
 
 ## Notes
-${lead ? `${lead}\n\n` : ''}Generated by cursor-governance installer.
+${lead ? `${lead}\n\n` : ''}Generated by HEXCURSE installer.
 Edit this file to add detail, then re-run:
   task-master parse-prd --force .taskmaster/docs/prd.txt
 
@@ -1641,7 +1642,7 @@ function sessionStartMd(projectName) {
 function printHeader() {
   console.log('');
   console.log(chalk.cyan.bold('═══════════════════════════════════════════════════════════════'));
-  console.log(chalk.cyan.bold('  cursor-governance — Cursor AI governance + MCP installer'));
+  console.log(chalk.cyan.bold('  HEXCURSE — Cursor AI governance + MCP installer'));
   console.log(chalk.cyan.bold('═══════════════════════════════════════════════════════════════'));
   console.log('');
 }
@@ -2498,7 +2499,7 @@ function pathsManifestObject(installerMeta) {
     version: 1,
     schema: 'hexcurse-paths-v1',
     description:
-      'HexCurse governance pack — canonical paths relative to repository root. Read this file to locate agents, directives, rules, and prompts.',
+      'HEXCURSE governance pack — canonical paths relative to repository root. Read this file to locate agents, directives, rules, and prompts.',
     packRoot: h,
     paths: {
       agents: `${h}/AGENTS.md`,
@@ -2539,10 +2540,13 @@ function pathsManifestObject(installerMeta) {
   };
   if (installerMeta && installerMeta.installerVersion) {
     base.installer = {
-      name: String(installerMeta.installerName || 'cursor-governance'),
+      name: String(installerMeta.installerName || 'hexcurse'),
       version: String(installerMeta.installerVersion),
       generatedAt: String(installerMeta.generatedAt || new Date().toISOString()),
     };
+    if (installerMeta.installerNpmPackage) {
+      base.installer.npmPackage = String(installerMeta.installerNpmPackage);
+    }
   }
   return base;
 }
@@ -2593,7 +2597,7 @@ Global governance rules: see root \`AGENTS.md\` → \`HEXCURSE/AGENTS.md\`.
 function rootAgentsPointerMd(projectName) {
   return `# AI agent rules — pointer
 
-**${projectName}** — full **HexCurse** governance lives in **${HEXCURSE_ROOT}/** (north star, Cursor quick-start, session log, and docs are **inside** that folder).
+**${projectName}** — full **HEXCURSE** governance lives in **${HEXCURSE_ROOT}/** (north star, Cursor quick-start, session log, and docs are **inside** that folder).
 
 | What | Where |
 |------|--------|
@@ -2751,7 +2755,7 @@ async function writeLmStudioDotEnvIfMissing(cwd, answers) {
   const dotEnv = path.join(cwd, '.env');
   if (await fs.pathExists(dotEnv)) return;
   const url = resolvedLmStudioApiBaseUrl(answers);
-  const body = `# Written by cursor-governance install (LM Studio). Do not commit.\nOPENAI_API_KEY=lm-studio\nOPENAI_BASE_URL=${url}\n`;
+  const body = `# Written by HEXCURSE install (LM Studio). Do not commit.\nOPENAI_API_KEY=lm-studio\nOPENAI_BASE_URL=${url}\n`;
   await fs.writeFile(dotEnv, body, 'utf8');
   console.log(chalk.green('✓'), 'Wrote .env for LM Studio (OPENAI_* for task-master CLI)');
 }
@@ -3008,8 +3012,8 @@ async function tryGitCommit(cwd) {
     return;
   }
   try {
-    execSync('git commit -m "chore: cursor-governance scaffold"', { cwd, shell: true, stdio: 'inherit' });
-    console.log(chalk.green('✓ git commit: chore: cursor-governance scaffold'));
+    execSync('git commit -m "chore: HEXCURSE scaffold"', { cwd, shell: true, stdio: 'inherit' });
+    console.log(chalk.green('✓ git commit: chore: HEXCURSE scaffold'));
   } catch (e) {
     console.warn(chalk.yellow('⚠ git commit failed (nothing to commit or user.name not set) — continuing.'));
   }
@@ -3102,7 +3106,7 @@ async function runMultiAgentSetup(cwd) {
   if (!(await fs.pathExists(hexRoot))) {
     console.error(
       chalk.red('HEXCURSE/ pack not found.'),
-      chalk.dim('Run cursor-governance install in this repository root first.')
+      chalk.dim('Run HEXCURSE install in this repository root first.')
     );
     process.exit(1);
   }
@@ -3245,7 +3249,8 @@ async function main() {
   const cwd = process.cwd();
   const installerPkg = readInstallerPackageJson();
   const pathsMeta = {
-    installerName: installerPkg.name,
+    installerName: 'hexcurse',
+    installerNpmPackage: installerPkg.name,
     installerVersion: installerPkg.version,
     generatedAt: new Date().toISOString(),
   };

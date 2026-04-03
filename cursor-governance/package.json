@@ -1,9 +1,10 @@
 {
   "name": "cursor-governance",
-  "version": "2.0.0",
-  "description": "One-command installer for Cursor AI governance + MCP pipeline",
+  "version": "2.0.1",
+  "description": "HEXCURSE — one-command installer for Cursor AI governance + MCP pipeline (npm package name cursor-governance)",
   "main": "setup.js",
   "bin": {
+    "hexcurse": "./bin/cursor-governance.js",
     "cursor-governance": "./bin/cursor-governance.js"
   },
   "files": [
@@ -26,6 +27,7 @@
     "pack:check": "npm pack --dry-run 2>&1"
   },
   "keywords": [
+    "hexcurse",
     "cursor",
     "mcp",
     "governance",
