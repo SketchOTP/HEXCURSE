@@ -2820,9 +2820,8 @@ function mergeMcpJson(taskmasterEnv, githubToken) {
 }
 
 /**
- * Removes a stale swarm-protocol MCP entry if it referenced the non-existent npm package
- * `swarm-protocol-mcp` (never published). Does not add a replacement — use git worktrees +
- * HEXCURSE/docs/MULTI_AGENT.md until a supported swarm MCP is published.
+ * Ensures ~/.cursor/mcp.json defines swarm-protocol using the bundled launcher
+ * (installs/builds phuryn/swarm-protocol from GitHub — see bin/swarm-protocol-mcp.js).
  */
 function mergeSwarmProtocolMcpServerIfMissing() {
   const mcpPath = path.join(os.homedir(), '.cursor', 'mcp.json');
@@ -2842,32 +2841,41 @@ function mergeSwarmProtocolMcpServerIfMissing() {
       return;
     }
   }
-  const entry = data.mcpServers['swarm-protocol'];
-  const argsStr = entry && Array.isArray(entry.args) ? entry.args.join(' ') : '';
-  if (entry && argsStr.includes('swarm-protocol-mcp')) {
-    delete data.mcpServers['swarm-protocol'];
-    fs.ensureDirSync(path.dirname(mcpPath));
-    fs.writeFileSync(mcpPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
-    if (process.platform !== 'win32') {
-      try {
-        fs.chmodSync(mcpPath, 0o600);
-      } catch (e) {
-        /* non-fatal */
-      }
-    }
-    console.log(
+  const launcherPath = path.resolve(__dirname, 'bin', 'swarm-protocol-mcp.js');
+  if (!fs.existsSync(launcherPath)) {
+    console.warn(
       chalk.yellow('⚠'),
-      'Removed stale swarm-protocol MCP entry (`swarm-protocol-mcp` is not on npm). Coordination: git worktrees + AGENT_HANDOFFS.md per MULTI_AGENT.md.'
+      'swarm-protocol launcher missing — expected',
+      chalk.dim(launcherPath)
     );
     return;
   }
-  if (data.mcpServers['swarm-protocol']) {
-    console.log(chalk.dim('~/.cursor/mcp.json already defines swarm-protocol (custom) — left unchanged.'));
-    return;
+  const prev = data.mcpServers['swarm-protocol'] || {};
+  const prevEnv = prev.env && typeof prev.env === 'object' ? { ...prev.env } : {};
+  data.mcpServers['swarm-protocol'] = {
+    command: 'node',
+    args: [launcherPath],
+    env: {
+      ...prevEnv,
+      DATABASE_URL:
+        prevEnv.DATABASE_URL ||
+        String(process.env.SWARM_DATABASE_URL || process.env.DATABASE_URL || '').trim() ||
+        'postgresql://postgres:postgres@127.0.0.1:5432/swarm_protocol',
+    },
+  };
+  fs.ensureDirSync(path.dirname(mcpPath));
+  fs.writeFileSync(mcpPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+  if (process.platform !== 'win32') {
+    try {
+      fs.chmodSync(mcpPath, 0o600);
+    } catch (e) {
+      /* non-fatal */
+    }
   }
+  console.log(chalk.green('✓'), 'Configured swarm-protocol MCP in ~/.cursor/mcp.json (launcher → phuryn/swarm-protocol).');
   console.log(
     chalk.dim(
-      'Skipping swarm-protocol MCP: no supported public npm package bundled yet. Use git worktrees per HEXCURSE/docs/MULTI_AGENT.md.'
+      '  First MCP start may run npm install + tsc (~1–2 min). Requires PostgreSQL (see swarm-protocol README / docker compose).'
     )
   );
 }

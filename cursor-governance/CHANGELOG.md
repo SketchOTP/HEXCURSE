@@ -2,6 +2,12 @@
 
 All notable changes to **cursor-governance** are documented here.
 
+## [1.5.6] — 2026-04-03
+
+### Fixed
+
+- **swarm-protocol MCP:** Added **`bin/swarm-protocol-mcp.js`** — installs **[phuryn/swarm-protocol](https://github.com/phuryn/swarm-protocol)** from GitHub into `~/.cursor/hexcurse-cache/swarm-protocol`, runs **`tsc`**, then starts **`dist/index.js`**. `--multi-agent` writes **`node`** + launcher path plus **`DATABASE_URL`** (defaults to local Postgres per upstream). The npm name **`swarm-protocol-mcp`** was never published; this replaces that broken `npx` target.
+
 ## [1.5.5] — 2026-04-03
 
 ### Fixed

@@ -1,6 +1,6 @@
 {
   "name": "cursor-governance",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "description": "One-command installer for Cursor AI governance + MCP pipeline",
   "main": "setup.js",
   "bin": {
@@ -16,7 +16,7 @@
     "INSTALL.md"
   ],
   "scripts": {
-    "test": "node --check setup.js && node --check bin/cursor-governance.js",
+    "test": "node --check setup.js && node --check bin/cursor-governance.js && node --check bin/swarm-protocol-mcp.js",
     "test:hexcurse": "node test/hexcurse-pack.test.js",
     "test:north-star": "node test/north-star-existing-repo.test.js",
     "test:all": "npm run test && npm run test:hexcurse && npm run test:north-star",
