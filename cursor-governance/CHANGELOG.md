@@ -2,6 +2,22 @@
 
 All notable changes to **cursor-governance** are documented here.
 
+## [1.6.0] — 2026-04-03
+
+### Added
+- `--parse-prd-via-agent` CLI mode — generates Taskmaster tasks.json from PRD using the Cursor agent's own LLM context; no outbound API call required from setup.js itself. Supports `--prd`, `--out`, `--dry-run`, and `--apply` flags.
+- `buildAgentParsePrompt()` — structured prompt generator with full Taskmaster JSON schema, generation rules, and self-verification instructions
+- `validateTaskmasterSchema()` — validates agent JSON response against Taskmaster schema before writing tasks.json; catches missing fields, bad types, invalid dependency references, self-dependencies
+- `applyAgentResponse()` — reads agent response file, strips markdown fences, validates schema, writes tasks.json
+- `tryClipboardCopy()` — best-effort clipboard copy on Windows, macOS, Linux
+- `--doctor` check: warns when tasks.json is empty or contains only placeholder stub
+- `main.hexcurseAgentParseHooks` export for unit testing
+- 4 new test cases in hexcurse-pack.test.js covering schema validation, stub detection, prompt content, and markdown fence stripping
+- `PATHS.json` manifest key `agentParsePromptCache` — prompt also saved to `.taskmaster/agent-parse-prompt.txt` when not `--dry-run`
+
+### Fixed
+- New users no longer blocked on LM Studio or API key configuration just to generate their initial task graph
+
 ## [1.5.9] — 2026-04-03
 
 ### Added
