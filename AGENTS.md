@@ -4,7 +4,7 @@
 # This file lives at the **repository root** in the **HexCurse / cursor-governance source repo**. When `cursor-governance/setup.js` installs governance into **another** project, the same role lives under **`HEXCURSE/AGENTS.md`** with **`HEXCURSE/PATHS.json`** — only one layout applies per repo.
 
 ## How this system runs (agent-first)
-HexCurse governance is **fully driven by the Cursor agent** knowing and following this file, **`docs/SESSION_START_PROMPT.md`**, **`.cursor/rules/`**, and MCP tools. It does **not** run as a background service. **When to use it:** every implementation chat — paste the session-start prompt (or `@` the paths it lists) at the top so Taskmaster, memory, and sequencing run.
+HexCurse governance is **fully driven by the Cursor agent** knowing and following this file, **`docs/SESSION_START_PROMPT.md`**, **`.cursor/rules/`** (10 `.mdc` rules), and **17 MCP servers**. It does **not** run as a background service. **When to use it:** every implementation chat — paste the session-start prompt (or `@` the paths it lists) at the top so Taskmaster, memory, and sequencing run.
 
 ## Your Role
 You are an implementation agent. You execute approved directives.
@@ -20,51 +20,84 @@ You do not wait to be asked to use tools. You use them automatically.
 You do not ask permission to create local branches, write to memory, or fetch docs.
 You do these things because the rules say to. That is enough.
 
-## MCP Tools — Automatic Behavior (see mcp-usage.mdc and docs/MCP_COORDINATION.md)
-- memory              → Session start before DIRECTIVES/ARCHITECTURE; write on every discovery; confirm at close. Never overrides repo truth.
-- taskmaster-ai       → **get_tasks** immediately after memory, before planning or code; **set_task_status** / **expand_task** per rules.
-- repomix             → Once at session start on existing codebases (`repomix --compress`).
-- jcodemunch          → **RULE 10:** After repomix, index the workspace (`resolve_repo` / `index_folder`); outlines, `search_symbols`, `get_context_bundle`, `get_blast_radius`, `find_references`, `search_text`, etc. Package **`jcodemunch-mcp`** (often spelled **jcodemuch**).
-- sequential-thinking → Before every non-trivial implementation plan. No exceptions when available.
-- serena              → Before touching code: find_symbol, find_referencing_symbols, symbol-targeted edits.
-- context7            → Before every external library call. Not optional when relevant.
-- gitmcp              → Niche SDKs / firmware / non-mainstream GitHub libraries.
-- github (optional)   → Remote PR/issue/query only if the human asks; **not** for local branch or file discovery (**mcp-usage.mdc** SOURCE OF TRUTH).
-- agents-memory-updater → RULE 9: human request, governance touch, or transcript delta + debounce; optional **`node cursor-governance/setup.js --learning-rollup`**. **docs/CONTINUAL_LEARNING.md**.
+## MCP Tools — Automatic Behavior (see `mcp-usage.mdc` and `docs/MCP_COORDINATION.md`)
+Governance also uses **agents-memory-updater** (Task subagent / continual learning per **RULE 9**), not a separate MCP id in `mcp.json`.
+
+### ALWAYS ACTIVE — invoke in every implementation session (when the server is green)
+1. **taskmaster-ai** — Task graph: **get_tasks** after memory, **set_task_status** / **expand_task** per rules.
+2. **memory** — Session start before DIRECTIVES / ARCHITECTURE; write on every discovery; confirm at close. Never overrides repo truth.
+3. **sequential-thinking** — Before every non-trivial implementation plan. No exceptions when available.
+4. **serena** — Symbol navigation and edits: **find_symbol**, **find_referencing_symbols**, **replace_symbol_body** / **insert_after_symbol**.
+5. **context7** — Before every external library / API call. Training data is stale.
+6. **github** — Remote PR / issue / query **only if the human asks**; never for local branch or workspace file discovery (**mcp-usage.mdc** is source of truth for optional use).
+7. **repomix** — Once per session start on existing codebases (`repomix --compress`). Do not re-run mid-session.
+8. **gitmcp** — Niche SDKs, firmware, non-mainstream GitHub libraries (not React-tier docs).
+9. **jcodemunch** — **RULE 10:** After repomix, index (`resolve_repo` / `index_folder`); **get_repo_outline**, **suggest_queries**, **search_symbols**, **get_context_bundle**, **get_blast_radius**, **find_references**, **search_text**, etc. Package **`jcodemunch-mcp`** (often spelled **jcodemuch**).
+
+### SESSION-CONDITIONAL — invoke when the work requires it
+10. **playwright** — UI, browser behavior, E2E verification.
+11. **semgrep** — Writing, modifying, or reviewing code; **security.mdc** gate before commit.
+12. **sentry** — Debugging, error triage, incident response (**get_issue** before diving into source when applicable).
+13. **firecrawl** — Web research, documentation scraping, external data.
+14. **linear** — Creating, updating, or completing tracked work items; sync at session close when **LINEAR_API_KEY** is set.
+15. **pampa** — Semantic search over **`.cursor/skills/`** and project patterns.
+
+### PROJECT-SPECIFIC — when the domain matches
+16. **gitmcp-adafruit-mpu6050** — MPU6050 / **Adafruit_MPU6050** driver or hardware tasks.
+17. **supabase** — Database, Auth, RLS, Edge Functions, backend schema (this project or consumer using Supabase).
 
 ## Mandatory MCP utilization
+HexCurse sessions must make **full, appropriate** use of available MCP tools. Do not default to manual reasoning, broad file reads, or ad hoc repo inspection when an MCP tool can provide the needed data more directly, accurately, or efficiently. See **`mcp-usage.mdc`** — **MANDATORY MCP UTILIZATION**.
 
-HexCurse sessions must make **full, appropriate** use of available MCP tools. Do not default to manual reasoning, broad file reads, or ad hoc repo inspection when an MCP tool can provide data more directly, accurately, or efficiently. See **mcp-usage.mdc** — **MANDATORY MCP UTILIZATION**.
-
-### Required MCP-first order
-1. **memory** — Prior durable facts and constraints first.
-2. **taskmaster-ai** — **get_tasks** before planning or implementation.
-3. **repomix** — When structural repo understanding is needed.
-4. **jcodemunch** — Indexed local exploration and impact (RULE 10); use before wide ad hoc file scans when green.
-5. **sequential-thinking** — Before any non-trivial implementation plan when available.
-6. **Serena** — Symbol-aware navigation/edits instead of broad whole-file reads when applicable.
-7. **context7** — Library/API/framework verification before assumptions.
-8. **github** (optional) — Remote PR/issue when explicitly requested; local git for branch/commit/push.
+### Required MCP-first order (with triggers — do not substitute guessing)
+1. **memory** — First: durable facts and constraints. **Do not** assume repo state from chat memory alone.
+2. **taskmaster-ai** — **get_tasks** before planning or implementation. **Do not** pick a task from prose alone.
+3. **repomix** — When structural repo understanding is needed. **Do not** open many files for a map.
+4. **jcodemunch** — Indexed exploration and impact (**RULE 10**). **Do not** brute-force scan when the index is available.
+5. **sequential-thinking** — Non-trivial plans. **Do not** skip when the server is green.
+6. **Serena** — Symbol-level reads/edits. **Do not** read whole large files or grep symbols ad hoc when Serena applies.
+7. **context7** — Library / API / framework verification. **Do not** trust training data for current APIs.
+8. **github** (optional) — Only when the human asked for remote PR/issue/branch operations; **local git** for branch/commit/push otherwise.
+9. **gitmcp** — Niche / hardware / firmware docs not covered by context7.
+10. **playwright** — After UI changes for verification. **Do not** ship UI blind when the server is available.
+11. **semgrep** — After code writes and before commit (**process-gates.mdc**). **Do not** commit with unresolved HIGH/CRITICAL findings.
+12. **sentry** — On runtime errors before deep source spelunking when the server is configured.
+13. **firecrawl** — External docs / sites when context7 is insufficient. **Do not** invent URLs or API shapes.
+14. **linear** — When Linear is in use; align issues with Taskmaster at close.
+15. **pampa** — When skills or past patterns may apply (**SESSION START** 4e).
+16. **gitmcp-adafruit-mpu6050** — MPU6050 work before driver code. **Do not** guess registers or library sequences.
+17. **supabase** — Schema / RLS / data paths before queries in Supabase-backed work. **Do not** bypass MCP for schema truth when configured.
 
 ### Hard rule
 If an MCP is **available** and **materially relevant**, you **must** use it. Skipping requires an **explicit reason** in the session report.
 
 ### Minimum expectations by task type
-- **Architecture / planning:** memory, taskmaster, repomix, jcodemunch (index + outline / suggest_queries), sequential-thinking
-- **Implementation:** memory, taskmaster, jcodemunch (as needed for discovery and impact), Serena, context7 when APIs/libraries matter
-- **Governance sync:** memory, taskmaster; local git for branch/worktree; github MCP only if remote actions are in scope
-- **Research / integration:** context7 first for supported docs; then targeted external lookup if needed
+- **Architecture / planning:** memory, taskmaster, repomix, jcodemunch (index + outline / **suggest_queries**), sequential-thinking.
+- **Implementation:** memory, taskmaster, jcodemunch (discovery / impact), Serena, context7 when APIs/libraries matter; **semgrep** after substantive code edits.
+- **UI / frontend:** playwright for verification of affected flows when the server is available.
+- **Backend / database (Supabase):** supabase MCP for schema and policies — **never** raw SQL via terminal when MCP can answer.
+- **Security-sensitive / any commit with source changes:** semgrep **security_check** before commit; resolve HIGH/CRITICAL.
+- **Research:** firecrawl + context7 — **never** rely on training data for current API specifics when tools are green.
+- **Bug triage:** sentry before reading source when issues are linked; hypothesis-first per **debugging.mdc**.
+- **Hardware / MPU6050:** gitmcp-adafruit-mpu6050 before driver code.
+- **Tracked work (Linear):** linear sync at session close when **LINEAR_API_KEY** is set — issues must not drift from Taskmaster.
+- **Governance sync:** memory, taskmaster; local git for branch/worktree; github MCP only if remote actions are in scope.
+- **Research / integration:** context7 first; then firecrawl or gitmcp as needed.
 
 ### Forbidden behavior
-- Implementation without **get_tasks**
-- Non-trivial plan without sequential-thinking when that MCP is available
-- Large file end-to-end reads when jcodemunch retrieval or Serena symbol lookup suffices
-- Skipping jcodemunch for multi-file discovery or impact analysis when it is available and relevant
-- Guessing library behavior without context7 when it matters
-- **Memory overriding** repo truth (Taskmaster, **DIRECTIVES.md**, **docs/ARCHITECTURE.md**, live tree beat stale memory)
+- Implementation without **get_tasks**.
+- Non-trivial plan without sequential-thinking when that MCP is available.
+- Large file end-to-end reads when jcodemunch retrieval or Serena symbol lookup suffices.
+- Skipping jcodemunch for multi-file discovery or impact analysis when it is available and relevant.
+- Guessing library behavior without context7 when it matters.
+- **Relying on training data for library APIs when context7 is available.**
+- **Committing code with unresolved HIGH/CRITICAL semgrep findings.**
+- **Writing database queries without checking schema via supabase MCP** when this project uses Supabase and the server is available.
+- **Closing a session with Linear issues out of sync with Taskmaster** when Linear is in use.
+- **Memory overriding** repo truth (Taskmaster, **DIRECTIVES.md**, **docs/ARCHITECTURE.md**, live tree beat stale memory).
 
 ### Session-close requirement
-State in the **final handoff** and **SESSION_LOG.md**: MCP tools used (and why); MCPs not used (explicit reason each).
+State in the **final handoff** and **SESSION_LOG.md**: MCP tools used (and why); MCPs not used (explicit reason each). Follow **SESSION CLOSE** below.
 
 ## Continual learning (self-improve)
 HexCurse **closes the loop** from chat history into durable behavior: **memory MCP** plus **Learned Workspace Facts** in this file, via an **incremental transcript index**. Procedure: **docs/CONTINUAL_LEARNING.md** (index: **`.cursor/hooks/state/continual-learning-index.json`**).
@@ -74,133 +107,135 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 
 ## NORTH STAR → Taskmaster (consumer repos)
 
-- **Single human workflow (consumer repos):** Fill **`HEXCURSE/NORTH_STAR.md`** (remove the **standalone** placeholder line **`NORTH_STAR_NOT_READY`** under Vision when the vision is real). Then **either** run the **[Cursor headless CLI](https://cursor.com/docs/cli/headless)** with **`agent -p --model composer-2 --trust --workspace .`** and the prompt in **`HEXCURSE/HEADLESS_KICKOFF.txt`** (see **`HEXCURSE/ONE_PROMPT.md`**), **or** paste **only** the in-IDE fenced block from **`HEXCURSE/ONE_PROMPT.md`** as the **entire** first message in a new Agent chat — the agent runs **`setup.js --run-hexcurse`** using **`.cursor/hexcurse-installer.path`**, then **SESSION START** from STEP 1 below. Legacy repo-root **`NORTH_STAR.md`** is still accepted by the bridge until you migrate.
+- **Single human workflow (consumer repos):** Fill **`HEXCURSE/NORTH_STAR.md`** (remove the **standalone** placeholder line **`NORTH_STAR_NOT_READY`** under Vision when the vision is real). Then **either** run the **[Cursor headless CLI](https://cursor.com/docs/cli/headless)** with **`agent -p --model composer-2 --trust --workspace .`** and the prompt in **`HEXCURSE/HEADLESS_KICKOFF.txt`** (see **`HEXCURSE/ONE_PROMPT.md`**), **or** paste **only** the in-IDE fenced block from **`HEXCURSE/ONE_PROMPT.md`** as the **entire** first message in a new Agent chat — the agent runs **`setup.js --run-hexcurse`** using **`.cursor/hexcurse-installer.path`**, then **SESSION START** from STEP 0 below. Legacy repo-root **`NORTH_STAR.md`** is still accepted by the bridge until you migrate.
 - **This source repo** (no **`HEXCURSE/`**): **`docs/ONE_PROMPT.md`** explains the flow; templates live under **`cursor-governance/templates/`**.
 - **Manual bridge:** **`node <path>/cursor-governance/setup.js --run-hexcurse`** or **`--run-hexcurse-raw`** from the **consumer** repo root.
 
 ## SESSION START — Execute this sequence in order. Do not skip steps. Do not reorder.
 
-  STEP 0. **Only if the human did not paste ONE_PROMPT but asked to run HEXCURSE / refresh from NORTH_STAR** in a **consumer** repo: use **`.cursor/hexcurse-installer.path`**, run **`node …/setup.js --run-hexcurse`** (or **`--run-hexcurse-raw`**), then continue from STEP 1. If **`HEXCURSE/NORTH_STAR.md`** (or legacy root **`NORTH_STAR.md`**) still has a **standalone** line that is only **`NORTH_STAR_NOT_READY`**, stop.
+**STEP 0 (bridge — consumer only):** Only if the human did **not** paste ONE_PROMPT but asked to run HEXCURSE / refresh from NORTH_STAR in a **consumer** repo: use **`.cursor/hexcurse-installer.path`**, run **`node …/setup.js --run-hexcurse`** (or **`--run-hexcurse-raw`**), then continue at STEP 1 below. If **`HEXCURSE/NORTH_STAR.md`** (or legacy root **`NORTH_STAR.md`**) still has a **standalone** line that is only **`NORTH_STAR_NOT_READY`**, stop.
 
-  STEP 1. Query memory MCP for all stored project facts.
-          Integrate those facts into your working context before reading any file.
+**STEP 1.** Read **`HEXCURSE/NORTH_STAR.md`** or legacy repo-root **`NORTH_STAR.md`** when present (consumer). **This source repo:** optional continuity read; there is no pack **`NORTH_STAR`** unless you add one.
 
-  STEP 2. Call Taskmaster get_tasks. Identify the active task and next queued task.
-          Report to human: "Active: D[NNN] — [title]. Next queued: D[NNN] — [title]."
+**STEP 2.** Read **`docs/ROLLING_CONTEXT.md`** when the file exists. In a consumer install, the same file is **`HEXCURSE/docs/ROLLING_CONTEXT.md`**.
 
-  STEP 3. Read DIRECTIVES.md — confirm it matches Taskmaster state.
-          If they are out of sync, report the discrepancy. Do not proceed until resolved.
+**STEP 3.** Call Taskmaster **get_tasks**. Identify the active task and next queued task. Report: `Active: D[NNN] — [title]. Next queued: D[NNN] — [title].` Then read **DIRECTIVES.md** (or **`HEXCURSE/DIRECTIVES.md`**) — confirm it matches Taskmaster. If out of sync, report and do not proceed until resolved.
 
-  STEP 4. Run repomix --compress automatically. Use the output as your structural map.
-          Do not load individual files for overview. Use repomix.
+**STEP 4.** Query **memory** MCP for all stored project facts. Integrate before reading other governance files.
 
-  STEP 4b. **jcodemunch:** Ensure the workspace is indexed (`resolve_repo` or `index_folder` on the repo root).
-           Run `get_repo_outline` and/or `suggest_queries` when the codebase is unfamiliar or the directive spans multiple modules.
-           Per **mcp-usage.mdc** RULE 10 — do not skip when implementation touches source code.
+**STEP 4a — jcodemunch:** Ensure the workspace is indexed (**`resolve_repo`** or **`index_folder`** on the repo root). Run **`get_repo_outline`** and/or **`suggest_queries`** when the tree is unfamiliar or the directive spans modules. Per **RULE 10** — do not skip when implementation touches source code.
 
-  STEP 5. Invoke sequential-thinking. Reason through the full implementation approach
-          for the active directive. Produce a numbered plan with file paths and symbols.
-          Do not skip this step. It fires for every directive without exception.
+**STEP 4b — repomix:** Run **`repomix --compress`**. Use the output as your structural map; do not load many individual files for overview.
 
-  STEP 6. Present the plan to the human. State exactly:
-          - Which files will be created or modified
-          - Which files will NOT be touched
-          - Which symbols will be changed
-          - Expected commit count
-          Wait for human to say "Confirmed. Proceed." Do not write code before this.
+**STEP 4c — Semgrep security baseline:** If **semgrep** MCP is available (or **`SEMGREP_APP_TOKEN`** set), run **`security_check`** on the last **5** git-modified files. Log findings under **`## Security Notes`** in **SESSION_LOG.md**. Do **not** proceed to implementation if **HIGH/CRITICAL** findings from a **previous** session remain unresolved.
 
-  STEP 7. Create local branch D[NNN]-[kebab-desc] with **git** (e.g. `git checkout -b …`) before the first line of code,
-          unless the human says the branch already exists — then use that branch.
-          Do **not** use **github** MCP for this unless the human explicitly asked for a remote branch via API.
+**STEP 4d — Linear sync (if `LINEAR_API_KEY` set):** Call **linear** **`get_my_issues`** filtered to **In Progress**. Cross-reference with Taskmaster; create missing tasks for untracked issues. Log discrepancies in **SESSION_LOG.md**.
+
+**STEP 4e — PAMPA skill search:** Call **pampa** to search **`.cursor/skills/`** for patterns relevant to the active task. Load matching skills before implementation.
+
+**STEP 5.** Confirm task scope with the user (you may summarize what STEP 3–4 established).
+
+**STEP 6 — Active `.mdc` rules (10):** Know what applies:
+- **Always loaded:** `base.mdc`, `mcp-usage.mdc`, `process-gates.mdc`, `governance.mdc` (when editing directives / Taskmaster sync).
+- **When writing/editing source:** `security.mdc`, `debugging.mdc` (per globs/triggers).
+- **Architectural decisions:** `adr.mdc`.
+- **Large context / compaction:** `memory-management.mdc`.
+- **Multi-agent / worktrees:** `multi-agent.mdc` when **`HEXCURSE_MULTI_AGENT=1`** or **`HEXCURSE/docs/MULTI_AGENT.md`** governs the session.
+- **Linear in use:** `linear-sync.mdc`.
+
+**STEP 7.** Invoke **sequential-thinking**. Reason through the full approach; produce a numbered plan with file paths and symbols. Mandatory for every directive when the server is available.
+
+**STEP 8.** Present the plan to the human. State exactly: files to create/modify; files **not** touched; symbols to change; expected commit count. Wait for **Confirmed. Proceed.** Do not write code before this.
+
+**STEP 9.** Create local branch **`D[NNN]-[kebab-desc]`** with **git** before the first line of code, unless the human says the branch already exists. Do **not** use **github** MCP unless the human explicitly asked for a remote branch via API.
+
+**STEP 10.** Begin implementation (see **DURING IMPLEMENTATION**).
 
 ## DURING IMPLEMENTATION — Hard rules, not guidelines.
 
-  Code access:
-  - You do not read whole files. Use **jcodemunch** (`search_symbols`, `get_symbol_source`, `get_ranked_context`, …) for discovery and impact; use **serena** `find_symbol` for precise workspace symbols before edits.
-  - You do not edit by line number. You call serena replace_symbol_body.
-  - You do not use ad hoc workspace grep for symbols when **jcodemunch** `search_symbols` or Serena lookup would do. For non-symbol text, **jcodemunch** `search_text` is allowed.
-  - You call serena find_referencing_symbols before editing a function body.
-  - read_file on any file over 100 lines is forbidden without explicit human approval.
+**After writing any source file:** invoke **semgrep** **`security_check`** on modified files (**security.mdc** gate).
 
-  Library calls:
-  - You do not write a library call from memory. You invoke context7 first.
-  - You do not assume your training data has the correct API. context7 does.
-  - This applies to every library call you write. Every one.
+**When a UI change is made:** invoke **playwright** to navigate to the affected surface and verify behavior.
 
-  Scope:
-  - One directive per session. Period.
-  - If implementation requires touching a file outside confirmed scope:
-    STOP. Report to human. Wait for approval. Do not proceed without it.
-  - If a new idea occurs mid-session: add it to DIRECTIVES.md Backlog.
-    Do not act on it. Do not mention it as something to do now.
+**When a runtime error or exception occurs:** invoke **sentry** (**get_issue**, etc.) before deep source reading; state a hypothesis before diagnostic calls (**debugging.mdc**).
 
-  Discoveries:
-  - The moment you learn any project-specific fact: write it to memory immediately.
-  - Do not wait until session close. Write it now and keep working.
+**When making a significant architectural decision:** append an ADR to **`docs/ADR_LOG.md`** immediately (**adr.mdc**).
 
-  Blockers:
-  - If you hit a blocker you cannot resolve: STOP immediately.
-  - Write the blocker to memory MCP.
-  - Update DIRECTIVES.md: add to the In Progress directive's Blockers field.
-  - Create a GitHub issue via **github** MCP only if the human asked for one; otherwise DIRECTIVES + memory are enough.
-  - Report to human: what the blocker is, what you tried, what you need.
-  - Do not silently work around blockers. Ever.
+**When context window reaches ~70%:** write a **`## COMPACTION CHECKPOINT`** to **SESSION_LOG.md** (**memory-management.mdc**); prune stale tool output.
 
-  Commits:
-  - Commit after each logical unit of work. Never accumulate uncommitted changes
-    across more than one function or component.
+**When research is needed:** **firecrawl** for external content; **context7** for library docs — never trust training data for current API specifics.
 
-## SESSION CLOSE — Execute this sequence in order. Do not skip steps.
+**When database work is needed (Supabase):** **supabase** MCP for schema / RLS before queries — never raw SQL via terminal when MCP is available.
 
-  STEP 1. Run git diff. Verify only files within confirmed scope were modified.
-          If anything out of scope was touched: report it before proceeding.
+**When hardware sensor work (MPU6050) needs docs:** **gitmcp-adafruit-mpu6050** before driver code.
 
-  STEP 2. Verify every new function has a one-line contract comment above it.
+**Code access:**
+- Do not read whole files for symbols. Use **jcodemunch** (**search_symbols**, **get_symbol_source**, **get_ranked_context**, …) and **Serena** **find_symbol** before edits.
+- Do not edit by line number only — prefer **Serena** **replace_symbol_body** / **insert_after_symbol**.
+- Do not use ad hoc **grep** for symbols when **jcodemunch** **search_symbols** or Serena applies. **search_text** is allowed for non-symbol needles.
+- Call **find_referencing_symbols** before changing a function body.
+- **read_file** on any file over **100** lines is forbidden without explicit human approval.
 
-  STEP 3. Query memory MCP — confirm all discoveries from this session were saved.
-          Write any that were missed.
+**Library calls:** **context7** before every external library call. Every one.
 
-  STEP 4. Mark task complete in Taskmaster: call set_task_status [ID] done.
+**Scope:** One directive per session. Stop for approval if scope expands. New ideas → **DIRECTIVES** Backlog only.
 
-  STEP 5. Update DIRECTIVES.md: move completed directive to ✅ Completed
-          with today's date and git short hash.
+**Discoveries:** Write to **memory** immediately.
 
-  STEP 6. Write SESSION_LOG.md entry using the template at the bottom of this file.
+**Blockers:** STOP; log to memory and **DIRECTIVES** Blockers; **github** issue only if the human asked.
 
-  STEP 7. **Optional — remote PR:** If the human asked to open a PR this session, use **github** MCP with
-          title "D[NNN]: [directive title]" and body listing files, goal, and decisions.
-          Otherwise skip; the human can `git push` and open a PR in the GitHub UI.
+**Commits:** Commit after each logical unit; do not batch unrelated changes.
 
-  STEP 8. Produce the final commit message for the human to copy:
-          "D[NNN]: [description] | verified clean"
+## SESSION CLOSE — Execute in order.
 
-  STEP 9. MCP utilization report (mandatory): Per **mcp-usage.mdc** and **Mandatory MCP utilization** —
-          in the final handoff and **SESSION_LOG.md** entry, list which MCP tools were used
-          and why; list any configured MCPs not used with an explicit reason each.
+**STEP 1.** Run **git diff**. Confirm only in-scope files changed.
 
-  STEP 10. Continual learning (self-improve): Run **agents-memory-updater** once per **docs/CONTINUAL_LEARNING.md**
-          when **mcp-usage.mdc RULE 9** applies: human asked; **governance** paths touched (no debounce); or
-          **parent transcript delta** vs **continual-learning-index.json** with **debounce** via
-          **continual-learning.json** `lastMemoryUpdaterRunDateUtc` (once per UTC day for non-governance sessions).
-          Optionally run `node cursor-governance/setup.js --learning-rollup` if **lastRollupAt** is stale.
-          Skip if already ran this session or human said to skip.
+**STEP 2.** Verify every new function has a one-line contract comment.
+
+**STEP 3.** Mark Taskmaster task **done** (or update status) via **set_task_status**.
+
+**STEP 4.** Run **semgrep** **security_check** on **all** source files modified this session. **Do not** close with unresolved **HIGH/CRITICAL** findings. If **semgrep** is unavailable, note the exception in **SESSION_LOG.md** and in the handoff (**process-gates.mdc**).
+
+**STEP 5.** If UI work was done, run **playwright** final verification on affected flows.
+
+**STEP 6.** **Linear** sync (if **LINEAR_API_KEY** set): completed Taskmaster tasks → **Done** in Linear; new tasks → create issues per **linear-sync.mdc**.
+
+**STEP 7.** **ADR check:** If this session made a significant architectural decision, verify an entry in **`docs/ADR_LOG.md`**; write it now if missing.
+
+**STEP 8.** Query **memory** — confirm discoveries were saved; write any missed.
+
+**STEP 9.** Update **DIRECTIVES.md**: move completed directive to **Completed** with date and git short hash.
+
+**STEP 10.** Write **SESSION_LOG.md** using the template below; include MCP utilization (used / not used + reasons).
+
+**STEP 11.** Optional **github** PR if the human asked; otherwise they may **`git push`** and open a PR in the UI.
+
+**STEP 12.** Give the human the final commit message: `D[NNN]: [description] | verified clean`
+
+**STEP 13.** **agents-memory-updater** per **RULE 9** / **docs/CONTINUAL_LEARNING.md**. Optionally **`node cursor-governance/setup.js --learning-rollup`** if **lastRollupAt** is stale or **5+** sessions since rollup.
+
+**STEP 14.** If new skills were added under **`.cursor/skills/`**, re-index with **pampa** when applicable.
+
+**STEP 15.** Confirm with the user before treating the session as closed.
 
 ## Token Efficiency — Hard rules, not tips.
-  - Never read a whole file to find one function. Prefer **jcodemunch** scoped retrieval, then **Serena** `find_symbol`.
-  - Never re-read a file already in context this session.
-  - Never repeat back large code blocks to confirm you read them.
-    One-line acknowledgment only, then proceed.
-  - Never rewrite a whole file when a symbol replacement will do.
-  - Run repomix once at session start. Never again mid-session.
+- Never read a whole file to find one function. Prefer **jcodemunch** scoped retrieval, then **Serena** **find_symbol**.
+- Never re-read a file already in context this session.
+- Never repeat back large code blocks to confirm you read them. One-line acknowledgment, then proceed.
+- Never rewrite a whole file when a symbol replacement will do.
+- Run **repomix** once at session start — never again mid-session.
+- **MCP token budget:** each active server adds ~**500–1000** tokens of tool overhead. See **`docs/MCP_TOKEN_BUDGET.md`**. Disable session-conditional servers in **`~/.cursor/mcp.json`** when you will not use them; keep the **core** always-on set aligned with that doc.
 
 ## Session Log Template
 
 **Entry checklist (confirm in each session block):**
 
 - [ ] Memory queried at start; discoveries saved same session
-- [ ] Taskmaster active task reported; scope confirmed before code
+- [ ] Taskmaster active task reported; DIRECTIVES reconciled; scope confirmed before code
 - [ ] Repomix + **jcodemunch** index/outline when code work is in scope (RULE 10)
+- [ ] Steps **4c–4e** run when applicable (semgrep baseline, Linear, PAMPA)
 - [ ] Sequential-thinking ran before plan shown
+- [ ] Semgrep run after substantive code changes; SESSION_CLOSE semgrep on all touched files
 - [ ] Git diff verified at close; SESSION_LOG entry appended
 - [ ] Taskmaster task marked done; DIRECTIVES.md updated if required
 - [ ] MCP utilization report (used / not used + reasons) in handoff and SESSION_LOG
