@@ -2745,6 +2745,7 @@ function resolvePampaGlobalPath() {
 }
 
 function buildMcpServers(taskmasterEnv, githubToken) {
+  const supabaseRef = process.env.SUPABASE_PROJECT_REF || 'dpivknupklbxjbrcntes';
   return {
     'taskmaster-ai': {
       command: 'npx',
@@ -2759,10 +2760,6 @@ function buildMcpServers(taskmasterEnv, githubToken) {
       command: 'npx',
       args: ['-y', 'repomix', '--mcp'],
     },
-    jcodemunch: {
-      command: 'uvx',
-      args: ['jcodemunch-mcp'],
-    },
     serena: {
       command: 'uvx',
       args: [
@@ -2776,6 +2773,9 @@ function buildMcpServers(taskmasterEnv, githubToken) {
     gitmcp: {
       url: 'https://gitmcp.io/docs',
     },
+    'gitmcp-adafruit-mpu6050': {
+      url: 'https://gitmcp.io/adafruit/Adafruit_MPU6050',
+    },
     'sequential-thinking': {
       command: 'npx',
       args: ['-y', '@modelcontextprotocol/server-sequential-thinking'],
@@ -2788,6 +2788,10 @@ function buildMcpServers(taskmasterEnv, githubToken) {
       command: 'npx',
       args: ['-y', '@modelcontextprotocol/server-github'],
       env: { GITHUB_PERSONAL_ACCESS_TOKEN: githubToken },
+    },
+    jcodemunch: {
+      command: 'uvx',
+      args: ['jcodemunch-mcp'],
     },
     playwright: {
       command: 'npx',
@@ -2828,6 +2832,9 @@ function buildMcpServers(taskmasterEnv, githubToken) {
       command: process.platform === 'win32' ? 'node.exe' : 'node',
       args: [resolvePampaGlobalPath()],
       cwd: '${workspaceFolder}',
+    },
+    supabase: {
+      url: `https://mcp.supabase.com/mcp?project_ref=${supabaseRef}`,
     },
   };
 }
