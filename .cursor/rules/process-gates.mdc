@@ -19,3 +19,33 @@ Full MCP stack, session timeline, and rule mapping: **`docs/MCP_COORDINATION.md`
 9. **Memory vs repo:** **Memory** does not override Taskmaster, DIRECTIVES, ARCHITECTURE, or the live tree.
 
 If any required MCP is missing or red in Cursor, announce **`DEGRADED_MODE`** and what you will not assume — do not silently skip.
+
+## Gate: Pre-commit security (semgrep)
+
+Before any **git commit** involving **source code** changes:
+
+1. Invoke **semgrep** MCP **`security_check`** on all modified source files.
+2. If **HIGH** or **CRITICAL** findings: **do not commit** — fix first.
+3. If **MEDIUM** findings: commit is permitted, but log findings in **SESSION_LOG.md** under **`## Security Notes`**.
+4. If **semgrep** is unavailable: note the exception in **SESSION_LOG.md** and proceed only with explicit human awareness.
+
+This gate is mandatory. It cannot be skipped for “small” changes.
+
+## Gate: Architectural decision (adr)
+
+Before implementing any **significant** architectural change:
+
+1. Write an ADR entry to **`docs/ADR_LOG.md`** (pack: **`HEXCURSE/docs/ADR_LOG.md`**) using the format in **`adr.mdc`**.
+2. The ADR should be written **before** implementation begins when practical — not only after merge.
+3. **Architectural** includes: new dependency, API contract change, data model change, new MCP server or external service, module boundary change, overriding **NORTH_STAR** / **DIRECTIVES** constraints.
+
+## Gate: Session close checklist
+
+Before ending any session, confirm:
+
+- [ ] **Taskmaster** task status updated
+- [ ] **Semgrep** final scan run on modified sources; **HIGH/CRITICAL** resolved or logged with exception
+- [ ] **Linear** issues synced if **LINEAR_API_KEY** is set
+- [ ] **ADR** written for any significant architectural decisions
+- [ ] **SESSION_LOG.md** entry written
+- [ ] **Memory** MCP updated with key learnings
