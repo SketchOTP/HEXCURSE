@@ -92,7 +92,7 @@ The loop is: install once, govern always, learn forever.
 
 ## Current state
 
-The installer (v1.5.8) works correctly. 17 MCP servers are wired and confirmed
+The installer (v1.5.9) works correctly. 17 MCP servers are wired and confirmed
 green. 10 governance rules are installed. The session ritual docs are accurate
 and fully updated. The continual learning infrastructure (SESSION_LOG,
 ROLLING_CONTEXT, skill promotion queue, PAMPA indexing) exists and is installed.
@@ -107,5 +107,6 @@ The next phase is running real sessions, generating real skills, and measuring
 whether token efficiency and accuracy actually improve over time.
 
 ---
-*Status: Human-approved*  
-*Version: 1.5.8*
+*Last updated: 2026-04-03*  
+*Status: Human-approved — task graph rebuilt from prd.txt (agent-curated; `parse-prd` skipped when LLM endpoint unavailable)*  
+*Task graph: `.taskmaster/tasks/tasks.json` and `docs/TASK_GRAPH_SNAPSHOT.md`*
