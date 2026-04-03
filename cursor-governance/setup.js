@@ -2765,14 +2765,32 @@ function commandOnPath(name, platform) {
   }
 }
 
-/** Runs npm install -g; uses sudo on Linux/macOS. */
+/** Runs npm install -g; Windows never uses sudo; Unix tries sudo then ~/.npm-global prefix (CI-friendly). */
 function installNpmGlobalPackage(pkg, platform) {
-  const npmLine = platform === 'win32' ? `npm install -g ${pkg}` : `sudo npm install -g ${pkg}`;
+  if (platform === 'win32') {
+    try {
+      execSync(`npm install -g ${pkg}`, { stdio: 'inherit', shell: true });
+    } catch (e) {
+      console.error(chalk.red(`npm install -g ${pkg} failed`));
+      process.exit(1);
+    }
+    return;
+  }
   try {
-    execSync(npmLine, { stdio: 'inherit', shell: true });
+    execSync(`sudo npm install -g ${pkg}`, { stdio: 'inherit', shell: true });
   } catch (e) {
-    console.error(chalk.red(`${npmLine} failed`));
-    process.exit(1);
+    console.warn(
+      chalk.yellow('⚠'),
+      `sudo failed — trying user install for ${pkg} under ~/.npm-global`
+    );
+    const prefix = path.join(os.homedir(), '.npm-global');
+    fs.mkdirSync(prefix, { recursive: true });
+    try {
+      execSync(`npm install -g ${pkg} --prefix ${prefix}`, { stdio: 'inherit', shell: true });
+    } catch (e2) {
+      console.error(chalk.red(`npm install -g ${pkg} --prefix ~/.npm-global failed`));
+      process.exit(1);
+    }
   }
 }
 
@@ -2872,16 +2890,22 @@ function resolvePampaGlobalPath() {
   } catch (_) {
     /* fall through */
   }
-  return process.platform === 'win32'
-    ? path.join(
-        process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
-        'npm',
-        'node_modules',
-        'pampa',
-        'src',
-        'mcp-server.js'
-      )
-    : path.join('/usr/local/lib/node_modules/pampa', 'mcp-server.js');
+  if (process.platform === 'win32') {
+    return path.join(
+      process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+      'npm',
+      'node_modules',
+      'pampa',
+      'src',
+      'mcp-server.js'
+    );
+  }
+  const linuxBase = path.join('/usr/local/lib/node_modules/pampa');
+  const linuxMcp = path.join(linuxBase, 'mcp-server.js');
+  const linuxSrc = path.join(linuxBase, 'src', 'mcp-server.js');
+  if (fs.existsSync(linuxMcp)) return linuxMcp;
+  if (fs.existsSync(linuxSrc)) return linuxSrc;
+  return linuxMcp;
 }
 
 function buildMcpServers(taskmasterEnv, githubToken) {
