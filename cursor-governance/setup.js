@@ -2432,6 +2432,9 @@ function sessionLogMd(projectName, todayDate) {
 **Commit hash:** (short)
 **MCP tools used (why):** (list)
 **MCP tools not used (reason each):** (list or none)
+**Token estimate:** ~{N} input / ~{N} output
+**Tool calls:** {N} total ({N} MCP, {N} file reads, {N} redundant)
+**Context efficiency:** {N}% context used at peak
 **Notes:** Run HEXCURSE/SESSION_START_PROMPT.md in a new Cursor chat to begin D001. Run \`node path/to/cursor-governance/setup.js --doctor\` from repo root anytime.
 
 `;
