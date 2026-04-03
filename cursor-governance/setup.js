@@ -1393,8 +1393,29 @@ function runDoctor(cwd) {
   if (fs.existsSync(skQueue)) ok.push('skill-promotion-queue.json present');
   else warn.push('skill-promotion-queue.json missing — optional seed from cursor-governance install');
 
-  if (fs.existsSync(tasksJson)) ok.push('.taskmaster/tasks/tasks.json present');
-  else if (fs.existsSync(tmRoot)) bad.push('.taskmaster/ exists but tasks/tasks.json missing');
+  if (fs.existsSync(tasksJson)) {
+    try {
+      const tasksData = JSON.parse(fs.readFileSync(tasksJson, 'utf8'));
+      const tasks = (tasksData.master && tasksData.master.tasks) || tasksData.tasks || [];
+      if (tasks.length === 0) {
+        warn.push(
+          'tasks.json exists but has 0 tasks — run --parse-prd-via-agent to generate task graph'
+        );
+      } else if (
+        tasks.length === 1 &&
+        tasks[0].title &&
+        tasks[0].title.toLowerCase().includes('placeholder')
+      ) {
+        warn.push(
+          'tasks.json contains only the placeholder stub — run --parse-prd-via-agent to generate real task graph'
+        );
+      } else {
+        ok.push(`tasks.json has ${tasks.length} task(s)`);
+      }
+    } catch (e) {
+      warn.push('tasks.json exists but could not be parsed as valid JSON');
+    }
+  } else if (fs.existsSync(tmRoot)) bad.push('.taskmaster/ exists but tasks/tasks.json missing');
   else warn.push('.taskmaster/ not found — run task-master init when you use Taskmaster');
 
   const northPack = pathNorthStarPack(cwd);
