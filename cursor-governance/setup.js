@@ -1248,6 +1248,14 @@ function runDoctor(cwd) {
         else if (ciRelaxed) warn.push(`mcp.json has no ${id} entry (non-blocking in CI)`);
         else warn.push(`mcp.json has no ${id} entry (${hint})`);
       };
+      mcpOptionalWarn('context7', 'recommended — library API docs');
+      mcpOptionalWarn('repomix', 'recommended — structural repo map');
+      mcpOptionalWarn('serena', 'recommended — symbol-level edits');
+      mcpOptionalWarn('gitmcp', 'optional — niche GitHub library docs');
+      mcpOptionalWarn('gitmcp-adafruit-mpu6050', 'optional — Adafruit MPU6050 hardware docs via gitmcp.io');
+      mcpOptionalWarn('sequential-thinking', 'recommended — planning');
+      mcpOptionalWarn('memory', 'recommended — durable facts');
+      mcpOptionalWarn('supabase', 'optional — Supabase MCP when using Supabase backend');
       mcpOptionalWarn('playwright', 'optional — UI / debugging.mdc');
       mcpOptionalWarn('semgrep', 'recommended — security.mdc');
       mcpOptionalWarn('sentry', 'optional — error context');
