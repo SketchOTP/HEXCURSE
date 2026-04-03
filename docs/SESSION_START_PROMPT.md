@@ -18,7 +18,7 @@ Execute the **SESSION START** sequence from **`AGENTS.md`** (consumer pack: **`H
 
 **STEP 2.** Read **`docs/ROLLING_CONTEXT.md`** when the file exists. In a consumer install, the same file is **`HEXCURSE/docs/ROLLING_CONTEXT.md`**.
 
-**STEP 3.** Call Taskmaster **get_tasks**. Identify the active task and next queued task. Report: `Active: D[NNN] — [title]. Next queued: D[NNN] — [title].` Then read **DIRECTIVES.md** (or **`HEXCURSE/DIRECTIVES.md`**) — confirm it matches Taskmaster. If out of sync, report and do not proceed until resolved.
+**STEP 3.** **REQUIRED:** Call Taskmaster **get_tasks** (MCP or CLI) before planning or writing implementation code — even when the human named a directive in chat. Identify the active task and next queued task. Report: `Active: D[NNN] — [title]. Next queued: D[NNN] — [title].` Then read **DIRECTIVES.md** (or **`HEXCURSE/DIRECTIVES.md`**) — confirm it matches Taskmaster. If out of sync, report and do not proceed until resolved.
 
 **STEP 4.** Query **memory** MCP for all stored project facts. Integrate before reading other governance files.
 
