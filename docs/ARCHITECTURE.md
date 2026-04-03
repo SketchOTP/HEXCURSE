@@ -1,7 +1,7 @@
 # ARCHITECTURE — HexCurse
 
 ## Purpose
-HexCurse is a project workspace that uses Cursor agent governance, Taskmaster orchestration, and MCP-backed tooling so implementation work stays scoped, documented, and traceable. The repository currently centers on governance artifacts and guides; the executable product’s shape and stack are **TBD — confirm before implementing**.
+HexCurse is a project workspace that uses Cursor agent governance, Taskmaster orchestration, and MCP-backed tooling so implementation work stays scoped, documented, and traceable. The **shipping product** is the **`cursor-governance` npm installer** (CLI, templates, MCP merge, doctor, NORTH_STAR bridge) plus the governance layer it stamps into repos. Application source code for **consumer** projects lives in those repos, not as a separate monolith app in this tree.
 
 **Single source of truth (machinery):** **`docs/PROJECT_OVERVIEW.md`** — exhaustive, code-derived description of **cursor-governance** (`setup.js`), installer outputs, CLI modes, MCP merge, tests, and CI. This **`ARCHITECTURE.md`** stays the shorter system summary and product/TBD notes.
 
@@ -23,7 +23,29 @@ HexCurse is a project workspace that uses Cursor agent governance, Taskmaster or
 | Issue tracking | Linear MCP | Sync with Taskmaster when enabled |
 | Skills search | Pampa MCP | Semantic **`.cursor/skills/`** search |
 | Supabase backends | Supabase MCP | Schema, RLS, Auth, Edge Functions |
-| Application runtime | TBD — confirm before implementing | Not yet selected |
+| Application runtime | **Node.js** — `cursor-governance` package (`setup.js`, CLI, tests) | Installer and governance machinery; no separate app framework in this repo |
+
+## Product Stack (confirmed)
+
+Authoritative product intent: repo-root **`NORTH_STAR.md`** (human-approved). Summary for implementers:
+
+### Runtime
+**Node.js** — the installer is a CLI run from the terminal (including Cursor’s shell). Entry: **`cursor-governance/setup.js`** and packaged **`bin/`** scripts.
+
+### LLM Provider(s)
+**User-configured, LLM-agnostic for HexCurse itself.** Taskmaster and the NORTH_STAR bridge use **OpenAI-compatible** endpoints via **`.env`** (`OPENAI_API_KEY`, `OPENAI_BASE_URL`) and **`.taskmaster/config.json`** (e.g. LM Studio with `qwen3.5-2b`). Same machinery can target Anthropic, OpenAI, or other providers if the user configures them.
+
+### Database / Storage
+**File-based only** for core product — rules, skills, SESSION_LOG, ROLLING_CONTEXT, `.taskmaster/`. No required cloud database for governance. Optional **Supabase** (or other Postgres) only for optional MCPs such as Swarm Protocol when the user opts in.
+
+### Distribution
+**npm** — global install **`cursor-governance`**, run once per target repo to merge MCP config and governance files.
+
+### Hardware targets
+**None** for the core product. **MPU6050 / Adafruit** MCP exists for optional hardware work in consumer projects, not as a HexCurse v1.x deliverable.
+
+### Development tooling
+**Node.js** (see package engines in **`cursor-governance/package.json`**), **task-master** CLI, **repomix**, tests under **`cursor-governance/test/`**. TypeScript may appear in tooling or consumers; this repo’s installer core is **JavaScript**.
 
 ## System Map
 ```
@@ -37,7 +59,7 @@ Cursor Agent ◄──► MCP (17 servers): taskmaster-ai, context7, repomix, se
 Repo files: AGENTS.md, DIRECTIVES.md, docs/*, .cursor/rules/*, .taskmaster/*
         │
         ▼
-[Future] Application source tree — TBD
+cursor-governance/ — installer source (setup.js, templates, tests)
 ```
 
 ## Directory Structure
@@ -52,7 +74,7 @@ HexCurse/
 ├── DIRECTIVES.md        # Human-readable directive log
 ├── SESSION_LOG.md       # Append-only session audit
 ├── CURSOR.md            # Quick-start: session prompt, doctor, modes
-└── (future src/)        # TBD — confirm before implementing
+└── cursor-governance/   # npm package source (consumer repos may add src/ after install)
 ```
 
 **Other repositories** that run **`cursor-governance/setup.js`** get a single top-level **`HEXCURSE/`** folder (pack copy of prompts, **`PATHS.json`**, optional **`rules/`** mirror). That layout is for **consumers**, not required in **this** source tree.
@@ -129,7 +151,7 @@ Installer **v1.5.0+** added six general MCP servers (**playwright**, **semgrep**
 ## Out of Scope
 - Production deployment and operations until explicitly in scope.
 - Committing secrets or tokens to the repo.
-- Choosing the application framework/language without human confirmation.
+- Non-Cursor IDEs, SaaS governance backends, multi-user features, GUI dashboards, custom MCP authoring, and model fine-tuning as **core** HexCurse v1.x scope (see **`NORTH_STAR.md`**).
 
 ## Definition of Done
-For the first governed working version of this workspace: governance directory structure exists; `.cursor/rules` (base, mcp-usage, domain rules) populated; `docs/ARCHITECTURE.md`, `AGENTS.md`, `DIRECTIVES.md`, `SESSION_LOG.md` present; Taskmaster initialized with a parsed PRD and `tasks.json` generated; setup session recorded in `SESSION_LOG.md`.
+**First product release** (installer + learning loop) matches **`NORTH_STAR.md`** — global npm install works; install into a repo delivers 17 MCP + 10 rules + ritual docs within five minutes; SESSION START drives correct MCP usage; continual learning produces skills and meaningful **ROLLING_CONTEXT**; **`--sync-rules`** / **`--learning-rollup`** / **`--doctor`** behave as specified; token efficiency improves measurably across sessions in the same repo. For **this** workspace as a governed repo: governance tree, **ARCHITECTURE**, **AGENTS.md**, **DIRECTIVES.md**, **SESSION_LOG.md**, and Taskmaster **`.taskmaster/`** stay aligned; PRD reflects **NORTH_STAR** after each **`parse-prd`** run.

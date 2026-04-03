@@ -1,48 +1,78 @@
 <context>
 # Overview
-HexCurse is a software project workspace that operates under strict Cursor agent governance. The repository holds the governance kit (Cursor rules, directives, session logs), system documentation, and will grow to hold application code once the product stack is confirmed. Primary users are the project owner and AI implementation agents following AGENTS.md.
+HexCurse is the cursor-governance npm package: a one-shot installer that stamps a self-evolving AI governance layer into any Cursor-based repository. It coordinates 17 MCP servers, 10 governance rules, session rituals, structured memory, continual learning, and token-efficient agent behavior. The product is the installer and the governance system it deploys—not a separate SaaS or desktop app.
 
 # Core Features
-- Governed AI sessions: MCP-driven workflow (Taskmaster, memory, Serena, context7, repomix, gitmcp, GitHub, sequential-thinking).
-- Living documentation: ARCHITECTURE.md, DIRECTIVES.md, SESSION_LOG.md kept in sync with Taskmaster tasks.json.
-- Task graph: Dependency-aware directives parsed from this PRD via Taskmaster.
+- Global npm install (`cursor-governance`); run once per consumer repo to merge MCP config, rules, AGENTS.md, session prompts, and HEXCURSE pack layout.
+- Session governance: documented SESSION START / CLOSE, Taskmaster integration, memory writes on discovery, semgrep gate before commits.
+- Continual learning: SESSION_LOG, ROLLING_CONTEXT, skill promotion queue, PAMPA indexing, optional `--learning-rollup`.
+- Self-maintenance: `--sync-rules`, `--refresh-rules`, `--doctor`, `--run-hexcurse` / NORTH_STAR → PRD bridge for consumer repos.
+- LLM-agnostic Taskmaster: OpenAI-compatible local (LM Studio) or cloud; configured via `.env` and `.taskmaster/config.json`.
 
 # User Experience
-- Human confirms scope once per directive; agent executes tooling, branches, PRs, and logging automatically per AGENTS.md.
+Solo developer runs the installer in a repo; within minutes Cursor agents follow the same rituals, use MCP tools automatically, and improve over sessions via memory and skills—without manual MCP micromanagement.
+
+# Primary User
+Solo developers using Cursor for vibe-coding who want persistent agent memory, enforced rules, and measurable improvement across sessions.
+
+# Success Criteria (90 days)
+Install under five minutes; 17 MCP + 10 rules + ritual docs active; after ~10 sessions, visible accuracy and token efficiency gains; `--sync-rules` / `--refresh-rules` keep governance current; learning loop demonstrably populated (skills, rolling context).
+
+# Sacred Constraints (product-level)
+- Runs inside Cursor agent mode and MCP only; no external orchestration required for core governance.
+- No cloud dependency for core functionality; local LLM path must work.
+- System must improve over time per repo (learning loop is mandatory).
+- Token efficiency is first-class; justify MCP/rule cost.
+- One install, self-maintaining governance; developer does not manually curate MCP JSON or session state.
 </context>
 <PRD>
 # Technical Architecture
-- Repo root: N:\HexCurse (Windows path; portable relative paths in docs).
-- Governance: `.cursor/rules/*.mdc` (alwaysApply + glob rules), `AGENTS.md`, `DIRECTIVES.md`, `docs/ARCHITECTURE.md`, `SESSION_LOG.md`.
-- Task orchestration: `.taskmaster/` (prd.txt, tasks/tasks.json, state.json).
-- Serena: `.serena/memories/` for cross-session code intelligence (auto-populated).
-- Application implementation stack: TBD — confirm before implementing (no framework locked).
+- **Language:** Node.js for `cursor-governance/setup.js`, CLI entrypoints, tests, and installer templates.
+- **Distribution:** npm package `cursor-governance`; global install; idempotent merge into `~/.cursor/mcp.json` and repo tree.
+- **IDE:** Cursor exclusively for governed agent sessions.
+- **MCP:** 17 servers defined in installer `buildMcpServers()` and docs; consumer merge via setup.js.
+- **Storage:** File-based—rules, skills, SESSION_LOG, ROLLING_CONTEXT, Taskmaster `.taskmaster/`; no mandatory cloud database for core product.
+- **LLM:** User-configured OpenAI-compatible endpoint (e.g. LM Studio) or other providers per `.env`; Taskmaster uses same stack.
 
 # Development Roadmap
-## Phase A — Governance scaffold (MVP for this PRD)
-- Establish Cursor rules (base, mcp-usage, language/domain rules).
-- Populate ARCHITECTURE, DIRECTIVES, AGENTS, SESSION_LOG with HexCurse-specific content.
-- Initialize Taskmaster task graph from PRD; keep DIRECTIVES.md aligned with tasks.json.
 
-## Phase B — Product foundation (after stack confirmation)
-- Add source tree, build tooling, and tests per chosen stack.
-- Extend ARCHITECTURE and rules with real module contracts.
+## Phase 1 — Installer correctness and parity
+- Keep `setup.js` merge/doctor/bridge paths aligned with AGENTS.md and embedded templates.
+- Ensure `--doctor` and `npm run test:all` guard regressions; GOVERNANCE_PARITY checks.
 
-## Phase C — Features
-- Deferred until product purpose and stack are confirmed.
+## Phase 2 — Learning loop validation
+- Prove continual learning in real repos: non-empty skills, ROLLING_CONTEXT entries, PAMPA useful retrieval.
+- Harden agents-memory-updater and rollup flows; document expected session cadence.
+
+## Phase 3 — Token efficiency and measurement
+- Instrument or document how to compare session 1 vs session N token/tool usage in the same repo.
+- Tune rule and MCP defaults toward minimum viable token budget (see MCP_TOKEN_BUDGET.md).
+
+## Phase 4 — Consumer rollout and docs
+- Versioned rollout reports; NORTH_STAR / ONE_PROMPT bridge for consumer kickoff.
+- Keep DIRECTIVES.md and Taskmaster tasks.json synchronized after each directive.
 
 # Logical Dependency Chain
-1. Finalize governance files and MCP usage rules (foundation for all future work).
-2. Parse PRD → tasks.json; sync DIRECTIVES.md human-readable layer.
-3. Record setup session in SESSION_LOG.md.
-4. Only after Phase A is complete: begin application code per future directive.
+1. Installer and tests stable (foundation for all deployments).
+2. Session ritual docs and rules match actual MCP stack (agents can execute SESSION START).
+3. Learning pipeline produces durable artifacts (skills, memory, rolling context).
+4. Measurement and docs prove the self-improving loop (Definition of Done for first product release).
 
 # Risks and Mitigations
-- Missing API keys for Taskmaster parse-prd: use `.env` from `.env.example`; document fallback manual task list.
-- MCP servers inactive: verify global `mcp.json`; document in ARCHITECTURE.
-- Scope creep: sacred constraint — one directive per session; backlog for new ideas.
+- **LM Studio / network:** Document LAN vs Tailscale IPs; bridge falls back to manual PRD when API unreachable.
+- **Taskmaster parse-prd size:** Cap context and model maxTokens for small local models.
+- **Scope creep:** Out of scope locked—non-Cursor IDEs, SaaS backend, team features, GUI, custom MCP authoring, model fine-tuning.
 
-# Appendix
-- Companion docs: `CURSOR_SYSTEM_USER_GUIDE.md`, `CURSOR_AGENT_SETUP_PROMPT_V2.md`.
-- Critical external tooling: task-master-ai CLI, repomix, uv (for Serena), Node 18+.
+# Out of Scope (v1.x)
+Non-Cursor IDEs; SaaS governance backend; multi-user features; GUI dashboard; building new MCP servers; model training/fine-tuning.
+
+# Definition of Done — First Release (product)
+- Global npm install works on a clean machine.
+- Install into an arbitrary repo completes 17 MCP + 10 rules + ritual docs in under 5 minutes.
+- Agent following SESSION START uses correct MCP tools without ad-hoc prompting.
+- After 5 sessions, at least one promoted skill exists under `.cursor/skills/`.
+- `--learning-rollup` yields meaningful ROLLING_CONTEXT for later sessions.
+- `--sync-rules` pulls updated governance without breaking sacred constraints.
+- Session 10 shows lower token waste than session 1 (measurement protocol documented or automated).
+- `--doctor` surfaces actionable fixes for governance drift.
 </PRD>
