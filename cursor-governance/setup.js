@@ -1739,61 +1739,45 @@ function installNpmGlobalPackage(pkg, platform) {
 }
 
 function installGlobals(platform) {
-  console.log('Installing global CLI tools (task-master-ai, repomix)…');
-  if (commandOnPath('task-master', platform) && commandOnPath('repomix', platform)) {
-    console.log(chalk.green('✓'), 'already installed');
+  console.log('Installing global CLI tools…');
+  if (commandOnPath('task-master', platform)) {
+    console.log(chalk.green('✓'), 'task-master already on PATH');
   } else {
     installNpmGlobalPackage('task-master-ai', platform);
-    installNpmGlobalPackage('repomix', platform);
-    console.log(chalk.green('✓'), 'task-master-ai and repomix installed (or already present).');
+    console.log(chalk.green('✓'), 'task-master-ai installed.');
   }
-
-  console.log('Installing uv (Python)…');
-  let uvOk = false;
+  console.log('Installing uv (Python — required for LightRAG)…');
   if (!pythonPipAvailableForUv) {
     console.warn(
       chalk.yellow('⚠'),
-      'Skipping uv — Python/pip was not detected. Install Python, then run: py -3 -m pip install uv'
+      'Skipping uv — Python/pip not detected. Install Python, then run: pip install uv'
     );
     return;
   }
+  let uvOk = false;
   if (platform === 'win32') {
-    const tryUv = [
-      'py -3 -m pip install uv',
-      'python -m pip install uv',
-      'python3 -m pip install uv',
-      'pip install uv',
-      'pip3 install uv',
-    ];
-    for (const line of tryUv) {
+    for (const line of ['py -3 -m pip install uv', 'python -m pip install uv', 'pip install uv']) {
       try {
         execSync(line, { stdio: 'inherit', shell: true });
         uvOk = true;
         break;
-      } catch (e2) {
-        /* try next */
-      }
+      } catch (_) {}
     }
   } else {
     try {
       execSync('pip3 install uv', { stdio: 'inherit', shell: true });
       uvOk = true;
-    } catch (e) {
+    } catch (_) {
       try {
         execSync('curl -LsSf https://astral.sh/uv/install.sh | sh', { stdio: 'inherit', shell: true });
         uvOk = true;
-      } catch (e2) {
-        /* will warn below */
-      }
+      } catch (_2) {}
     }
   }
   if (uvOk) {
     console.log(chalk.green('✓'), 'uv installed (or already present).');
   } else {
-    console.warn(
-      chalk.yellow('⚠'),
-      'uv install failed — install uv manually; optional LightRAG MCP uses uvx.'
-    );
+    console.warn(chalk.yellow('⚠'), 'uv install failed — install manually if using LightRAG.');
   }
 }
 
@@ -3210,6 +3194,27 @@ async function syncRemoteRules(cwd, { dryRun = false } = {}) {
   }
 }
 
+/** Install LightRAG MCP when user selects it at install time. */
+async function installLightRAG(cwd) {
+  const python = findPython();
+  if (!python) {
+    console.warn(
+      chalk.yellow('⚠'),
+      'LightRAG requires Python 3.10+. Install Python and re-run install to activate it.'
+    );
+    return false;
+  }
+  try {
+    execSync('uvx install lightrag-mcp', { stdio: 'inherit', shell: true });
+  } catch (_) {
+    console.warn(chalk.yellow('⚠'), 'uvx install lightrag-mcp failed — install uv and retry.');
+    return false;
+  }
+  await fs.ensureDir(path.join(cwd, '.lightrag'));
+  console.log(chalk.green('✓'), 'LightRAG MCP installed. Index builds on first use.');
+  return true;
+}
+
 async function main() {
   const mode = parseSetupArgv(process.argv);
   if (mode === 'help') {
@@ -3276,6 +3281,11 @@ async function main() {
   const constraintsBullets = formatConstraintBullets(answers.sacred);
 
   installGlobals(platform);
+
+  // LightRAG: install uvx package when selected
+  if (Array.isArray(answers.selectedOptionals) && answers.selectedOptionals.includes('lightrag')) {
+    await installLightRAG(cwd);
+  }
 
   const cursorMcpPath = path.join(os.homedir(), '.cursor', 'mcp.json');
   console.log(chalk.bold(`\nMerging ${cursorMcpPath} …`));
