@@ -207,7 +207,7 @@ Options:
 
   Interactive install (v2): seven core questions — project name, purpose, GitHub token (skipped if
   token is reused from env/mcp.json), then y/n for Playwright, Semgrep, Supabase (if y: project ref line),
-  LightRAG, then y/n for custom MCP (if y: follow chooseFn + URL or command prompts). Piped stdin: one
+  LightRAG, then y/n for custom MCP (if y: transport 1–3 where 3 = skip; URL and command prompts accept cancel/skip/q/0). Piped stdin: one
   line per answer in that order. Taskmaster LLM keys are **not** prompted — set ANTHROPIC_API_KEY,
   OPENAI_API_KEY / OPENAI_BASE_URL (or lm-studio defaults) in the environment before install.
 
@@ -2287,27 +2287,56 @@ async function askYesNo(askFn, question, defaultValue = false) {
   return defaultValue;
 }
 
-/** Prompts for one custom MCP (stdio or streamable URL). */
-async function promptCustomMcp(chooseFn, askFn, askRequiredFn) {
-  const kind = await chooseFn('Custom MCP transport?', [
-    'Streamable URL (HTTPS)',
-    'stdio — local command',
-  ]);
-  if (String(kind || '').includes('URL')) {
-    const url = await askRequiredFn(
-      'MCP server URL (https://…)',
-      undefined,
-      (v) => /^https?:\/\//i.test(String(v || '').trim())
-    );
-    return { mode: 'url', url: String(url).trim() };
+/** Returns true when the user typed a token that abandons the custom MCP sub-flow (TTY or piped). */
+function isCustomMcpCancelLine(s) {
+  return /^(cancel|skip|q|abort|0)$/i.test(String(s || '').trim());
+}
+
+/** Prompts for one custom MCP (stdio or streamable URL). Returns null if the user skips or cancels. */
+async function promptCustomMcp(chooseFn, askFn, _askRequiredFn) {
+  const optUrl = 'Streamable URL (HTTPS)';
+  const optStdio = 'stdio — local command';
+  const optSkip = 'Skip — do not add a custom MCP';
+  const kind = await chooseFn('Custom MCP transport?', [optUrl, optStdio, optSkip]);
+  if (kind === optSkip) {
+    console.log(chalk.dim('Skipping custom MCP.'));
+    return null;
   }
-  const command = await askRequiredFn('Command', 'npx', (v) => String(v || '').trim().length > 0);
-  const argsLine = await askFn('Args (space-separated)', '');
-  const args = String(argsLine || '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  return { mode: 'stdio', command: String(command).trim(), args };
+  if (kind === optUrl) {
+    for (;;) {
+      const raw = await askFn('MCP server URL (https://…) — or type cancel to skip', undefined);
+      const s = String(raw || '').trim();
+      if (isCustomMcpCancelLine(s)) {
+        console.log(chalk.dim('Skipping custom MCP.'));
+        return null;
+      }
+      if (/^https?:\/\//i.test(s)) {
+        return { mode: 'url', url: s };
+      }
+      console.log('  Invalid — URL must start with http:// or https://. Type cancel to skip.');
+    }
+  }
+  if (kind === optStdio) {
+    for (;;) {
+      const raw = await askFn('Command (e.g. npx) — or type cancel to skip', 'npx');
+      const cmd = String(raw || '').trim();
+      if (isCustomMcpCancelLine(cmd)) {
+        console.log(chalk.dim('Skipping custom MCP.'));
+        return null;
+      }
+      if (cmd.length > 0) {
+        const argsLine = await askFn('Args (space-separated)', '');
+        const args = String(argsLine || '')
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean);
+        return { mode: 'stdio', command: cmd, args };
+      }
+      console.log('  Invalid — empty command. Type cancel to skip.');
+    }
+  }
+  console.log(chalk.yellow('⚠'), 'Unexpected transport choice — skipping custom MCP.');
+  return null;
 }
 
 /**
@@ -2431,8 +2460,10 @@ async function promptUser() {
   }
 
   if (await askYesNo(askFn, 'Add a custom MCP server?', false)) {
-    selectedOptionals.push('custom');
     customMcp = await promptCustomMcp(chooseFn, askFn, askRequiredFn);
+    if (customMcp) {
+      selectedOptionals.push('custom');
+    }
   }
 
   const stack = 'TBD — set in NORTH_STAR.md and ARCHITECTURE.md';
