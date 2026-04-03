@@ -250,17 +250,18 @@
         "description": "Generate tasks.json from PRD via Cursor agent LLM context. No outbound API call from setup.js. Supports --prd, --out, --dry-run, --apply flags. See docs/directives/D-HEXCURSE-AGENT-PARSE-006.md.",
         "details": "",
         "testStrategy": "",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
-        "subtasks": []
+        "subtasks": [],
+        "updatedAt": "2026-04-03T15:07:14.593Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-03T09:49:53.024Z",
+      "lastModified": "2026-04-03T15:07:14.594Z",
       "taskCount": 16,
-      "completedCount": 15,
+      "completedCount": 16,
       "tags": [
         "master"
       ]
