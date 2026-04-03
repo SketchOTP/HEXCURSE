@@ -5,7 +5,7 @@ This document is the **onboarding and handoff reference** for anyone taking over
 | Item | Value |
 |------|--------|
 | **Installer npm package** | `cursor-governance` |
-| **Installer version** | `1.4.9` (`cursor-governance/package.json`) |
+| **Installer version** | `1.5.8` (`cursor-governance/package.json`) |
 | **Root npm package** | `hexcurse` (`package.json`, `private: true`) |
 | **Authoritative implementation** | `cursor-governance/setup.js` (~3.6k lines) |
 
@@ -124,6 +124,8 @@ Written to **`HEXCURSE/PATHS.json`** on install (skip if exists). **`schema`: `h
 | `preflight-cursor-agent` | `--preflight-cursor-agent` |
 | `run-hexcurse-raw` | **`--run-hexcurse-raw`** (checked **before** `run-hexcurse`) |
 | `run-hexcurse` | `--run-hexcurse` |
+| `multi-agent` | `--multi-agent` — worktree scaffold, **`.env`** **`HEXCURSE_MULTI_AGENT=1`**, **`MULTI_AGENT.md`**, extra rule writes |
+| `sync-rules` | `--sync-rules` (+ optional **`--dry-run`**) — fetch remote `.mdc` from **`HEXCURSE_RULES_REMOTE_URL`** |
 | `install` | default |
 
 Full env documentation for operators: **`printCliHelp()`** in **`setup.js`** (too long to duplicate verbatim here; read the function).
@@ -164,7 +166,7 @@ Full env documentation for operators: **`printCliHelp()`** in **`setup.js`** (to
 
 ### 5.5 Governance rules (`writeGovernanceRules`)
 
-For each of **`base.mdc`** (generated via **`baseMdc()`** at install time), **`mcp-usage.mdc`** (**`MCP_USAGE_TEMPLATE`** string in **`setup.js`**), **`process-gates.mdc`** (**`PROCESS_GATES_TEMPLATE`**), **`governance.mdc`** (**`readBundledGovernanceMdc()`**):
+For each of **`base.mdc`** (**`baseMdc()`**), **`mcp-usage.mdc`** (**`MCP_USAGE_TEMPLATE`**), **`process-gates.mdc`** (**`PROCESS_GATES_TEMPLATE`**), **`governance.mdc`** (**`readBundledGovernanceMdc()`**), **`security.mdc`**, **`adr.mdc`**, **`memory-management.mdc`**, **`debugging.mdc`**, **`multi-agent.mdc`**, **`linear-sync.mdc`**:
 
 - If **`HEXCURSE/rules/<basename>`** already exists → **skip both** pack and **`.cursor/rules`** copies (both paths pushed to **`skipped`**).
 - Else write **`HEXCURSE/rules/...`** and **`.cursor/rules/...`** (directories ensured).
@@ -212,19 +214,29 @@ Installer **appends** these lines if missing (exact match per line):
 
 ---
 
-## 6. `buildMcpServers` (exact server list)
+## 6. `buildMcpServers` (exact server list — 17 entries, insertion order)
 
 | Server id | `command` / `url` | Notes |
 |-----------|-------------------|--------|
 | `taskmaster-ai` | `npx -y --package=task-master-ai task-master-ai` | **`env`: spread `taskmasterEnv`** |
 | `context7` | `npx -y @upstash/context7-mcp` | |
 | `repomix` | `npx -y repomix --mcp` | |
-| `jcodemunch` | `uvx` + `jcodemunch-mcp` | |
 | `serena` | `uvx` from **`git+https://github.com/oraios/serena`** … **`--project ${workspaceFolder}`** | |
 | `gitmcp` | **`url`:** `https://gitmcp.io/docs` | |
+| `gitmcp-adafruit-mpu6050` | **`url`:** `https://gitmcp.io/adafruit/Adafruit_MPU6050` | |
 | `sequential-thinking` | `npx -y @modelcontextprotocol/server-sequential-thinking` | |
 | `memory` | `npx -y @modelcontextprotocol/server-memory` | |
 | `github` | `npx -y @modelcontextprotocol/server-github` | **`GITHUB_PERSONAL_ACCESS_TOKEN`** in **`env`** |
+| `jcodemunch` | `uvx` + `jcodemunch-mcp` | |
+| `playwright` | `npx -y @playwright/mcp` | |
+| `semgrep` | `uvx` + `semgrep-mcp` | **`SEMGREP_PATH`**, **`SEMGREP_APP_TOKEN`** |
+| `sentry` | `npx -y @sentry/mcp-server@latest` | **`SENTRY_ACCESS_TOKEN`** (legacy **`SENTRY_AUTH_TOKEN`** migration in **`mergeMcpJson`**) |
+| `firecrawl` | `npx -y firecrawl-mcp` | **`FIRECRAWL_API_KEY`** |
+| `linear` | `npx -y @mseep/linear-mcp` | **`LINEAR_API_KEY`** |
+| `pampa` | **`node`/`node.exe`** + **`resolvePampaGlobalPath()`** | **`cwd`: `${workspaceFolder}`** |
+| `supabase` | **`url`:** `https://mcp.supabase.com/mcp?project_ref=…` | Default ref from **`SUPABASE_PROJECT_REF`** or code fallback |
+
+Archival directive: **`docs/directives/D-HEXCURSE-MCP-RECONCILE-003.md`**.
 
 ---
 
@@ -284,7 +296,7 @@ Checks (abridged; see **`runDoctor`** for full list): **`HEXCURSE/PATHS.json`** 
 
 ## 10. Embedded rule templates in `setup.js`
 
-**`MCP_USAGE_TEMPLATE`** and **`PROCESS_GATES_TEMPLATE`** are **large string literals** in **`setup.js`**. They define RULE **1–10** (Taskmaster, memory, sequential-thinking, Serena, context7, repomix, gitmcp, git/GitHub, agents-memory-updater, **jcodemunch**), **DEGRADED_MODE**, MCP order, and process gates **1–9** including **2b** (jcodemunch).
+**`MCP_USAGE_TEMPLATE`** and **`PROCESS_GATES_TEMPLATE`** are **large string literals** in **`setup.js`**. **`MCP_USAGE_TEMPLATE`** defines RULE **1–12** (through **jcodemunch**, **gitmcp-adafruit-mpu6050**, **supabase**), expanded **DEGRADED_MODE** (17-server tiers), token-budget notice, and MCP order **1–17**. **`PROCESS_GATES_TEMPLATE`** defines numbered gates **1–9** plus **Semgrep pre-commit**, **ADR**, and **session-close checklist** sections.
 
 **Live repo rules:** **`.cursor/rules/*.mdc`** may match these after **`--refresh-rules`** or manual edits. **Binding behavior** is whatever is on disk in the workspace; **installer refresh** overwrites from templates.
 
@@ -295,9 +307,15 @@ Checks (abridged; see **`runDoctor`** for full list): **`HEXCURSE/PATHS.json`** 
 | File | `alwaysApply` | `globs` / notes |
 |------|----------------|-----------------|
 | **`base.mdc`** | `true` | Global project + sacred constraints |
-| **`mcp-usage.mdc`** | `true` | MCP automation |
-| **`process-gates.mdc`** | `true` | Short checklist |
+| **`mcp-usage.mdc`** | `true` | MCP automation (RULE 1–12, **DEGRADED_MODE**) |
+| **`process-gates.mdc`** | `true` | Checklist + Semgrep / ADR / session-close gates |
 | **`governance.mdc`** | `false` | `AGENTS.md`, `DIRECTIVES.md`, `SESSION_LOG.md`, `HEXCURSE/...`, `.cursor/rules/**/*.mdc`, `HEXCURSE/rules/**/*.mdc`, `.cursor/skills/**/*.md` |
+| **`security.mdc`** | `false` | Globs on source — Semgrep after writes |
+| **`adr.mdc`** | `false` | Globs on architecture paths — ADR append-only |
+| **`memory-management.mdc`** | `true` | Context pruning, compaction checkpoints |
+| **`debugging.mdc`** | `false` | Globs on code — hypothesis-first debugging |
+| **`multi-agent.mdc`** | `false` | `HEXCURSE/docs/MULTI_AGENT.md`, `.swarm/**` |
+| **`linear-sync.mdc`** | `false` | Taskmaster + Linear sync globs |
 | **`markdown.mdc`** | `false` | `**/*.md` — doc style, append-only **`SESSION_LOG`**, no secrets in docs |
 
 ---
@@ -433,7 +451,7 @@ Documents **`OPENAI_API_KEY`**, **`OPENAI_BASE_URL`** for LM Studio, optional **
 
 After **`mergeMcpJson`**, **`main()`** performs the following in order:
 
-1. **`writeGovernanceRules`** ×4: **`base.mdc`** (from **`baseMdc(...)`**), **`mcp-usage.mdc`** (**`MCP_USAGE_TEMPLATE`**), **`process-gates.mdc`** (**`PROCESS_GATES_TEMPLATE`**), **`governance.mdc`** (**`readBundledGovernanceMdc()`**).
+1. **`writeGovernanceRules`** ×10: **`base.mdc`**, **`mcp-usage.mdc`**, **`process-gates.mdc`**, **`governance.mdc`**, **`security.mdc`**, **`adr.mdc`**, **`memory-management.mdc`**, **`debugging.mdc`**, **`multi-agent.mdc`**, **`linear-sync.mdc`** (templates in **`setup.js`** or bundled reads per function).
 2. **`writeFileMaybeSkip`** in this order:
    - **`HEXCURSE/PATHS.json`**
    - **`HEXCURSE/README.md`** (**`hexcurseReadmeMd`**)
@@ -452,6 +470,10 @@ After **`mergeMcpJson`**, **`main()`** performs the following in order:
    - **`HEXCURSE/docs/ARCH_PROMPT.md`**
    - **`HEXCURSE/docs/CONTINUAL_LEARNING.md`** (**`continualLearningMd`** = **`readContinualLearningPackTemplate`** + project name replace)
    - **`HEXCURSE/docs/MCP_COORDINATION.md`**
+   - **`HEXCURSE/docs/MCP_TOKEN_BUDGET.md`** (**`mcpTokenBudgetMd()`**)
+   - **`HEXCURSE/docs/MULTI_AGENT.md`** (**`multiAgentMd()`**)
+   - **`HEXCURSE/docs/ADR_LOG.md`** (**`adrLogStubMd()`**)
+   - **`HEXCURSE/docs/AGENT_HANDOFFS.md`** (**`agentHandoffsStubMd()`**)
    - **`.cursor/hooks/state/continual-learning-index.json`**
    - **`.cursor/hooks/state/continual-learning.json`**
    - **`.cursor/hooks/state/skill-promotion-queue.json`**
@@ -492,7 +514,7 @@ Uses **`ask`**, **`choose`**, **`askRequired`** ( **`readline`**; non-TTY uses *
 
 ## 25. MCP merge vs documentation-only servers
 
-**`buildMcpJson` → `mergeMcpJson`** writes these **nine** server entries: **`taskmaster-ai`**, **`context7`**, **`repomix`**, **`jcodemunch`**, **`serena`**, **`gitmcp`**, **`sequential-thinking`**, **`memory`**, **`github`**.
+**`buildMcpJson` → `mergeMcpJson`** merges all **17** entries from **`buildMcpServers`** (see **§6**): **`taskmaster-ai`**, **`context7`**, **`repomix`**, **`serena`**, **`gitmcp`**, **`gitmcp-adafruit-mpu6050`**, **`sequential-thinking`**, **`memory`**, **`github`**, **`jcodemunch`**, **`playwright`**, **`semgrep`**, **`sentry`**, **`firecrawl`**, **`linear`**, **`pampa`**, **`supabase`**.
 
 **`agents-memory-updater`** is **required in ritual text** (**`AGENTS.md`**, **`mcp-usage.mdc`**, **`CURSOR.md`**, **`cursorPackMd`**) but is **not** added by **`mergeMcpJson`**. Operators configure it as a **Cursor Task subagent** (or other local wiring) per **`docs/CONTINUAL_LEARNING.md`**.
 
@@ -530,7 +552,7 @@ Uses **`ask`**, **`choose`**, **`askRequired`** ( **`readline`**; non-TTY uses *
 
 ## 27. Pack `AGENTS.md` section outline (installed copy)
 
-The **`agentsMd()`** string includes, in order: **How this system runs**, **Your role**, **The prime directive**, **MCP tools — automatic behavior**, **Mandatory MCP utilization** (order 1–8 including **jcodemunch**), **Hard rule**, **Minimum expectations by task type**, **Forbidden behavior**, **Session-close requirement**, **Continual learning**, **NORTH STAR → Taskmaster**, **SESSION START** (steps 0–7 including **STEP 4b jcodemunch**), **DURING IMPLEMENTATION**, **SESSION CLOSE** (steps 1–10), **Token efficiency**, **Session log template** + checklist + example **S-001** block.
+The **`agentsMd()`** string mirrors root **`AGENTS.md`** (with **`HEXCURSE/`** path prefixes): **How this system runs** (17 servers / 10 rules), **Your role**, **The prime directive**, **MCP tools** (always-on / session-conditional / project-specific), **Mandatory MCP utilization** (order **1–17**), **Hard rule**, **Minimum expectations** (UI, Supabase, semgrep, firecrawl, sentry, Linear, etc.), **Forbidden behavior**, **Session-close requirement**, **Continual learning**, **NORTH STAR → Taskmaster**, **SESSION START** (STEP 0 bridge + steps **1–10** including **4a–4e**), **DURING IMPLEMENTATION**, **SESSION CLOSE** (15 steps), **Token efficiency** + **MCP_TOKEN_BUDGET** pointer, **Session log template**, **Learned Workspace Facts** subsections.
 
 ---
 
@@ -541,7 +563,7 @@ Use this as a checklist of **everything that commonly exists** in the HexCurse *
 | Area | Paths |
 |------|--------|
 | **Root** | **`package.json`**, **`AGENTS.md`**, **`DIRECTIVES.md`**, **`SESSION_LOG.md`**, **`NORTH_STAR.md`** (legacy bridge file), **`CURSOR.md`**, **`CURSOR_SYSTEM_USER_GUIDE.md`** (long human manual), **`.env.example`**, **`repomix-output.xml`** (local repomix output; gitignored) |
-| **`.cursor/`** | **`rules/*.mdc`** (**`base`**, **`mcp-usage`**, **`process-gates`**, **`governance`**, **`markdown`**), **`skills/README.md`**, **`skills/_TEMPLATE_SKILL.md`**, **`hooks/state/*`** (gitignored when present) |
+| **`.cursor/`** | **`rules/*.mdc`** (**`base`**, **`mcp-usage`**, **`process-gates`**, **`governance`**, **`security`**, **`adr`**, **`memory-management`**, **`debugging`**, **`multi-agent`**, **`linear-sync`**, **`markdown`**), **`skills/README.md`**, **`skills/_TEMPLATE_SKILL.md`**, **`hooks/state/*`** (gitignored when present) |
 | **`.github/`** | **`workflows/hexcurse-doctor.yml`** |
 | **`.serena/`** | **`project.yml`**, **`project.local.yml`** (often gitignored), **`memories/`** |
 | **`.taskmaster/`** | **`config.json`**, **`state.json`**, **`docs/prd.txt`**, **`tasks/tasks.json`**, **`templates/example_prd*.txt`** |
@@ -585,6 +607,17 @@ Committed baseline: **`project_name: "HexCurse"`**, **`languages: [typescript]`*
 | **Consumer (after install)** | Root **`AGENTS.md`** points at **`HEXCURSE/AGENTS.md`**; pack lives under **`HEXCURSE/`** as in **`PATHS.json`**. |
 
 **`docs/ONE_PROMPT.md`** at repo root (source) documents the one-shot flow for repos that use **`HEXCURSE/`** after install; it is **not** in the **`writeFileMaybeSkip`** list — the installer writes **`HEXCURSE/ONE_PROMPT.md`** via **`writeOnePromptFile`** from **`readBundledOnePromptTemplate`**.
+
+---
+
+## 33. Directive history
+
+| Directive | Summary | Version |
+|-----------|---------|---------|
+| D-HEXCURSE-EXPANSION-001 | Six new MCPs, six new rules, multi-agent, sync-rules, CI workflows | 1.5.0 |
+| D-HEXCURSE-CONSUMER-ROLLOUT-002 | Consumer rollout validation, six-phase test suite | 1.5.0 |
+| D-HEXCURSE-MCP-RECONCILE-003 | Canonical 17-server reconciliation; linear / pampa / semgrep fixes | 1.5.7 |
+| D-HEXCURSE-DOCS-AUDIT-004 | Full governance doc + generator alignment for 17-server / 10-rule world | 1.5.8 |
 
 ---
 
