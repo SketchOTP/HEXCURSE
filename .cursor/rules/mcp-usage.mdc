@@ -8,6 +8,8 @@ alwaysApply: true
 # Every rule below fires on its trigger condition without the human asking.
 # If you find yourself about to do something a rule covers — the rule wins.
 
+> **Token budget:** Each active MCP server adds roughly **500–1000** tokens of tool-description overhead per turn. See **`docs/MCP_TOKEN_BUDGET.md`** (pack: **`HEXCURSE/docs/MCP_TOKEN_BUDGET.md`**) for the full table and guidance on disabling session-conditional servers in **`~/.cursor/mcp.json`**.
+
 ## SOURCE OF TRUTH — workspace (disk)
 
 HexCurse is enforced on **files in the open Cursor workspace on disk**. Taskmaster, DIRECTIVES, SESSION_LOG, repomix, **jcodemunch**, and Serena operate on **local paths** only.
@@ -29,15 +31,31 @@ HexCurse sessions must make **full, appropriate** use of available MCP tools. Ag
 6. **Serena** — Use symbol-aware tools for code navigation and edits instead of broad whole-file reading when applicable.
 7. **context7** — Use for external library/API/framework verification before relying on assumptions.
 8. **github** (optional) — Only when the human explicitly wants a GitHub PR, issue, or remote branch query; **not** for creating local branches or discovering files. Prefer **local git** (terminal) for branch/commit/push.
+9. **gitmcp** — Niche / firmware / hardware SDK docs not covered by context7 (RULE 7).
+10. **playwright** — After UI changes for verification when the server is available.
+11. **semgrep** — After substantive code writes and before commit (**process-gates.mdc**); **security_check** on touched files.
+12. **sentry** — On runtime errors / triage when configured; fetch issue context before deep source reads.
+13. **firecrawl** — External research when context7 and local docs are insufficient.
+14. **linear** — When Linear is in use; sync issues with Taskmaster at session boundaries.
+15. **pampa** — Semantic search over **`.cursor/skills/`** when skills may apply (**SESSION START** 4e).
+16. **gitmcp-adafruit-mpu6050** — MPU6050 / **Adafruit_MPU6050** work before driver code (RULE 11).
+17. **supabase** — Schema, RLS, Auth, Edge Functions when this project uses Supabase (RULE 12).
 
 ### Hard rule
 If an MCP tool is **available** and **materially relevant** to the task, the agent **must** use it. Skipping a relevant MCP requires an **explicit reason** in the session report (see Session-close requirement).
 
 ### Minimum expectations by task type
 - **Architecture / planning:** memory, taskmaster, repomix, **jcodemunch** (index + outline / suggest_queries on unfamiliar trees), sequential-thinking
-- **Implementation:** memory, taskmaster, **jcodemunch** (search, context bundles, impact / references as needed), Serena, context7 when libraries/APIs are involved
+- **Implementation:** memory, taskmaster, **jcodemunch** (search, context bundles, impact / references as needed), Serena, context7 when libraries/APIs are involved; **semgrep** after substantive code edits
+- **UI / frontend:** **playwright** for verification when the server is available
+- **Backend / database (Supabase):** **supabase** MCP for schema and policies — not raw terminal SQL when MCP can answer
+- **Security / commits:** **semgrep** before commit; resolve HIGH/CRITICAL
+- **Research:** **firecrawl** + context7 — do not trust training data for current APIs when tools are green
+- **Bug triage:** **sentry** before deep source reads when applicable; hypothesis-first per **debugging.mdc**
+- **Hardware / MPU6050:** **gitmcp-adafruit-mpu6050** before driver code
+- **Tracked work (Linear):** **linear** sync at close when **LINEAR_API_KEY** is set
 - **Governance sync:** memory, taskmaster; **local git** for branch/worktree; **github** MCP only if remote PR/issue actions are in scope
-- **Research / integration questions:** context7 first for supported libraries/docs, then targeted external lookup if still unresolved
+- **Research / integration questions:** context7 first for supported libraries/docs, then **firecrawl** / **gitmcp** if still unresolved
 
 ### Forbidden behavior
 - Starting implementation without **get_tasks**
@@ -45,6 +63,10 @@ If an MCP tool is **available** and **materially relevant** to the task, the age
 - Reading large code files end-to-end when **jcodemunch** retrieval or Serena symbol lookup would suffice
 - Skipping **jcodemunch** for multi-file discovery, impact analysis, or ranked context when it is green and the workspace is (or can be) indexed
 - Guessing library behavior without checking context7 when the dependency/API matters
+- **Relying on training data for library APIs when context7 is available**
+- **Committing code with unresolved HIGH/CRITICAL semgrep findings**
+- **Writing database queries without checking schema via supabase MCP** when Supabase is in use and the server is available
+- **Closing a session with Linear issues out of sync with Taskmaster** when Linear is in use
 - **Letting memory override repo-local sources of truth** for the active workspace (Taskmaster, DIRECTIVES, ARCHITECTURE, and the live codebase win over stale memory)
 
 ### Session-close requirement
@@ -54,7 +76,17 @@ Each governed session must state (**in the final handoff and in SESSION_LOG.md**
 
 ## DEGRADED_MODE (required when MCP is missing or unavailable)
 
-If a Cursor MCP server is **not configured**, **red**, or a tool call **fails**, you must state **`DEGRADED_MODE: <which MCP> — <reason>`** before proceeding, and list **what you will not do** without it (e.g. no claimed task order without taskmaster-ai). Do **not** silently substitute manual guessing for a mandatory tool. See also **`process-gates.mdc`**. **Exception:** missing **github** MCP is **not** DEGRADED_MODE for normal implementation — local git and disk are enough; use DEGRADED_MODE for **github** only if the human required a remote PR/issue this session and the server is unavailable.
+If a Cursor MCP server is **not configured**, **red**, or a tool call **fails**, you must state **`DEGRADED_MODE: <which MCP> — <reason>`** before proceeding, and list **what you will not do** without it (e.g. no claimed task order without taskmaster-ai). Do **not** silently substitute manual guessing for a mandatory tool. See also **`process-gates.mdc`** and **`docs/MCP_COORDINATION.md`** (pack: **`HEXCURSE/docs/MCP_COORDINATION.md`**).
+
+**Essential — quality severely degraded without:** **taskmaster-ai**, **memory**, **Serena**, **context7**.
+
+**Important — degrade gracefully:** **sequential-thinking**, **repomix**, **gitmcp**, **jcodemunch**, **semgrep**.
+
+**Optional — note gaps explicitly:** **github** (remote), **playwright**, **sentry**, **firecrawl**, **linear**, **pampa**, **gitmcp-adafruit-mpu6050**, **supabase**.
+
+**In DEGRADED_MODE:** log unavailable servers in **SESSION_LOG.md**; do not commit changed source without **semgrep** unless **semgrep** is explicitly unavailable — then document the exception in **SESSION_LOG.md** and the handoff.
+
+**Exception:** missing **github** MCP is **not** DEGRADED_MODE for normal implementation — local git and disk are enough; use DEGRADED_MODE for **github** only if the human required a remote PR/issue this session and the server is unavailable.
 
 ## RULE 1 — taskmaster-ai: task graph immediately after session-start memory
 AUTOMATIC: Immediately after the session-start **memory** query (RULE 2), and before
@@ -201,3 +233,13 @@ AUTOMATIC **during** implementation — prefer jcodemunch over brute force whene
   **`invalidate_cache`** + re-index when the index is clearly stale after large refactors.
 RELATIONSHIP TO **Serena** (RULE 4): jcodemunch is for **AST-rich discovery, ranking, import/reference graphs, and token-budgeted retrieval** on the indexed tree; Serena remains mandatory for **workspace symbol edits** (`replace_symbol_body`, `insert_after_symbol`, etc.) and precise `find_symbol` / `find_referencing_symbols` when you are editing. When **both** are green, use jcodemunch **first** for broad or fuzzy discovery and impact; then Serena for surgical edits. Do **not** use **github** remote search as a substitute for local jcodemunch + disk.
 HARD RULE: If jcodemunch is **available** and the session touches **application/source code** (not markdown-only governance with zero code reads), you must **not** skip indexing + at least one retrieval pass that jcodemunch serves better than opening whole files — unless you state **DEGRADED_MODE: jcodemunch — reason** in the handoff.
+
+## RULE 11 — gitmcp-adafruit-mpu6050: hardware / sensor library lookups (Adafruit MPU6050)
+AUTOMATIC: When the task involves the **Adafruit MPU6050** sensor, I²C wiring, register maps, or the **Adafruit_MPU6050** Arduino / CircuitPython library —
+  query **gitmcp-adafruit-mpu6050** for current docs, examples, and API references on **gitmcp.io** before writing or refactoring driver code.
+  Do not rely on training data for hardware-specific register behavior or library call sequences.
+
+## RULE 12 — supabase: database and backend via Supabase MCP
+AUTOMATIC: When this project uses **Supabase** (Postgres, Auth, RLS, Edge Functions) —
+  use the **supabase** MCP for schema inspection, query execution, RLS policy verification, Edge Function management, and auth configuration.
+  Prefer MCP-driven checks over guessing from memory or ad hoc dashboard-only workflows when the server is available.
