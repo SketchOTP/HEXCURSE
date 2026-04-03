@@ -18,7 +18,7 @@ HexCurse now installs **17 servers**. Each active MCP server adds approximately 
 | gitmcp-adafruit-mpu6050 | Project-specific | Non-hardware sessions |
 | supabase | When using Supabase backend | Frontend-only / offline sessions |
 | playwright | When doing UI work | Backend-only sessions |
-| semgrep | When writing code | Read-only research sessions |
+| semgrep | When writing code | Read-only sessions (remote HTTP — lower overhead than stdio) |
 | sentry | When debugging errors | Greenfield sessions |
 | firecrawl | When researching | Air-gapped / offline sessions |
 | linear | When using Linear | Teams not on Linear |

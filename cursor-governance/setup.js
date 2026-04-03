@@ -1508,10 +1508,22 @@ function runDoctor(cwd) {
 
   if (fs.existsSync(mcpPath)) {
     migrateSentryMcpEnvInMcpJson(mcpPath);
+    migrateSemgrepMcpInMcpJson(mcpPath);
     ok.push('~/.cursor/mcp.json present');
     try {
       const mj = JSON.parse(fs.readFileSync(mcpPath, 'utf8'));
       const names = mj.mcpServers && typeof mj.mcpServers === 'object' ? Object.keys(mj.mcpServers) : [];
+      const mcpServers = mj.mcpServers && typeof mj.mcpServers === 'object' ? mj.mcpServers : {};
+      const semgrepEntry = mcpServers.semgrep;
+      if (semgrepEntry) {
+        if (!semgrepEntry.command && !semgrepEntry.url) {
+          warn.push('semgrep entry has neither command nor url');
+        } else if (semgrepEntry.command && String(semgrepEntry.command).includes('uvx')) {
+          warn.push(
+            'semgrep MCP is using deprecated uvx/stdio pattern — update to streamable-http: https://mcp.semgrep.ai/mcp'
+          );
+        }
+      }
       if (names.includes('github')) ok.push('mcp.json defines github server');
       else if (ciRelaxed) warn.push('mcp.json has no github server entry (non-blocking in CI)');
       else warn.push('mcp.json has no github server entry (optional — local git + push; add github MCP only for PR/issue automation)');
@@ -1815,7 +1827,7 @@ HexCurse sessions must make **full, appropriate** use of available MCP tools. Ag
 8. **github** (optional) — Only when the human explicitly wants a GitHub PR, issue, or remote branch query; **not** for creating local branches or discovering files. Prefer **local git** (terminal) for branch/commit/push.
 9. **gitmcp** — Niche / firmware / hardware SDK docs not covered by context7 (RULE 7).
 10. **playwright** — After UI changes for verification when the server is available.
-11. **semgrep** — After substantive code writes and before commit (**process-gates.mdc**); **security_check** on touched files.
+11. **semgrep** — After substantive code writes and before commit (**process-gates.mdc**); **security_check** on touched files. Configure **Streamable HTTP** **\`https://mcp.semgrep.ai/mcp\`** in **\`~/.cursor/mcp.json\`** (no local **\`SEMGREP_PATH\`** / **\`SEMGREP_APP_TOKEN\`**).
 12. **sentry** — On runtime errors / triage when configured; fetch issue context before deep source reads.
 13. **firecrawl** — External research when context7 and local docs are insufficient.
 14. **linear** — When Linear is in use; sync issues with Taskmaster at session boundaries.
@@ -2319,7 +2331,7 @@ Governance also uses **agents-memory-updater** (Task subagent / continual learni
 
 ### SESSION-CONDITIONAL — invoke when the work requires it
 10. **playwright** — UI, browser behavior, E2E verification.
-11. **semgrep** — Writing, modifying, or reviewing code; **security.mdc** gate before commit.
+11. **semgrep** — Writing, modifying, or reviewing code; **security.mdc** gate before commit (**Streamable HTTP** **\`https://mcp.semgrep.ai/mcp\`**).
 12. **sentry** — Debugging, error triage, incident response (**get_issue** before diving into source when applicable).
 13. **firecrawl** — Web research, documentation scraping, external data.
 14. **linear** — Creating, updating, or completing tracked work items; sync at session close when **LINEAR_API_KEY** is set.
@@ -2343,7 +2355,7 @@ HexCurse sessions must make **full, appropriate** use of available MCP tools. Do
 8. **github** (optional) — Only when the human asked for remote PR/issue/branch operations; **local git** for branch/commit/push otherwise.
 9. **gitmcp** — Niche / hardware / firmware docs not covered by context7.
 10. **playwright** — After UI changes for verification. **Do not** ship UI blind when the server is available.
-11. **semgrep** — After code writes and before commit (**process-gates.mdc**). **Do not** commit with unresolved HIGH/CRITICAL findings.
+11. **semgrep** — After code writes and before commit (**process-gates.mdc**). **Do not** commit with unresolved HIGH/CRITICAL findings. Use **Streamable HTTP** **\`https://mcp.semgrep.ai/mcp\`** in **\`~/.cursor/mcp.json\`**.
 12. **sentry** — On runtime errors before deep source spelunking when the server is configured.
 13. **firecrawl** — External docs / sites when context7 is insufficient. **Do not** invent URLs or API shapes.
 14. **linear** — When Linear is in use; align issues with Taskmaster at close.
@@ -2411,7 +2423,7 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 
 **STEP 4b — repomix:** Run **\`repomix --compress\`**. Use the output as your structural map; do not load many individual files for overview.
 
-**STEP 4c — Semgrep security baseline:** If **semgrep** MCP is available (or **\`SEMGREP_APP_TOKEN\`** set), run **\`security_check\`** on the last **5** git-modified files. Log findings under **\`## Security Notes\`** in **HEXCURSE/SESSION_LOG.md**. Do **not** proceed to implementation if **HIGH/CRITICAL** findings from a **previous** session remain unresolved.
+**STEP 4c — Semgrep security baseline:** If **semgrep** MCP is available (official **Streamable HTTP** at **\`https://mcp.semgrep.ai/mcp\`** — authenticate via Semgrep when prompted), run **\`security_check\`** on the last **5** git-modified files. Log findings under **\`## Security Notes\`** in **HEXCURSE/SESSION_LOG.md**. Do **not** proceed to implementation if **HIGH/CRITICAL** findings from a **previous** session remain unresolved.
 
 **STEP 4d — Linear sync (if \`LINEAR_API_KEY\` set):** Call **linear** **\`get_my_issues\`** filtered to **In Progress**. Cross-reference with Taskmaster; create missing tasks for untracked issues. Log discrepancies in **HEXCURSE/SESSION_LOG.md**.
 
@@ -2566,7 +2578,7 @@ HexCurse **closes the loop** from chat history into durable behavior: **memory M
 - **\`task-master parse-prd\`** may **prompt to overwrite** existing tasks; **non-interactive** runs can **block** waiting for input — use a TTY, pipe confirmation, or supported non-interactive flags.
 - **\`swarm-protocol-mcp\` on npm:** The **\`swarm-protocol-mcp\`** package is **not** published; coordination may use **\`cursor-governance/bin/swarm-protocol-mcp.js\`** (installs **phuryn/swarm-protocol** from GitHub), which requires **PostgreSQL** / **\`DATABASE_URL\`** — first MCP start can be slow (**npm install** + **tsc**). **Supabase** works as the database: put the **Connection string (URI)** in **\`~/.cursor/swarm-database.env\`** (preferred — keeps \`mcp.json\` free of passwords) or set **\`DATABASE_URL\`** as a **User** env var; **\`.env.example\`** has the full pattern.
 - **\`--doctor\` cwd:** Run **\`HEXCURSE_DOCTOR_CI=1 node cursor-governance/setup.js --doctor\`** from the **repository root**; running **\`npm run doctor\`** with cwd only **\`cursor-governance/\`** does not match the documented full-doctor working directory.
-- **Semgrep MCP on Windows:** Install **\`semgrep\`** (\`pip install semgrep\` / \`pip install --user semgrep\`). The MCP probes **\`%APPDATA%\\Python\\Scripts\\semgrep.exe\`** but **\`pip --user\`** often installs under **\`Python311\\Scripts\\\`** — set **\`SEMGREP_PATH\`** to the full **\`semgrep.exe\`** path in **\`~/.cursor/mcp.json\`** **\`semgrep.env\`** (see **\`.env.example\`**).
+- **Semgrep MCP:** Use the official **Streamable HTTP** server **\`https://mcp.semgrep.ai/mcp\`** in **\`~/.cursor/mcp.json\`** (no local **\`semgrep\`** binary or **\`SEMGREP_PATH\`** / **\`SEMGREP_APP_TOKEN\`** in MCP config — auth flows through Semgrep’s web UI when required).
 - **Pampa MCP on Windows:** The **\`pampa\`** package pulls native addons (e.g. **\`tree-sitter-php\`**) that run **\`node-gyp\`**; **VS 2019 Build Tools without ClangCL** often fails with **MSB8020**. Install **Visual Studio 2022 Build Tools** with **Desktop development with C++** (or otherwise satisfy **ClangCL**), then reinstall. **\`npx\`** first start is slow — Cursor may show **Aborted** / **Connection closed** if startup times out; **\`EPERM\`** on **\`npm-cache\\_npx\`** is usually file locking (close Cursor, clear that **\`_npx\`** folder, exclude it from real-time AV). If you do not need semantic skill search, disable the **pampa** MCP. For **node-gyp** to prefer VS 2022, use user env **\`GYP_MSVS_VERSION=2022\`** (preferred — avoids **npm** “Unknown user config **msvs_version**” warnings) or **\`msvs_version=2022\`** in **\`%USERPROFILE%\\.npmrc\`**. If **\`msvs_version=2022\`** / **\`GYP_MSVS_VERSION=2022\`** is set, **every** VS 2022 install **node-gyp** considers must include a **Windows 10 or 11 SDK** — logs like **missing any Windows SDK** for 2022 mean: open **Visual Studio Installer** → **Modify** → **Individual components** → enable a **Windows 11 SDK** (e.g. **22621**) or **Windows 10 SDK**; until then node-gyp will **not** fall back to VS 2019 even if 2019 has a SDK. **\`setup.exe modify\`** exit **87** often means **\`--wait\`** was passed (invalid on **\`modify\`** in VS Installer 4.4+). Exit **5007** with **\`--passive\`**: the installer must start **already elevated** (open **PowerShell → Run as administrator**). If logs show **\`installPath: C:\\Program\`** or **\`Parsed ... --installPath C:\\Program\`**, **\`Start-Process -ArgumentList\`** was given an **array**: PowerShell **joins** array elements with spaces **without** quoting, so the CRT splits **\`--installPath=C:\\Program Files\\...\`** at the space. Use **one** command-line **string** with **\`--installPath="C:\\Program Files\\..."\`**, or **\`& setup.exe\`** with separate args — **\`install-vs2022-cpp-build-tools.ps1\`** uses a single quoted **\`ArgumentList\`** string. **Node.js 24** + **\`tree-sitter-php\`**: if **\`node-gyp rebuild\`** fails with **\`C++20 or later required\`** / missing **\`std::optional\`**, set session env **\`CL\`**, **\`CXXFLAGS\`**, and **\`CFLAGS\`** to **\`/std:c++20\`** before **\`npm install\`** (nested **node-gyp** may not apply **LanguageStandard** to **ClangCL**/MSBuild). **Pampa MCP red / “Server not yet created”:** if **\`pampa-mcp\`** exits immediately with **\`use_context_pack expected a Zod schema\`**, **\`@modelcontextprotocol/sdk\`** no longer accepts **\`z.object(...)\`** as the second arg to **\`server.tool\`** — **\`useContextPack.js\`** must register a **raw shape** \`{ name: z.string(), ... }\` (same as other Pampa tools); **\`npm update -g pampa\`** can overwrite a local patch. Prefer launching with **\`node\`** + absolute **\`.../pampa/src/mcp-server.js\`** and **\`cwd: "\${workspaceFolder}"\`** in **\`mcp.json\`** so Cursor does not time out on **\`npx -y\`**.
 - **Sentry MCP:** **\`@sentry/mcp-server\`** only reads **\`SENTRY_ACCESS_TOKEN\`**; **\`SENTRY_AUTH_TOKEN\`** in **\`~/.cursor/mcp.json\`** is ignored and triggers “No access token.” Prefer **\`mcp.json\`** or user env over project **\`.env\`** unless Cursor injects env into MCP children.
 
@@ -2972,7 +2984,7 @@ Execute the **SESSION START** sequence from **HEXCURSE/AGENTS.md** **now**, in o
 
 **STEP 4b — repomix:** Run **\`repomix --compress\`**. Use the output as your structural map; do not load many individual files for overview.
 
-**STEP 4c — Semgrep security baseline:** If **semgrep** MCP is available (or **\`SEMGREP_APP_TOKEN\`** set), run **\`security_check\`** on the last **5** git-modified files. Log findings under **\`## Security Notes\`** in **HEXCURSE/SESSION_LOG.md**. Do **not** proceed to implementation if **HIGH/CRITICAL** findings from a **previous** session remain unresolved.
+**STEP 4c — Semgrep security baseline:** If **semgrep** MCP is available (official **Streamable HTTP** at **\`https://mcp.semgrep.ai/mcp\`** — authenticate via Semgrep when prompted), run **\`security_check\`** on the last **5** git-modified files. Log findings under **\`## Security Notes\`** in **HEXCURSE/SESSION_LOG.md**. Do **not** proceed to implementation if **HIGH/CRITICAL** findings from a **previous** session remain unresolved.
 
 **STEP 4d — Linear sync (if \`LINEAR_API_KEY\` set):** Call **linear** **\`get_my_issues\`** filtered to **In Progress**. Cross-reference with Taskmaster; create missing tasks for untracked issues. Log discrepancies in **HEXCURSE/SESSION_LOG.md**.
 
@@ -3275,12 +3287,8 @@ function buildMcpServers(taskmasterEnv, githubToken) {
       args: ['-y', '@playwright/mcp'],
     },
     semgrep: {
-      command: 'uvx',
-      args: ['semgrep-mcp'],
-      env: {
-        SEMGREP_PATH: process.env.SEMGREP_PATH || '',
-        SEMGREP_APP_TOKEN: process.env.SEMGREP_APP_TOKEN || '',
-      },
+      type: 'streamable-http',
+      url: 'https://mcp.semgrep.ai/mcp',
     },
     sentry: {
       command: 'npx',
@@ -3355,6 +3363,7 @@ function mergeMcpJson(taskmasterEnv, githubToken) {
     }
   }
   migrateSentryMcpEnvInMcpJson(mcpPath);
+  migrateSemgrepMcpInMcpJson(mcpPath);
   return { mcpPath, added, kept };
 }
 
@@ -3382,6 +3391,34 @@ function migrateSentryMcpEnvInMcpJson(mcpPath) {
       'Migrated sentry MCP: env key SENTRY_AUTH_TOKEN → SENTRY_ACCESS_TOKEN (required by @sentry/mcp-server)'
     );
   }
+}
+
+/**
+ * Replaces deprecated uvx/stdio semgrep-mcp with official Streamable HTTP endpoint.
+ */
+function migrateSemgrepMcpInMcpJson(mcpPath) {
+  if (!fs.existsSync(mcpPath)) return;
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(mcpPath, 'utf8'));
+  } catch (e) {
+    return;
+  }
+  const semgrep = data.mcpServers && data.mcpServers.semgrep;
+  if (!semgrep || typeof semgrep !== 'object') return;
+  const args = Array.isArray(semgrep.args) ? semgrep.args : [];
+  const usesDeprecatedUvx =
+    semgrep.command === 'uvx' || args.some((a) => String(a).includes('semgrep-mcp'));
+  if (!usesDeprecatedUvx) return;
+  data.mcpServers.semgrep = {
+    type: 'streamable-http',
+    url: 'https://mcp.semgrep.ai/mcp',
+  };
+  fs.writeFileSync(mcpPath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+  console.log(
+    chalk.green('✓'),
+    'Migrated semgrep MCP to streamable-http (https://mcp.semgrep.ai/mcp)'
+  );
 }
 
 /**
