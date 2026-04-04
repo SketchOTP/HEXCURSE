@@ -2,6 +2,38 @@
 
 All notable changes to **HEXCURSE** (npm package **`cursor-governance`**) are documented here.
 
+## [2.0.0] — 2025-04-04
+
+### Breaking Changes
+
+- Removed: SESSION_LOG.md, ROLLING_CONTEXT.md, continual-learning state files from install output
+- Removed CLI modes: `--learning-rollup`, `--run-hexcurse`, `--run-hexcurse-raw`, `--preflight-cursor-agent`
+- Removed MCP servers from default install: repomix, serena, gitmcp, jcodemunch, sequential-thinking, firecrawl, sentry, linear, pampa
+- Removed default rules: governance.mdc, debugging.mdc, memory-management.mdc, linear-sync.mdc, multi-agent.mdc (now --multi-agent only)
+- PATHS.json schema bumped to `hexcurse-paths-v2` — not backward compatible with v1 installs (run `--migrate-v2` to upgrade)
+- Install produces 14 files (was 30+)
+
+### Added
+
+- Interactive optional server picker — 5 yes/no questions (Playwright, Semgrep, Supabase, LightRAG, custom)
+- LightRAG MCP integration (`installLightRAG()`) — replaces manual session log machinery
+- `--migrate-v2` mode — backs up v1 install, rewrites to v2 schema, preserves NORTH_STAR and sacred constraints
+- Lean 5-rule governance set (all under 100 lines each)
+- Lean AGENTS.md template (under 150 lines, zero HexCurse-specific content)
+- Lean SESSION_START.md (one screen, under 40 lines)
+- Generic consumer templates — zero source-repo artifacts installed
+
+### Changed
+
+- Core MCP servers reduced to 4: github, context7, memory, taskmaster-ai
+- Install sequence reduced to 12 ordered steps, 14 files minimum
+- `--doctor` reduced to 11 required + 4 optional checks (was 30+)
+- PATHS.json v2: 14 keys (was 30+), `packRoot` removed
+- `installGlobals` no longer installs repomix globally
+- `promptUser()` reduced to 7 questions (was 24+), no provider-selection prompts
+- ONE_PROMPT.md moved into main write sequence (always written)
+- ADR_LOG.md written to HEXCURSE/ADR_LOG.md (not HEXCURSE/docs/)
+
 ## [2.0.2] — 2026-04-03
 
 ### Added
