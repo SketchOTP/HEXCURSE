@@ -1,7 +1,7 @@
 {
   "name": "hexcurse",
   "private": true,
-  "description": "HexCurse / cursor-governance source — scripts delegate to cursor-governance/",
+  "description": "HEXCURSE source — scripts delegate to cursor-governance/ installer package",
   "scripts": {
     "test": "npm --prefix cursor-governance run test",
     "test:hexcurse": "npm --prefix cursor-governance run test:hexcurse",

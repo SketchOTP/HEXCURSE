@@ -1,11 +1,11 @@
-# PROJECT OVERVIEW — HexCurse (single source of truth, code-derived)
+# PROJECT OVERVIEW — HEXCURSE (single source of truth, code-derived)
 
-This document is the **onboarding and handoff reference** for anyone taking over the HexCurse / **cursor-governance** codebase. Every technical claim below is tied to **files in this repository** (primarily **`cursor-governance/setup.js`**). It does **not** invent product features: the **application runtime** is **TBD** until humans confirm (see **`docs/ARCHITECTURE.md`**).
+This document is the **onboarding and handoff reference** for anyone taking over **HEXCURSE** (installer code under **`cursor-governance/`**). Every technical claim below is tied to **files in this repository** (primarily **`cursor-governance/setup.js`**). It does **not** invent product features: the **application runtime** is **TBD** until humans confirm (see **`docs/ARCHITECTURE.md`**).
 
 | Item | Value |
 |------|--------|
-| **Installer npm package** | `cursor-governance` |
-| **Installer version** | `1.5.8` (`cursor-governance/package.json`) |
+| **Product name** | HEXCURSE (CLI **`hexcurse`**; npm package **`cursor-governance`**) |
+| **Installer version** | from `cursor-governance/package.json` |
 | **Root npm package** | `hexcurse` (`package.json`, `private: true`) |
 | **Authoritative implementation** | `cursor-governance/setup.js` (~3.6k lines) |
 
@@ -17,8 +17,8 @@ This document is the **onboarding and handoff reference** for anyone taking over
 
 ### 1.1 Two different “products” in one tree
 
-1. **HexCurse governance system** — Markdown rules, Cursor **`.mdc`** rules, Taskmaster, MCP coordination docs, session rituals. **Lives in this repo** at root + **`docs/`** + **`.cursor/rules/`** (source layout).
-2. **cursor-governance installer** — Node CLI that **writes** the governance pack into **another** repo’s working directory (or a fresh folder). **Implementation:** **`cursor-governance/setup.js`**.
+1. **HEXCURSE governance system** — Markdown rules, Cursor **`.mdc`** rules, Taskmaster, MCP coordination docs, session rituals. **Lives in this repo** at root + **`docs/`** + **`.cursor/rules/`** (source layout).
+2. **HEXCURSE installer** — Node CLI (npm **`cursor-governance`**, command **`hexcurse`**) that **writes** the governance pack into **another** repo’s working directory (or a fresh folder). **Implementation:** **`cursor-governance/setup.js`**.
 
 ### 1.2 Source repo fingerprint (this repository)
 
@@ -40,7 +40,7 @@ If someone runs the **full interactive install** from this repo root, **`writeGo
 
 ### 2.2 Consumer layout (typical install target)
 
-- Single folder **`HEXCURSE/`** holds the pack: **`AGENTS.md`**, **`DIRECTIVES.md`**, **`PATHS.json`**, **`NORTH_STAR.md`**, **`SESSION_START_PROMPT.md`**, **`SESSION_LOG.md`**, **`CURSOR.md`**, **`ONE_PROMPT.md`**, **`HEADLESS_KICKOFF.txt`**, **`README.md`**, **`docs/*.md`**, **`rules/*.mdc`** (canonical copy).
+- Single folder **`HEXCURSE/`** holds the pack: **`AGENTS.md`**, **`DIRECTIVES.md`**, **`PATHS.json`**, **`NORTH_STAR.md`**, **`SESSION_START.md`**, **`SESSION_LOG.md`**, **`CURSOR.md`**, **`ONE_PROMPT.md`**, **`HEADLESS_KICKOFF.txt`**, **`README.md`**, **`docs/*.md`**, **`rules/*.mdc`** (canonical copy).
 - **`.cursor/rules/`** receives the **same** `.mdc` content as **`HEXCURSE/rules/`** when those files are first written.
 - Repo root **`AGENTS.md`** is a **pointer** to **`HEXCURSE/AGENTS.md`** (from **`rootAgentsPointerMd()`**).
 
@@ -71,7 +71,7 @@ Written to **`HEXCURSE/PATHS.json`** on install (skip if exists). **`schema`: `h
 | `directives` | `HEXCURSE/DIRECTIVES.md` |
 | `architecture` | `HEXCURSE/docs/ARCHITECTURE.md` |
 | `archPrompt` | `HEXCURSE/docs/ARCH_PROMPT.md` |
-| `sessionStartPrompt` | `HEXCURSE/SESSION_START_PROMPT.md` |
+| `sessionStart` | `HEXCURSE/SESSION_START.md` |
 | `sessionLog` | `HEXCURSE/SESSION_LOG.md` |
 | `pathsManifest` | `HEXCURSE/PATHS.json` |
 | `packReadme` | `HEXCURSE/README.md` |
@@ -209,7 +209,7 @@ Installer **appends** these lines if missing (exact match per line):
 
 - **`writeInstallerPathFile`** — **`.cursor/hexcurse-installer.path`** contains absolute path to **`setup.js`**.
 - **`writeOnePromptFile`**, **`writeHeadlessKickoffFile`** — overwrite **`HEXCURSE/ONE_PROMPT.md`** and **`HEXCURSE/HEADLESS_KICKOFF.txt`**.
-- **`tryGitCommit`** — **`git init`** if needed, **`git add .`**, **`git commit -m "chore: cursor-governance scaffold"`** (failure non-fatal).
+- **`tryGitCommit`** — **`git init`** if needed, **`git add .`**, **`git commit -m "chore: HEXCURSE scaffold"`** (failure non-fatal).
 - **`printSummary`**.
 
 ---
@@ -410,7 +410,7 @@ Documents **`OPENAI_API_KEY`**, **`OPENAI_BASE_URL`** for LM Studio, optional **
 | **`PROJECT_OVERVIEW.md`** | This file |
 | **`QUICK_COMMAND_REFERENCE.md`** | Quick command reference |
 | **`ROLLING_CONTEXT.md`** | Rolling context — HexCurse |
-| **`SESSION_START_PROMPT.md`** | SESSION START PROMPT |
+| **`SESSION_START.md`** | Session-start paste (one screen) |
 
 ---
 
@@ -462,7 +462,7 @@ After **`mergeMcpJson`**, **`main()`** performs the following in order:
    - **`HEXCURSE/SESSION_LOG.md`**
    - **`.taskmaster/docs/prd.txt`** (**`prdTxt`** — may include existing-repo lead note)
    - **`.serena/memories/.gitkeep`**
-   - **`HEXCURSE/SESSION_START_PROMPT.md`**
+   - **`HEXCURSE/SESSION_START.md`**
    - **`AGENTS.md`** at repo root (**`rootAgentsPointerMd`**)
    - **`HEXCURSE/NORTH_STAR.md`** (draft from **`northStarDraftMd`** or **`readBundledNorthStarTemplate`**)
    - **`HEXCURSE/CURSOR.md`**
@@ -578,7 +578,7 @@ Use this as a checklist of **everything that commonly exists** in the HexCurse *
 | File | Role |
 |------|------|
 | **`docs/PART0_MCP_TEMPLATE.json`** | Example **`~/.cursor/mcp.json`** fragment for Taskmaster + friends; may differ from live **`buildMcpServers`** (e.g. older Serena **`--project-root`** — **HexCurse `AGENTS.md` / installer use `--project`**). |
-| **`CURSOR_SYSTEM_USER_GUIDE.md`** | Extended end-user manual; complements **`AGENTS.md`** / **`SESSION_START_PROMPT.md`**. |
+| **`CURSOR_SYSTEM_USER_GUIDE.md`** | Extended end-user manual; complements **`AGENTS.md`** / **`SESSION_START.md`**. |
 | **Root `NORTH_STAR.md`** | Legacy location; **`resolveNorthStarPathForRead`** prefers **`HEXCURSE/NORTH_STAR.md`** when present. |
 | **`cursor-governance/test-input.js`** | **`readline`** smoke test (**`npm run smoke:readline`** in **`cursor-governance`**). |
 
@@ -621,4 +621,4 @@ Committed baseline: **`project_name: "HexCurse"`**, **`languages: [typescript]`*
 
 ---
 
-*End of PROJECT OVERVIEW. For line-level behavior, read **`cursor-governance/setup.js`**; for agent session ritual, read **`AGENTS.md`** and **`docs/SESSION_START_PROMPT.md`**.*
+*End of PROJECT OVERVIEW. For line-level behavior, read **`cursor-governance/setup.js`**; for agent session ritual, read **`AGENTS.md`** and **`docs/SESSION_START.md`**.*

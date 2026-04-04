@@ -45,7 +45,7 @@ Use **absolute paths** from the local filesystem as index keys.
 
 1. **During work:** Write durable facts to **memory MCP** as you learn them (**mcp-usage.mdc RULE 2**), tagged by bucket.
 2. **Session close:** **mcp-usage.mdc RULE 9** and **AGENTS.md** STEP 10 — run **agents-memory-updater** when triggers apply (governance touch, **transcript delta**, human request, debounce rules in **`continual-learning.json`**).
-3. **Debounced skip:** If **transcript delta** qualifies but **`lastMemoryUpdaterRunDateUtc`** blocks a run for that UTC day, set **`pendingLearning`: true** in **`continual-learning.json`** so the next session can prioritize RULE 9 early (**`docs/SESSION_START_PROMPT.md`**). Clear **`pendingLearning`** after a successful updater pass.
+3. **Debounced skip:** If **transcript delta** qualifies but **`lastMemoryUpdaterRunDateUtc`** blocks a run for that UTC day, set **`pendingLearning`: true** in **`continual-learning.json`** so the next session can prioritize RULE 9 early (**`docs/SESSION_START.md`**). Clear **`pendingLearning`** after a successful updater pass.
 4. **Incremental index** limits work to new or **mtime-updated** parent transcripts only.
 
 ## Installer

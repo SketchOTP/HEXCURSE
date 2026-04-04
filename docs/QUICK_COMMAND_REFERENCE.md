@@ -1,6 +1,6 @@
 # Quick command reference — single-line prompts
 
-**This HexCurse source repo:** Session start lives in **`docs/SESSION_START_PROMPT.md`**. **Full MCP stack map:** **`docs/MCP_COORDINATION.md`**. For stronger agent compliance, duplicate **`.cursor/rules/process-gates.mdc`** into Cursor **User / Project** rules and announce **`DEGRADED_MODE`** when an MCP is unavailable (see **`CURSOR.md`**).
+**This HexCurse source repo:** Session start lives in **`docs/SESSION_START.md`**. **Full MCP stack map:** **`docs/MCP_COORDINATION.md`**. For stronger agent compliance, duplicate **`.cursor/rules/process-gates.mdc`** into Cursor **User / Project** rules and announce **`DEGRADED_MODE`** when an MCP is unavailable (see **`CURSOR.md`**).
 
 ## Task management
 

@@ -1,33 +1,16 @@
 ---
-description: Automatically capture Architecture Decision Records (ADRs) whenever a significant architectural choice is made during a session.
+description: Record significant architecture decisions
 alwaysApply: false
-globs: "HEXCURSE/docs/ARCHITECTURE.md, **/ARCHITECTURE.md, **/adr/**"
+globs: "**/ARCHITECTURE.md, **/adr/**, HEXCURSE/docs/ARCHITECTURE.md"
 ---
 
-# RULE: Architecture Decision Records (ADR)
+# Architecture Decision Records
 
-## What triggers an ADR
-Any decision that involves:
-- Choosing between two or more approaches for a non-trivial feature
-- Changing a data model, API contract, or module boundary
-- Adding or removing a dependency
-- Choosing a new MCP server, tool, or external service
-- Overriding a constraint in NORTH_STAR.md or DIRECTIVES.md
+## Triggers
+- Non-trivial design fork, data/API contract change, new dependency or external service, MCP/tool choice, or overriding NORTH_STAR / DIRECTIVES constraints.
 
-## Required Format
-When an ADR-triggering decision is made, append to `HEXCURSE/docs/ADR_LOG.md` (create if absent):
+## Format
+Append to **HEXCURSE/docs/ADR_LOG.md** or **docs/ADR_LOG.md** using heading **### ADR-{N}: Title**, then lines **Date**, **Status**, **Context**, **Decision**, **Consequences**, **Alternatives**, and a horizontal rule.
 
-```
-### ADR-{SEQUENCE}: {Short Title}
-**Date:** {ISO date}
-**Status:** Accepted
-**Context:** {1–3 sentences: what problem necessitated this decision}
-**Decision:** {What was chosen and why}
-**Consequences:** {What becomes easier, what becomes harder, any risks}
-**Alternatives considered:** {Brief list of what was rejected and why}
----
-```
-
-## Forbidden
-- Making a significant architectural change without logging an ADR.
-- Deleting or modifying past ADR entries (they are append-only).
+## Rules
+- ADRs are append-only; do not delete prior entries.

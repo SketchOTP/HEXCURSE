@@ -7,7 +7,7 @@ Use the right Cursor mode for the job so rules and expectations stay aligned.
 - **Use for:** Writing code, running tests, editing files, executing an approved directive.
 - **Load:** `alwaysApply` rules + **AGENTS.md** session start (memory → Taskmaster → DIRECTIVES → repomix → **jcodemunch** index/outline → sequential-thinking → human confirm → branch).
 - **MCP map:** **`docs/MCP_COORDINATION.md`** (pack: **`HEXCURSE/docs/MCP_COORDINATION.md`**) — how every tool lines up with **`mcp-usage.mdc`**.
-- **Human primes:** Paste **`docs/SESSION_START_PROMPT.md`** (or `@` the paths it lists). **Install-pack repos** use **`HEXCURSE/SESSION_START_PROMPT.md`** (see **`HEXCURSE/PATHS.json`**).
+- **Human primes:** Paste **`docs/SESSION_START.md`** (or `@` the paths it lists). **Install-pack repos** use **`HEXCURSE/SESSION_START.md`** (see **`HEXCURSE/PATHS.json`** → **`paths.sessionStart`**).
 
 ## Architect / plan (external advisor — not the Cursor repo)
 
@@ -29,7 +29,7 @@ Use the right Cursor mode for the job so rules and expectations stay aligned.
 
 | Goal              | Mode      | Primary doc                         |
 |-------------------|-----------|-------------------------------------|
-| Ship a directive  | Agent     | AGENTS.md + docs/SESSION_START_PROMPT (pack: HEXCURSE/*)    |
+| Ship a directive  | Agent     | AGENTS.md + docs/SESSION_START.md (pack: HEXCURSE/*)    |
 | Ship (headless)   | Agent `agent -p` | HEXCURSE/ONE_PROMPT.md + HEADLESS_KICKOFF.txt |
 | Design / roadmap  | Architect (external) | ARCH_PROMPT.md (+ pasted repo excerpts) |
 | Learn / explore   | Ask       | (no session-start required)         |

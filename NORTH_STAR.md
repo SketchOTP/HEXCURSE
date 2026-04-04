@@ -1,112 +1,96 @@
-# NORTH STAR — HexCurse
+# NORTH STAR — HexCurse v2
 
 ## What we are building
 
-HexCurse is an npm installer package that stamps a self-evolving AI governance
-layer into any Cursor-based repository. It wires up MCP servers, session rituals,
-structured memory, and continual learning so that every AI coding session is more
-accurate than the last — with less token waste, less repetition, and less human
-correction over time. The installer runs once; the system improves forever.
+HexCurse is a single-command npm installer that wires a Cursor-based repository
+for AI-governed development in under 60 seconds. It installs exactly the MCP
+servers a project needs, writes lean governance rules that Cursor actually
+enforces, and optionally connects a LightRAG knowledge graph that makes the
+AI agent genuinely smarter about the specific codebase over time.
+
+The install experience is: run one command, answer five yes/no questions, open
+Cursor. Everything is configured. The agent knows what tools to use, when to
+use them, and learns from every session without the developer managing anything
+manually.
 
 ## Who we are building it for
 
-Solo developers who vibe-code with AI inside Cursor. People who want the AI to
-actually remember what it learned last session, follow the project's rules without
-being reminded, use the right tools automatically, and get measurably better at
-working in their specific repo over time — without the developer having to manage
-any of that manually.
+Solo developers who vibe-code with AI in Cursor and want the agent to actually
+get better at their specific project over time — not just be a smart autocomplete
+that starts cold every session. They do not want to manage MCP JSON configs,
+write governance Markdown, or maintain a session ritual. They want to install
+once and have it work.
+
+## What the product is NOT
+
+- Not a SaaS, not a dashboard, not a web UI
+- Not a team tool — solo developer first
+- Not IDE-agnostic — Cursor only, deeply integrated
+- Not a model training or fine-tuning tool
+- Not a replacement for Cursor's built-in features — augments them
+- Not a complex governance framework that the developer has to learn
 
 ## Success in 90 days
 
-A solo developer installs HexCurse into a new repo in under five minutes and
-immediately has 17 MCP servers coordinated, 10 governance rules active, and a
-structured session ritual running. After 10 sessions in that repo, the system
-has accumulated skills, logged decisions, and the agent is visibly more accurate
-and token-efficient than session one — because it is drawing on its own memory
-and skill library rather than starting cold every time. The installer itself
-continues to improve: `--sync-rules` pulls governance improvements automatically,
-and `--refresh-rules` keeps the active rules current without a reinstall.
-The loop is: install once, govern always, learn forever.
+A developer installs HexCurse into a new repo in under 60 seconds. They answer
+five questions. They open Cursor. The agent immediately has access to live docs,
+cross-session memory, their task graph, and code search — all without the
+developer touching a config file. After ten sessions in that repo the agent
+demonstrably avoids mistakes it made in session one because the memory MCP
+retained what was learned. The skill library has grown organically. Token usage
+per session is lower than session one because the agent retrieves targeted context
+instead of reading everything from scratch. The developer has never once edited
+mcp.json, written a SESSION_LOG entry, or followed a 15-step ritual.
 
 ## Technology stack
 
-- **Runtime:** Node.js — the installer is a CLI that runs entirely from the
-  terminal inside Cursor's integrated shell
-- **IDE:** Cursor — exclusively. All governance, all session rituals, all MCP
-  coordination runs through Cursor's agent mode and MCP layer
-- **MCP servers:** 17 servers configured at install time, coordinated by
-  governance rules, active inside every Cursor session
-- **LLM:** Whatever the user has configured — LM Studio locally, Anthropic API,
-  OpenAI, or any OpenAI-compatible endpoint. HexCurse is LLM-agnostic
-- **Memory:** MCP memory server (local) + `.cursor/skills/` flat files +
-  PAMPA semantic indexing
-- **Distribution:** npm package (`cursor-governance`) — install globally,
-  run once per repo
-- **Storage:** File-based only — no database, no backend, no cloud dependency
-  for core functionality
+- **Runtime:** Node.js 20+ — CLI only, no web server, no daemon
+- **Distribution:** npm (`cursor-governance`) — global install, one command per repo
+- **IDE:** Cursor exclusively — all governance runs through Cursor agent mode and MCP
+- **MCP servers:** 4 core (always) + up to 5 optional (user picks at install)
+- **Memory layer:** MCP memory server (default) or LightRAG (optional, deeper)
+- **LLM:** Agnostic — LM Studio, Anthropic, OpenAI, any OpenAI-compatible endpoint
+- **Storage:** File-based only for governance artifacts; LightRAG uses local vector store
+- **Language:** JavaScript (Node.js) — no TypeScript compilation step required
 
 ## Sacred Constraints
 
-- Must run entirely inside Cursor using Cursor's native agent mode and MCP layer —
-  no external orchestration tools, no separate terminals required for governance
-- No cloud dependency for core functionality — the governance system must work
-  fully with a local LLM (LM Studio) and no internet access except for MCP
-  servers the user explicitly enables
-- The system must get measurably better over time in each repo it is installed in —
-  if it is not learning and accumulating skills, it is broken
-- Token efficiency is a first-class constraint — every governance addition must
+- Install must complete in under 60 seconds on a blank repo
+- Zero mandatory configuration after install — agent must work immediately
+- Must run entirely within Cursor using native agent mode and MCP layer
+- No cloud dependency for core functionality — works fully offline with local LLM
+- Token efficiency is a first-class constraint — every installed component must
   justify its token cost or it does not ship
-- One install, permanent governance — the installer runs once and the system
-  self-maintains via `--sync-rules`, `--refresh-rules`, and `--learning-rollup`
-- The developer must never be required to manually manage MCP configuration,
-  rule files, or session state — HexCurse owns all of that
+- The developer must never be required to manually edit mcp.json, write session
+  logs, or follow a prescribed ritual — HexCurse owns all of that
+- Generic by default — nothing installed into a consumer repo may contain
+  HexCurse-specific content, SketchOTP references, or source-repo artifacts
+- One install, self-maintaining — `--sync-rules` and `--doctor` keep the
+  install current without reinstalling
 
-## Out of scope for v1.x
+## Out of scope for v2
 
-- Non-Cursor IDEs (VS Code, Windsurf, JetBrains, etc.)
-- SaaS backend or cloud-hosted governance
-- Multi-user or team features — this is a solo developer tool
-- GUI or dashboard — CLI and Cursor only
-- Custom MCP server development — HexCurse coordinates existing servers,
-  it does not build new ones
-- Fine-tuning or training models — HexCurse improves agent behavior through
-  governance and memory, not model modification
+- Non-Cursor IDEs
+- Team or multi-user features
+- GUI, dashboard, or web interface
+- Custom MCP server development
+- Model fine-tuning or training
+- Mandatory cloud services
+- More than 9 total MCP servers (4 core + 5 optional maximum)
+- Session ritual documents longer than one screen
+- Any governance document the developer is expected to read regularly
 
-## Definition of Done — first release
+## Definition of Done — v2.0.0
 
-- [ ] `npm install -g cursor-governance` works on a clean machine
-- [ ] `cursor-governance` run in any repo installs all 17 MCP servers,
-      10 governance rules, and full session ritual docs in under 5 minutes
-- [ ] An agent following the SESSION START ritual invokes the right MCP tools
-      automatically without user prompting
-- [ ] After 5 sessions, `.cursor/skills/` contains at least one promoted skill
-      from the continual learning system
-- [ ] `--learning-rollup` produces a meaningful ROLLING_CONTEXT.md that an
-      agent in session 10 can use to avoid repeating mistakes from session 1
-- [ ] `--sync-rules` pulls updated governance rules from the published repo
-      without breaking any Sacred Constraints
-- [ ] Token usage per session is measurably lower in session 10 than session 1
-      in the same repo (fewer redundant tool calls, better context targeting)
-- [ ] `--doctor` catches any governance drift and tells the developer exactly
-      what to fix
-
-## Current state
-
-The installer (v1.5.9) works correctly. 17 MCP servers are wired and confirmed
-green. 10 governance rules are installed. The session ritual docs are accurate
-and fully updated. The continual learning infrastructure (SESSION_LOG,
-ROLLING_CONTEXT, skill promotion queue, PAMPA indexing) exists and is installed.
-
-What does not yet exist: proof that the learning loop actually works across
-real sessions. The skills directory is empty. The rolling context has no real
-entries. The PAMPA index has nothing to search. The system is correctly wired
-but has not yet been run long enough in a real repo to demonstrate the
-self-improving loop that is the entire point.
-
-The next phase is running real sessions, generating real skills, and measuring
-whether token efficiency and accuracy actually improve over time.
-
----
-*Last updated: 2026-04-03*  
-*Status: Human-approved — task graph rebuilt from prd.txt (agent-curated; `parse-prd` skipped when LLM endpoint unavailable)*  
-*Task graph: `.taskmaster/tasks/tasks.json` and `docs/TASK_GRAPH_SNAPSHOT.md`*
+- [ ] `npm install -g cursor-governance && cursor-governance` completes in under 60s
+- [ ] Five yes/no questions determine exactly which optional servers are installed
+- [ ] Agent opens in Cursor with working MCP tools — zero additional config required
+- [ ] Memory MCP retains knowledge between sessions without developer intervention
+- [ ] `--parse-prd-via-agent` generates a real task graph without any API key
+- [ ] `--doctor` catches configuration drift and tells the developer exactly what to fix
+- [ ] `--sync-rules` pulls updated rules from published repo
+- [ ] LightRAG option available for developers who want deeper codebase memory
+- [ ] Zero HexCurse-specific content in any installed consumer artifact
+- [ ] All installed `.mdc` rules are under 100 lines each
+- [ ] Total token overhead from all installed MCP server tool descriptions
+  is under 20,000 tokens for the core 4-server install

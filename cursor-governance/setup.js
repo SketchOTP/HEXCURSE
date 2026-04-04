@@ -3,7 +3,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
-const { execSync, execFileSync } = require('child_process');
+const { execSync, execFileSync, spawnSync } = require('child_process');
 const chalk = require('chalk');
 const crypto = require('crypto');
 const readline = require('readline');
@@ -29,23 +29,6 @@ function resolveNorthStarPathForRead(cwd) {
   if (fs.existsSync(pack)) return { path: pack, legacy: false };
   if (fs.existsSync(legacy)) return { path: legacy, legacy: true };
   return { path: pack, legacy: false };
-}
-
-function resolveSessionLogForRollup(cwd) {
-  const hex = path.join(cwd, HEXCURSE_ROOT, 'SESSION_LOG.md');
-  const root = path.join(cwd, 'SESSION_LOG.md');
-  if (fs.existsSync(hex)) return hex;
-  return root;
-}
-
-/** Prefer HEXCURSE/docs/ROLLING_CONTEXT.md when pack exists or file already there; else legacy docs/. */
-function resolveRollingContextPathForRollup(cwd) {
-  const hexRoll = path.join(cwd, HEXCURSE_ROOT, 'docs', 'ROLLING_CONTEXT.md');
-  const rootRoll = path.join(cwd, 'docs', 'ROLLING_CONTEXT.md');
-  if (fs.existsSync(hexRoll)) return hexRoll;
-  if (fs.existsSync(rootRoll)) return rootRoll;
-  if (fs.existsSync(path.join(cwd, HEXCURSE_ROOT))) return hexRoll;
-  return rootRoll;
 }
 
 /** Normalize LM Studio OpenAI-compatible base URL to end with /v1. */
@@ -77,18 +60,8 @@ function readInstallerPackageJson() {
     const p = path.join(__dirname, 'package.json');
     return JSON.parse(fs.readFileSync(p, 'utf8'));
   } catch (e) {
-    return { name: 'cursor-governance', version: 'unknown' };
+    return { name: 'hexcurse', version: 'unknown' };
   }
-}
-
-/** Bundled Architect prompt (HEXCURSE path prefixes) for HEXCURSE/docs/ARCH_PROMPT.md. */
-function readBundledArchPromptTemplate() {
-  return fs.readFileSync(path.join(__dirname, 'templates', 'ARCH_PROMPT.md'), 'utf8');
-}
-
-/** Bundled MCP coordination doc for HEXCURSE/docs/MCP_COORDINATION.md on install. */
-function readBundledMcpCoordinationTemplate() {
-  return fs.readFileSync(path.join(__dirname, 'templates', 'MCP_COORDINATION.md'), 'utf8');
 }
 
 /** Bundled MCP token budget doc for HEXCURSE/docs/MCP_TOKEN_BUDGET.md on install. */
@@ -121,17 +94,6 @@ function adrLogStubMd(projectName) {
 function agentHandoffsStubMd() {
   return `<!-- Handoff entries appended here -->
 `;
-}
-
-/** Memory taxonomy for HEXCURSE/docs and docs/. */
-function readBundledMemoryTaxonomyTemplate() {
-  return fs.readFileSync(path.join(__dirname, 'templates', 'MEMORY_TAXONOMY.md'), 'utf8');
-}
-
-/** GOVERNANCE_PARITY.md for HEXCURSE/docs on install (parity: rules vs automation). */
-function readBundledGovernanceParityTemplate(projectName) {
-  const raw = fs.readFileSync(path.join(__dirname, 'templates', 'GOVERNANCE_PARITY.md'), 'utf8');
-  return raw.replace(/\{\{PROJECT_NAME\}\}/g, String(projectName || 'Project').trim());
 }
 
 /** Recursively count files under dir (optional filter(path) → boolean). */
@@ -172,14 +134,15 @@ function fingerprintTemplateDirectory(templatesRoot) {
   return { fileCount: relPaths.length, fingerprintHex: h.digest('hex') };
 }
 
-/** README for .cursor/skills on install. */
-function readBundledCursorSkillsReadmeTemplate() {
-  return fs.readFileSync(path.join(__dirname, 'templates', 'cursor-skills-README.md'), 'utf8');
-}
+/** README for .cursor/skills on install (inline — no bundled template file). */
+function cursorSkillsReadmeMd() {
+  return `# Skills
 
-/** governance.mdc (globs include .cursor/skills) — HEXCURSE/rules + .cursor/rules on install / refresh. */
-function readBundledGovernanceMdc() {
-  return fs.readFileSync(path.join(__dirname, 'templates', 'governance.mdc'), 'utf8');
+Add reusable agent patterns as Markdown files in this folder. Copy \`_TEMPLATE_SKILL.md\` to start.
+
+- One skill per file; keep instructions actionable.
+- Prefer concrete examples over abstract rules.
+`;
 }
 
 /** Starter skill file for .cursor/skills/_TEMPLATE_SKILL.md (skip if exists). */
@@ -201,54 +164,21 @@ function readBundledOnePromptTemplate(projectName) {
     .replace(/\{\{PROJECT_NAME\}\}/g, String(projectName || 'Project').trim());
 }
 
-/** HEXCURSE/HEADLESS_KICKOFF.txt — plain prompt for `agent -p --model composer-2` (Cursor headless CLI). */
-function readBundledHeadlessKickoffTemplate(projectName) {
-  return fs
-    .readFileSync(path.join(__dirname, 'templates', 'HEADLESS_KICKOFF.txt'), 'utf8')
-    .replace(/\{\{PROJECT_NAME\}\}/g, String(projectName || 'Project').trim());
-}
-
-/** Pack continual-learning doc with {{PROJECT_NAME}} replaced. */
-function readContinualLearningPackTemplate(projectName) {
-  return fs
-    .readFileSync(path.join(__dirname, 'templates', 'CONTINUAL_LEARNING.pack.md'), 'utf8')
-    .replace(/\{\{PROJECT_NAME\}\}/g, projectName);
-}
-
-/** Stub HEXCURSE/docs/ROLLING_CONTEXT.md for new installs (pack-local). */
-function rollingContextStubMd(projectName) {
-  return `# Rolling context — ${projectName}
-
-Long-horizon consolidation. **LLM** summaries go in dated sections. **Deterministic** excerpts: \`node cursor-governance/setup.js --learning-rollup\`.
-
-See **HEXCURSE/docs/CONTINUAL_LEARNING.md**. State: **\`.cursor/hooks/state/continual-learning.json\`**.
-
----
-
-## Summaries and rollups
-
-*(No entries yet.)*
-`;
-}
-
 function printCliHelp() {
   console.log(`
-cursor-governance — HexCurse installer (writes into the current working directory)
+HEXCURSE installer (writes into the current working directory)
 
   node setup.js [options]
-  cursor-governance [options]   (if installed globally)
+  hexcurse [options]              (if installed globally — same as cursor-governance)
+  cursor-governance [options]     (npm package name; alias of hexcurse)
 
 Options:
   --help, -h          Show this message
   --version, -v       Print package version and exit
   --doctor            Verify governance layout, PATHS.json, task-master, ~/.cursor/mcp.json (from repo root)
-  --refresh-rules     Rewrite all 10 .mdc rules (mcp-usage, process-gates, base, governance, security, adr, memory-management, debugging, multi-agent, linear-sync; uses AGENTS.md + ARCHITECTURE.md for base)
+  --refresh-rules     Rewrite the 5 default .mdc rules (base, mcp-usage, process-gates, security, adr; uses AGENTS.md + ARCHITECTURE.md for base). Use --multi-agent for multi-agent.mdc.
   --multi-agent       Enable parallel agent orchestration via git worktrees and swarm-protocol MCP
-  --sync-rules        Fetch latest governance rules from the HexCurse GitHub source and update .cursor/rules/ (optional --dry-run)
-  --learning-rollup   Append last N SESSION_LOG blocks to HEXCURSE/docs/ROLLING_CONTEXT.md (or legacy docs/ path; no LLM; optional --sessions=5)
-  --run-hexcurse      NORTH_STAR bridge: AI-expand HEXCURSE/NORTH_STAR.md (legacy repo-root file still accepted) → .taskmaster/docs/prd.txt, parse-prd, sync DIRECTIVES Queued
-  --run-hexcurse-raw  Same bridge but no AI (north star pasted as PRD body); still parse-prd + DIRECTIVES sync
-  --preflight-cursor-agent  Run \`agent status\` only; exit 0 if Cursor CLI is authenticated (see HEXCURSE_PREFLIGHT_CURSOR_AGENT)
+  --sync-rules        Fetch latest governance rules from the HEXCURSE GitHub source and update .cursor/rules/ (optional --dry-run)
   --parse-prd-via-agent   Generate tasks.json from PRD using the Cursor agent's
                           own LLM — no outbound API call required from setup.js.
                           Prints a structured prompt to stdout for pasting into
@@ -260,7 +190,13 @@ Options:
     --apply=<path>        Read agent JSON response from file and write to tasks.json
 
   --quick, -q         Non-interactive install (requires GitHub token in env or ~/.cursor/mcp.json)
+  --refresh-governance  Overwrite existing HEXCURSE/* and mirrored .cursor/rules (default: skip if file exists)
   --preset=<name>     With --quick: lmstudio | anthropic | openai (default lmstudio). Or set HEXCURSE_PRESET.
+
+  PRD → tasks (install): Default uses Cursor CLI agent (composer-1.5) — no OpenAI/Anthropic spend via task-master.
+  HEXCURSE_PARSE_PRD=cursor | taskmaster | skip   (default cursor)
+  HEXCURSE_CURSOR_AGENT_MODEL   (default composer-1.5) — only for cursor mode; requires agent on PATH
+  Reinstall: HEXCURSE_REFRESH_GOVERNANCE=1 or --refresh-governance overwrites pack + rules (not tasks.json alone)
 
   Quick install env (all optional except tokens for your preset):
   HEXCURSE_PROJECT_NAME, HEXCURSE_PURPOSE, HEXCURSE_STACK, HEXCURSE_MODULES,
@@ -273,34 +209,30 @@ Options:
   HEXCURSE_LM_STUDIO_BASE_URL or LM_STUDIO_BASE_URL (optional /v1 suffix; normalized),
   OPENAI_BASE_URL for --quick --preset=lmstudio if the HEXCURSE/LM_STUDIO vars are unset,
   HEXCURSE_LM_STUDIO_MAX_CONTEXT (e.g. 4096 or 8000; default 8000 when unset) — caps Taskmaster maxTokens + default task counts to fit loaded context,
-  HEXCURSE_EXPAND_MODEL — optional override for --run-hexcurse AI step (else Taskmaster main modelId),
-  HEXCURSE_SKIP_AI_EXPAND=1 — treat --run-hexcurse like --run-hexcurse-raw,
-  HEXCURSE_PREFLIGHT_CURSOR_AGENT=1 — before task-master parse-prd in --run-hexcurse*, require successful \`agent status\` (after \`agent login\`; see Cursor CLI auth + headless docs),
   HEXCURSE_DOCTOR_CI=1 — with \`setup.js --doctor\`, treat missing ~/.cursor/mcp.json and missing task-master CLI as warnings (for CI); same as CI=true or GITHUB_ACTIONS=true,
   ANTHROPIC_API_KEY or OPENAI_API_KEY for anthropic / openai presets.
 
-  Piped stdin (interactive): one line per prompt. After provider credentials and optional GitHub token,
-  the next line chooses repo kind (1 = new project, 2 = existing codebase). New project: same follow-up
-  lines as before. Existing: optional focus line (may be empty), then sacred constraints line.
+  Interactive install (v2): seven core questions — project name, purpose, GitHub token (skipped if
+  token is reused from env/mcp.json), then y/n for Playwright, Semgrep, Supabase (if y: project ref line),
+  LightRAG, then y/n for custom MCP (if y: transport 1–3 where 3 = skip; URL and command prompts accept cancel/skip/q/0). If HEXCURSE/ already exists (TTY), you are asked whether to overwrite templates (**--refresh-governance** or **HEXCURSE_REFRESH_GOVERNANCE=1** skips the question / forces refresh; piped installs use the env var). Piped stdin: one
+  line per answer in that order. Taskmaster LLM keys are **not** prompted — set ANTHROPIC_API_KEY,
+  OPENAI_API_KEY / OPENAI_BASE_URL (or lm-studio defaults) in the environment before install.
 
 Run from your target repository root with no flags to start the interactive install.
 `);
 }
 
-/** Returns 'install' | 'help' | 'version' | 'doctor' | 'refresh-rules' | 'multi-agent' | 'sync-rules' | 'learning-rollup' | 'run-hexcurse' | 'run-hexcurse-raw' | 'preflight-cursor-agent' | 'parse-prd-via-agent'. */
+/** Returns 'install' | 'help' | 'version' | 'doctor' | 'refresh-rules' | 'migrate-v2' | 'multi-agent' | 'sync-rules' | 'parse-prd-via-agent'. */
 function parseSetupArgv(argv) {
   const flags = new Set(argv.slice(2).filter((a) => a.startsWith('-')));
   if (flags.has('--help') || flags.has('-h')) return 'help';
   if (flags.has('--version') || flags.has('-v')) return 'version';
   if (flags.has('--doctor')) return 'doctor';
   if (flags.has('--refresh-rules')) return 'refresh-rules';
+  if (flags.has('--migrate-v2')) return 'migrate-v2';
   if (flags.has('--multi-agent')) return 'multi-agent';
   if (flags.has('--sync-rules')) return 'sync-rules';
-  if (flags.has('--learning-rollup')) return 'learning-rollup';
-  if (flags.has('--preflight-cursor-agent')) return 'preflight-cursor-agent';
   if (flags.has('--parse-prd-via-agent')) return 'parse-prd-via-agent';
-  if (flags.has('--run-hexcurse-raw')) return 'run-hexcurse-raw';
-  if (flags.has('--run-hexcurse')) return 'run-hexcurse';
   return 'install';
 }
 
@@ -366,6 +298,30 @@ function validateTaskmasterSchema(parsed) {
   });
 
   return { ok: errors.length === 0, errors };
+}
+
+/**
+ * Extracts and validates Taskmaster tasks.json shape from agent stdout (markdown fences OK).
+ * Returns { ok, parsed } or { ok: false, errors: string[] }.
+ */
+function parseTaskmasterJsonFromText(raw) {
+  let s = String(raw || '').trim();
+  s = s.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+  const i = s.indexOf('{');
+  const j = s.lastIndexOf('}');
+  if (i < 0 || j <= i) {
+    return { ok: false, errors: ['No JSON object found in agent output'] };
+  }
+  s = s.slice(i, j + 1);
+  let parsed;
+  try {
+    parsed = JSON.parse(s);
+  } catch (e) {
+    return { ok: false, errors: [`Invalid JSON: ${e.message}`] };
+  }
+  const v = validateTaskmasterSchema(parsed);
+  if (!v.ok) return { ok: false, errors: v.errors };
+  return { ok: true, parsed };
 }
 
 /** Builds the self-contained prompt for the Cursor agent to emit tasks JSON. */
@@ -459,7 +415,7 @@ function tryClipboardCopy(text) {
 /** Prints the agent prompt and optional clipboard copy; never writes files when dryRun. */
 function printAgentParsePrompt(prompt, outPath, dryRun) {
   console.log('\n' + '═'.repeat(70));
-  console.log('  HexCurse — Parse PRD via Agent');
+  console.log('  HEXCURSE — Parse PRD via Agent');
   console.log('═'.repeat(70));
   console.log('\nStep 1: Copy everything between the dashes and paste it into');
   console.log('        the Cursor agent chat (or any LLM chat interface).\n');
@@ -487,25 +443,15 @@ async function applyAgentResponse(applyPath, outPath, dryRun) {
     process.exit(1);
   }
 
-  let raw = fs.readFileSync(applyPath, 'utf8').trim();
-  raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
-
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (e) {
-    console.error('✗ Response is not valid JSON:', e.message);
-    console.error('  Check the file for markdown fences or extra text and try again.');
-    process.exit(1);
-  }
-
-  const validation = validateTaskmasterSchema(parsed);
-  if (!validation.ok) {
+  const raw = fs.readFileSync(applyPath, 'utf8');
+  const parsedResult = parseTaskmasterJsonFromText(raw);
+  if (!parsedResult.ok) {
     console.error('✗ Schema validation failed:');
-    validation.errors.forEach((e) => console.error('  -', e));
+    (parsedResult.errors || []).forEach((e) => console.error('  -', e));
     console.error('\n  Fix the JSON and re-run with --apply=<path>');
     process.exit(1);
   }
+  const parsed = parsedResult.parsed;
 
   const tasks = parsed.master.tasks;
   console.log(`✓ Parsed ${tasks.length} tasks from agent response`);
@@ -555,84 +501,61 @@ async function runParsePrdViaAgent(cwd, args) {
   }
 }
 
-/** Parse --sessions=N from argv (default 5). */
-function parseLearningRollupSessions(argv) {
-  for (const a of argv.slice(2)) {
-    if (a.startsWith('--sessions=')) {
-      const n = parseInt(a.slice('--sessions='.length), 10);
-      if (Number.isFinite(n)) return Math.min(Math.max(n, 1), 50);
-    }
-  }
-  return 5;
-}
-
 /**
- * Deterministic rollup: last N ### Session blocks from HEXCURSE/SESSION_LOG.md (or legacy root SESSION_LOG.md) → rolling context path from resolveRollingContextPathForRollup.
- * Updates continual-learning.json lastRollupAt / lastRollupSessionKey when present.
+ * Runs Cursor headless `agent` to turn PRD text into tasks.json (uses Cursor subscription — not OpenAI API via task-master).
+ * Returns true when tasks.json was written and validated.
  */
-function runLearningRollup(cwd, sessionCount) {
-  const n = sessionCount;
-  const sessionLogPath = resolveSessionLogForRollup(cwd);
-  const rollingPath = resolveRollingContextPathForRollup(cwd);
-  const statePath = path.join(cwd, '.cursor', 'hooks', 'state', 'continual-learning.json');
-
-  if (!fs.existsSync(sessionLogPath)) {
-    console.error(
-      chalk.red('SESSION_LOG not found (expected HEXCURSE/SESSION_LOG.md or legacy SESSION_LOG.md at repo root).')
-    );
-    process.exitCode = 1;
-    return;
+function tryParsePrdWithCursorAgent(cwd, prdPath, tasksOutPath) {
+  const platform = process.platform;
+  if (!commandOnPath('agent', platform)) {
+    return false;
   }
-
-  const md = fs.readFileSync(sessionLogPath, 'utf8');
-  const parts = md.split(/^### Session /m);
-  const preamble = parts[0];
-  const blocks = parts.slice(1).map((p) => `### Session ${p}`);
-  const chosen = blocks.slice(-n);
-  if (chosen.length === 0) {
-    console.log(chalk.yellow('No ### Session blocks found in SESSION_LOG.md'));
-    return;
+  const model = String(process.env.HEXCURSE_CURSOR_AGENT_MODEL || 'composer-1.5').trim();
+  let prdContent;
+  try {
+    prdContent = fs.readFileSync(prdPath, 'utf8').trim();
+  } catch {
+    return false;
   }
-
-  const newestHeader = chosen[chosen.length - 1].split(/\r?\n/)[0].trim();
-
-  let state = {};
-  if (fs.existsSync(statePath)) {
-    try {
-      state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-    } catch (e) {
-      state = {};
+  if (prdContent.length < 80) {
+    console.warn(chalk.yellow('⚠'), 'PRD too short for Cursor agent parse — skipping.');
+    return false;
+  }
+  const prompt = buildAgentParsePrompt(prdContent, tasksOutPath);
+  console.log(
+    chalk.bold('\nParse PRD (Cursor agent CLI) …'),
+    chalk.dim(`model=${model} — no task-master cloud LLM call`)
+  );
+  const ws = path.resolve(cwd);
+  const r = spawnSync(
+    'agent',
+    ['-p', '--print', '--model', model, '--trust', '--workspace', ws, '--output-format', 'text'],
+    {
+      input: `${prompt}\n`,
+      encoding: 'utf8',
+      maxBuffer: 50 * 1024 * 1024,
+      windowsHide: true,
     }
+  );
+  if (r.error) {
+    console.warn(chalk.yellow('⚠'), 'Cursor agent failed to start:', r.error.message);
+    return false;
   }
-  if (state.lastRollupSessionKey === newestHeader) {
-    console.log(chalk.dim('Rollup already recorded for this newest session; skipping append.'));
-    return;
+  if (r.status !== 0) {
+    console.warn(chalk.yellow('⚠'), `Cursor agent exited with code ${r.status}`);
+    if (r.stderr) console.warn(chalk.dim(String(r.stderr).slice(0, 800)));
+    return false;
   }
-
-  const iso = new Date().toISOString();
-  const appendix = `\n\n## Raw session index — ${iso}\n\n_(Last ${chosen.length} session block(s) from SESSION_LOG — deterministic rollup, no LLM.)_\n\n${chosen.join('')}\n`;
-
-  fs.ensureDirSync(path.dirname(rollingPath));
-  if (!fs.existsSync(rollingPath)) {
-    fs.writeFileSync(
-      rollingPath,
-      `# Rolling context\n\nAppend-only consolidation. See **HEXCURSE/docs/CONTINUAL_LEARNING.md**.\n${appendix}`,
-      'utf8'
-    );
-  } else {
-    fs.appendFileSync(rollingPath, appendix, 'utf8');
+  const parsedResult = parseTaskmasterJsonFromText(r.stdout || '');
+  if (!parsedResult.ok) {
+    console.warn(chalk.yellow('⚠'), 'Could not parse tasks JSON from agent output:');
+    (parsedResult.errors || []).slice(0, 6).forEach((e) => console.warn(chalk.dim('  -'), e));
+    return false;
   }
-
-  state.version = state.version || 1;
-  state.lastRollupAt = iso;
-  state.lastRollupSessionKey = newestHeader;
-  state.sessionsSinceRollup = 0;
-
-  fs.ensureDirSync(path.dirname(statePath));
-  fs.writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
-
-  console.log(chalk.green('✓ Appended rollup to'), path.relative(cwd, rollingPath));
-  console.log(chalk.dim(`  State updated: ${path.relative(cwd, statePath)}`));
+  fs.mkdirSync(path.dirname(tasksOutPath), { recursive: true });
+  fs.writeFileSync(tasksOutPath, `${JSON.stringify(parsedResult.parsed, null, 2)}\n`, 'utf8');
+  console.log(chalk.green('✓'), `Wrote ${path.relative(cwd, tasksOutPath)} via Cursor agent`);
+  return true;
 }
 
 /** Extracts markdown body under ## {heading} until the next ## heading. */
@@ -699,7 +622,7 @@ function extractProjectNameFromAgents(md) {
  * Merge repo-root .env into process.env.
  * By default only sets keys that are unset or empty (shell exports win).
  * opts.forceKeys: array of env var names to always take from .env when that line exists
- * (stops stale OPENAI_BASE_URL in the shell from breaking --run-hexcurse on another machine).
+ * (stops stale OPENAI_BASE_URL in the shell from shadowing repo `.env`).
  */
 function loadDotEnvFromFile(cwd, opts) {
   const p = path.join(cwd, '.env');
@@ -754,15 +677,6 @@ function isNorthStarSubstantive(text) {
   return true;
 }
 
-/** Child env for task-master CLI during NORTH_STAR bridge (LM Studio / OpenAI from .env). */
-function taskmasterChildEnvForBridge(cwd) {
-  loadDotEnvFromFile(cwd, { forceKeys: ['OPENAI_BASE_URL', 'OPENAI_API_KEY'] });
-  const env = { ...process.env };
-  if (!env.OPENAI_API_KEY) env.OPENAI_API_KEY = 'lm-studio';
-  if (!env.OPENAI_BASE_URL) env.OPENAI_BASE_URL = lmStudioBaseUrlFromEnv();
-  return env;
-}
-
 /** True when doctor should not fail CI for machine-local deps (~/.cursor/mcp.json, task-master on PATH). */
 function isDoctorCiRelaxed() {
   return (
@@ -770,146 +684,6 @@ function isDoctorCiRelaxed() {
     process.env.GITHUB_ACTIONS === 'true' ||
     process.env.HEXCURSE_DOCTOR_CI === '1'
   );
-}
-
-/** Require Cursor CLI login so `agent status` succeeds (browser flow: `agent login`). */
-function assertCursorAgentCliAuthenticated() {
-  try {
-    execSync('agent status', { stdio: 'pipe', encoding: 'utf8' });
-  } catch {
-    console.error(chalk.red('Cursor CLI preflight failed: `agent status` did not succeed.'));
-    console.error(chalk.dim('Log in with: agent login'));
-    console.error(chalk.dim('Authentication: https://cursor.com/docs/cli/reference/authentication.md'));
-    console.error(chalk.dim('Headless CLI: https://cursor.com/docs/cli/headless'));
-    console.error(
-      chalk.dim(
-        'task-master still uses OPENAI_* / .taskmaster/config.json for LLM HTTP calls; this step only verifies Cursor CLI auth.'
-      )
-    );
-    process.exit(1);
-  }
-}
-
-/** When HEXCURSE_PREFLIGHT_CURSOR_AGENT=1, require Cursor CLI auth before task-master parse-prd (NORTH_STAR bridge). */
-function maybePreflightCursorAgentBeforeTaskmasterParsePrd() {
-  if (process.env.HEXCURSE_PREFLIGHT_CURSOR_AGENT !== '1') return;
-  console.log(chalk.dim('HEXCURSE_PREFLIGHT_CURSOR_AGENT=1: checking Cursor CLI (`agent status`) …'));
-  assertCursorAgentCliAuthenticated();
-  console.log(chalk.green('✓'), 'Cursor CLI authenticated');
-}
-
-/** Wrap north star as PRD markdown without calling an LLM. */
-function buildPrdFromNorthStarRaw(northStarText) {
-  return `# PRD (from NORTH_STAR)
-
-The following is the project north star, used as the PRD body for Taskmaster. Refine **HEXCURSE/NORTH_STAR.md** (or legacy repo-root **NORTH_STAR.md**) or edit this file after generation if needed.
-
----
-
-${northStarText.trim()}
-
----
-
-## Notes
-Generated by cursor-governance **--run-hexcurse-raw** (no AI expansion).
-`;
-}
-
-/**
- * Call OpenAI-compatible chat/completions to expand NORTH_STAR into Taskmaster-friendly PRD markdown.
- */
-async function expandNorthStarToPrdMarkdown(cwd, northStarText) {
-  loadDotEnvFromFile(cwd, {
-    forceKeys: ['OPENAI_BASE_URL', 'OPENAI_API_KEY', 'HEXCURSE_EXPAND_MODEL'],
-  });
-  const cfgPath = path.join(cwd, '.taskmaster', 'config.json');
-  let model = String(process.env.HEXCURSE_EXPAND_MODEL || '').trim();
-  let baseURL = String(process.env.OPENAI_BASE_URL || '').trim();
-  let apiKey = String(process.env.OPENAI_API_KEY || '').trim();
-  if (fs.existsSync(cfgPath)) {
-    try {
-      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-      const m = cfg.models && cfg.models.main;
-      if (m && typeof m === 'object') {
-        if (!model && m.modelId) model = String(m.modelId).trim();
-        if (!baseURL && m.baseURL) baseURL = String(m.baseURL).trim();
-      }
-    } catch (_) {
-      /* ignore */
-    }
-  }
-  if (!model) model = 'gpt-4o-mini';
-  const normalizedBase = normalizeLmStudioV1BaseUrl(baseURL || lmStudioBaseUrlFromEnv());
-  if (!apiKey) apiKey = 'lm-studio';
-  const endpoint = `${normalizedBase.replace(/\/$/, '')}/chat/completions`;
-  if (process.env.HEXCURSE_DEBUG_BRIDGE === '1') {
-    console.log(
-      chalk.dim(
-        `Bridge expand: POST ${endpoint} model=${model} (OPENAI_BASE_URL from ${baseURL ? '.env or shell' : 'fallback'})`
-      )
-    );
-  }
-  const system = `You convert a project "north star" document into a Taskmaster-friendly product requirements document.
-
-Output **Markdown only** (no code fences). Use this structure:
-# PRD — <concise title>
-## Purpose
-## Tech Stack
-## Key Modules or Features
-## User Stories
-## Constraints
-## Out of Scope
-## Definition of Done
-## Implementation Phases (numbered; note dependencies between phases)
-
-Rules: expand the human's intent into actionable detail; do not invent secrets or API keys; preserve non-negotiables and named technologies from the source; if unknown use TBD with a one-line note.`;
-  const fetchMs = Number(process.env.HEXCURSE_LLM_FETCH_MS || 180000);
-  const signal =
-    typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
-      ? AbortSignal.timeout(fetchMs)
-      : undefined;
-  let res;
-  try {
-    res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      signal,
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: northStarText },
-        ],
-      }),
-    });
-  } catch (err) {
-    const c = err && err.cause;
-    const causeStr = c ? (c.message || String(c)) : '';
-    const envPath = path.join(cwd, '.env');
-    const envHint = fs.existsSync(envPath)
-      ? `Found ${path.relative(cwd, envPath)} — ensure OPENAI_BASE_URL=http://<pc-lan-ip>:1234/v1 matches curl.`
-      : `No .env at repo root — create one with OPENAI_BASE_URL=http://192.168.x.x:1234/v1 or set .taskmaster/config.json main.baseURL.`;
-    throw new Error(
-      `${err.message || String(err)} @ ${endpoint} (model ${model}). ${causeStr ? `Cause: ${causeStr}. ` : ''}${envHint}`
-    );
-  }
-  if (!res.ok) {
-    const errBody = await res.text();
-    throw new Error(`HTTP ${res.status}: ${errBody.slice(0, 600)}`);
-  }
-  const data = await res.json();
-  const rawContent = data.choices && data.choices[0] && data.choices[0].message
-    ? data.choices[0].message.content
-    : '';
-  const out = extractOpenAiMessageText(rawContent);
-  if (!out || out.trim().length < 200) {
-    throw new Error('Model returned empty or very short PRD; use --run-hexcurse-raw or check model/output.');
-  }
-  return `${out.trim()}\n\n## Notes\nGenerated by cursor-governance **--run-hexcurse** from north star (AI expanded).\n`;
 }
 
 /** When repomix is missing or fails, collect a small deterministic snapshot for the LLM. */
@@ -1062,7 +836,7 @@ async function generateNorthStarFromExistingRepo({
   humanFocus,
   projectName,
 }) {
-  const system = `You document an existing software repository for HexCurse governance.
+  const system = `You document an existing software repository for HEXCURSE governance.
 Output Markdown only. Do not wrap the full document in a fenced code block.
 First heading must be exactly: # North Star
 
@@ -1151,61 +925,7 @@ async function enrichExistingRepoQuick(cwd, answers) {
   }
 }
 
-/** Rewrite HEXCURSE/DIRECTIVES.md ## 📋 Queued from Taskmaster tasks.json. */
-function syncDirectivesQueuedFromTasks(cwd) {
-  const directivesPath = path.join(cwd, HEXCURSE_ROOT, 'DIRECTIVES.md');
-  if (!fs.existsSync(directivesPath)) {
-    console.warn(chalk.yellow('⚠'), 'HEXCURSE/DIRECTIVES.md missing — skip Queued sync');
-    return;
-  }
-  const tasksPath = path.join(cwd, '.taskmaster', 'tasks', 'tasks.json');
-  if (!fs.existsSync(tasksPath)) {
-    console.warn(chalk.yellow('⚠'), '.taskmaster/tasks/tasks.json missing — skip Queued sync');
-    return;
-  }
-  let tasksData;
-  try {
-    tasksData = JSON.parse(fs.readFileSync(tasksPath, 'utf8'));
-  } catch (e) {
-    console.warn(chalk.yellow('⚠'), 'tasks.json parse error — skip Queued sync');
-    return;
-  }
-  const tasks = (tasksData.master && tasksData.master.tasks) || tasksData.tasks || [];
-  if (!Array.isArray(tasks) || tasks.length === 0) {
-    console.warn(chalk.yellow('⚠'), 'No tasks in tasks.json — skip Queued sync');
-    return;
-  }
-  const sorted = [...tasks].sort((a, b) => {
-    const na = parseInt(String(a.id).replace(/\D/g, ''), 10) || 0;
-    const nb = parseInt(String(b.id).replace(/\D/g, ''), 10) || 0;
-    return na - nb;
-  });
-  const lines = sorted.map((t) => {
-    const idNum = String(t.id).replace(/\D/g, '') || String(t.id);
-    const d = `D${idNum.padStart(3, '0')}`;
-    const deps =
-      Array.isArray(t.dependencies) && t.dependencies.length ? t.dependencies.join(', ') : 'none';
-    const pri = t.priority || 'medium';
-    const title = String(t.title || 'Task').trim();
-    return `- ${d}: ${title} | Priority: ${pri} | Depends on: ${deps}`;
-  });
-  const queuedBody = `\n\n${lines.join('\n')}\n\n`;
-  let md = fs.readFileSync(directivesPath, 'utf8');
-  const marker = '## 📋 Queued';
-  const idx = md.indexOf(marker);
-  if (idx === -1) {
-    console.warn(chalk.yellow('⚠'), 'DIRECTIVES.md has no ## 📋 Queued — skip sync');
-    return;
-  }
-  const afterMarker = md.slice(idx + marker.length);
-  const nextSection = afterMarker.search(/\n## /);
-  const rest = nextSection === -1 ? '' : afterMarker.slice(nextSection);
-  md = md.slice(0, idx + marker.length) + queuedBody + rest;
-  fs.writeFileSync(directivesPath, md, 'utf8');
-  console.log(chalk.green('✓'), 'Synced HEXCURSE/DIRECTIVES.md ## 📋 Queued from Taskmaster tasks.json');
-}
-
-/** Writes gitignored absolute path to this package's setup.js so agents can run --run-hexcurse. */
+/** Writes gitignored absolute path to this package's setup.js for installer refresh and tooling. */
 async function writeInstallerPathFile(cwd) {
   const self = path.resolve(__dirname, 'setup.js');
   const rel = path.join('.cursor', 'hexcurse-installer.path');
@@ -1213,7 +933,7 @@ async function writeInstallerPathFile(cwd) {
   try {
     await fs.ensureDir(path.dirname(full));
     await fs.writeFile(full, `${self}\n`, 'utf8');
-    console.log(chalk.green('✓'), 'Wrote', rel, chalk.dim('(absolute path to cursor-governance setup.js)'));
+    console.log(chalk.green('✓'), 'Wrote', rel, chalk.dim('(absolute path to HEXCURSE setup.js)'));
   } catch (e) {
     console.warn(chalk.yellow('⚠'), 'Could not write', rel, e.message);
   }
@@ -1228,129 +948,65 @@ async function writeOnePromptFile(cwd, projectName) {
   console.log(chalk.green('✓ Wrote'), rel, chalk.dim('— paste this after filling HEXCURSE/NORTH_STAR.md'));
 }
 
-/** Overwrite HEXCURSE/HEADLESS_KICKOFF.txt for Cursor headless CLI (`agent -p --model composer-2`). */
-async function writeHeadlessKickoffFile(cwd, projectName) {
-  const rel = path.join(HEXCURSE_ROOT, 'HEADLESS_KICKOFF.txt');
-  const full = path.join(cwd, rel);
-  await fs.ensureDir(path.dirname(full));
-  await fs.writeFile(full, readBundledHeadlessKickoffTemplate(projectName), 'utf8');
-  console.log(chalk.green('✓ Wrote'), rel, chalk.dim('— Cursor headless CLI prompt (Composer 2)'));
-}
-
-/** NORTH_STAR → PRD → parse-prd → DIRECTIVES Queued sync. */
-async function runNorthStarBridge(cwd, opts) {
-  const raw = Boolean(opts && opts.raw) || process.env.HEXCURSE_SKIP_AI_EXPAND === '1';
-  console.log(chalk.bold('\nNORTH STAR → HexCurse bridge'), chalk.dim(`cwd: ${cwd}`));
-  loadDotEnvFromFile(cwd, {
-    forceKeys: ['OPENAI_BASE_URL', 'OPENAI_API_KEY', 'HEXCURSE_EXPAND_MODEL'],
-  });
-  await writeInstallerPathFile(cwd);
-  const { path: northPath, legacy } = resolveNorthStarPathForRead(cwd);
-  if (legacy) {
-    console.log(
-      chalk.yellow('⚠'),
-      'Using legacy repo-root NORTH_STAR.md — move to HEXCURSE/NORTH_STAR.md when convenient.'
-    );
-  }
-  if (!fs.existsSync(northPath)) {
-    console.error(
-      chalk.red('NORTH_STAR.md not found (expected HEXCURSE/NORTH_STAR.md).'),
-      chalk.dim('Run cursor-governance install or copy cursor-governance/templates/NORTH_STAR.md into HEXCURSE/')
-    );
-    process.exit(1);
-  }
-  const northStarText = fs.readFileSync(northPath, 'utf8');
-  if (!isNorthStarSubstantive(northStarText)) {
-    console.error(
-      chalk.red('NORTH_STAR.md looks empty or still the boilerplate template.'),
-      chalk.dim('Replace it with your full project idea (see template instructions), then re-run.')
-    );
-    process.exit(1);
-  }
-  if (!fs.existsSync(path.join(cwd, '.taskmaster'))) {
-    console.error(chalk.red('.taskmaster/ not found. Run task-master init in this repo first (or re-run cursor-governance install).'));
-    process.exit(1);
-  }
-  const prdPath = path.join(cwd, '.taskmaster', 'docs', 'prd.txt');
-  await fs.ensureDir(path.dirname(prdPath));
-  let prdMd;
-  if (raw) {
-    prdMd = buildPrdFromNorthStarRaw(northStarText);
-    console.log(chalk.dim('Using raw north star as PRD (no AI).'));
-  } else {
-    try {
-      prdMd = await expandNorthStarToPrdMarkdown(cwd, northStarText);
-      console.log(chalk.green('✓'), 'AI expanded NORTH_STAR → PRD markdown');
-    } catch (e) {
-      console.error(chalk.red('AI expansion failed:'), e.message);
-      console.error(
-        chalk.dim(
-          'Tip: HEXCURSE_DEBUG_BRIDGE=1 re-run to log URL; ensure .env and .taskmaster/config.json use your PC LAN IP (not Tailscale unless this machine is on Tailscale). Or: node setup.js --run-hexcurse-raw'
-        )
-      );
-      process.exit(1);
-    }
-  }
-  await fs.writeFile(prdPath, prdMd, 'utf8');
-  console.log(chalk.green('✓'), 'Wrote', path.relative(cwd, prdPath));
-  maybePreflightCursorAgentBeforeTaskmasterParsePrd();
-  const tmEnv = taskmasterChildEnvForBridge(cwd);
-  const prdRel = path.join('.taskmaster', 'docs', 'prd.txt');
-  if (!runCmd(cwd, `task-master parse-prd --force "${prdRel}"`, 'task-master parse-prd', tmEnv)) {
-    console.warn(
-      chalk.yellow('⚠'),
-      'parse-prd failed — fix LM Studio / API, then re-run --run-hexcurse or: task-master parse-prd --force .taskmaster/docs/prd.txt'
-    );
-    process.exitCode = 1;
-    return;
-  }
-  if (fs.existsSync(path.join(cwd, HEXCURSE_ROOT))) {
-    syncDirectivesQueuedFromTasks(cwd);
-  } else {
-    console.warn(
-      chalk.yellow('⚠'),
-      'No HEXCURSE/ pack in this repo — skipped DIRECTIVES Queued sync. Run bridge from a cursor-governance–installed project, or sync root DIRECTIVES.md manually.'
-    );
-  }
-  console.log(
-    chalk.green('\n✓ Bridge complete.'),
-    chalk.dim(
-      fs.existsSync(path.join(cwd, HEXCURSE_ROOT))
-        ? 'Paste HEXCURSE/SESSION_START_PROMPT.md in a new chat to continue.'
-        : 'Open SESSION_START docs for this repo layout and continue.'
-    )
-  );
-}
-
 /** Prints health check from current working directory (target repo). */
 function runDoctor(cwd) {
   ensureHexcurseSourceRepoDoctorArtifacts(cwd);
-  const sourceRepo = isHexcurseGovernanceSourceRepo(cwd);
+
   const ok = [];
   const bad = [];
   const warn = [];
-  const hexRoot = path.join(cwd, HEXCURSE_ROOT);
-  const hexPaths = path.join(hexRoot, 'PATHS.json');
-  const legSess = path.join(cwd, 'docs', 'SESSION_START_PROMPT.md');
-  const hexSess = path.join(hexRoot, 'SESSION_START_PROMPT.md');
-  const hexAgents = path.join(hexRoot, 'AGENTS.md');
-  const rootAgents = path.join(cwd, 'AGENTS.md');
-  const mcpPath = path.join(os.homedir(), '.cursor', 'mcp.json');
-  const tmRoot = path.join(cwd, '.taskmaster');
-  const tasksJson = path.join(tmRoot, 'tasks', 'tasks.json');
+
   const ciRelaxed = isDoctorCiRelaxed();
   if (ciRelaxed) {
-    ok.push('Doctor CI mode: ~/.cursor/mcp.json + task-master PATH are non-blocking (set HEXCURSE_DOCTOR_CI=1 locally to match)');
+    ok.push('Doctor CI mode: mcp.json + task-master PATH checks are non-blocking');
   }
 
-  if (fs.existsSync(hexRoot)) {
+  const hexRoot = path.join(cwd, HEXCURSE_ROOT);
+  const hasHexRoot = fs.existsSync(hexRoot);
+
+  // 1. HEXCURSE/AGENTS.md
+  if (fs.existsSync(path.join(hexRoot, 'AGENTS.md'))) ok.push('HEXCURSE/AGENTS.md present');
+  else if (fs.existsSync(path.join(cwd, 'AGENTS.md'))) ok.push('Root AGENTS.md present');
+  else bad.push('No AGENTS.md found');
+
+  // 2. HEXCURSE/NORTH_STAR.md present and not a stub
+  const northStarPath = pathNorthStarPack(cwd);
+  const northLegacy = path.join(cwd, 'NORTH_STAR.md');
+  if (fs.existsSync(northStarPath)) {
+    const nsText = fs.readFileSync(northStarPath, 'utf8');
+    if (isNorthStarSubstantive(nsText)) ok.push('HEXCURSE/NORTH_STAR.md present and substantive');
+    else warn.push('HEXCURSE/NORTH_STAR.md is a stub — fill it in then run --parse-prd-via-agent');
+  } else if (fs.existsSync(northLegacy)) {
+    warn.push('Legacy root NORTH_STAR.md present — move to HEXCURSE/NORTH_STAR.md');
+  } else {
+    warn.push('HEXCURSE/NORTH_STAR.md missing — installer seeds it; fill it then run --parse-prd-via-agent');
+  }
+
+  // 3-5. Core rules
+  for (const rule of ['base.mdc', 'mcp-usage.mdc', 'process-gates.mdc']) {
+    const rp = path.join(cwd, '.cursor', 'rules', rule);
+    if (fs.existsSync(rp)) ok.push(`.cursor/rules/${rule} present`);
+    else bad.push(`.cursor/rules/${rule} missing — run install or --refresh-rules`);
+  }
+
+  // 6. security.mdc and adr.mdc (warn only if missing)
+  for (const rule of ['security.mdc', 'adr.mdc']) {
+    const rp = path.join(cwd, '.cursor', 'rules', rule);
+    if (!fs.existsSync(rp)) warn.push(`.cursor/rules/${rule} missing — run --refresh-rules`);
+  }
+
+  // 7. PATHS.json schema v2
+  if (hasHexRoot) {
+    const hexPaths = path.join(hexRoot, 'PATHS.json');
     if (fs.existsSync(hexPaths)) {
       try {
         const j = JSON.parse(fs.readFileSync(hexPaths, 'utf8'));
-        if (j.schema === 'hexcurse-paths-v1' && j.paths && typeof j.paths === 'object') {
-          ok.push('HEXCURSE/PATHS.json schema OK');
+        if (j.schema === 'hexcurse-paths-v2' && j.paths && typeof j.paths === 'object') {
+          ok.push('HEXCURSE/PATHS.json schema v2 OK');
+        } else if (j.schema === 'hexcurse-paths-v1') {
+          warn.push('HEXCURSE/PATHS.json is schema v1 — run --migrate-v2 to upgrade');
         } else {
-          bad.push('HEXCURSE/PATHS.json missing schema or paths object');
+          bad.push('HEXCURSE/PATHS.json missing valid schema or paths object');
         }
       } catch (e) {
         bad.push(`HEXCURSE/PATHS.json invalid JSON: ${e.message}`);
@@ -1358,154 +1014,42 @@ function runDoctor(cwd) {
     } else {
       bad.push('HEXCURSE/ exists but PATHS.json is missing');
     }
-  } else {
-    ok.push('No HEXCURSE/ folder — legacy layout (PATHS.json not required)');
   }
 
-  if (fs.existsSync(hexSess)) ok.push('HEXCURSE/SESSION_START_PROMPT.md present');
-  else if (fs.existsSync(legSess)) ok.push('Legacy docs/SESSION_START_PROMPT.md present');
-  else bad.push('No SESSION_START_PROMPT.md (HEXCURSE or docs/)');
+  // 8. SESSION_START.md
+  if (fs.existsSync(path.join(hexRoot, 'SESSION_START.md'))) {
+    ok.push('HEXCURSE/SESSION_START.md present');
+  } else if (!hasHexRoot) {
+    ok.push('No HEXCURSE/ pack — SESSION_START.md not required');
+  } else {
+    warn.push('HEXCURSE/SESSION_START.md missing — re-run install');
+  }
 
-  if (fs.existsSync(hexAgents)) ok.push('HEXCURSE/AGENTS.md present');
-  else if (fs.existsSync(rootAgents)) ok.push('Root AGENTS.md present');
-  else bad.push('No AGENTS.md');
-
-  if (fs.existsSync(path.join(cwd, '.cursor', 'rules', 'mcp-usage.mdc'))) ok.push('.cursor/rules/mcp-usage.mdc present');
-  else bad.push('.cursor/rules/mcp-usage.mdc missing');
-  if (fs.existsSync(path.join(cwd, '.cursor', 'rules', 'governance.mdc'))) ok.push('.cursor/rules/governance.mdc present');
-  else warn.push('.cursor/rules/governance.mdc missing — run install or --refresh-rules');
-
-  const clIndex = path.join(cwd, '.cursor', 'hooks', 'state', 'continual-learning-index.json');
-  if (fs.existsSync(clIndex)) ok.push('continual-learning index present (.cursor/hooks/state/continual-learning-index.json)');
-  else warn.push('continual-learning index missing — run cursor-governance install in this repo (seeds .cursor/hooks/state/)');
-
-  const taxRoot = path.join(cwd, 'docs', 'MEMORY_TAXONOMY.md');
-  const taxHex = path.join(cwd, HEXCURSE_ROOT, 'docs', 'MEMORY_TAXONOMY.md');
-  if (fs.existsSync(taxHex)) ok.push('HEXCURSE/docs/MEMORY_TAXONOMY.md present');
-  else if (fs.existsSync(taxRoot)) ok.push('Legacy docs/MEMORY_TAXONOMY.md present (prefer HEXCURSE/docs/)');
-  else warn.push('HEXCURSE/docs/MEMORY_TAXONOMY.md missing — continual learning taxonomy not installed');
-
-  const rollHex = path.join(cwd, HEXCURSE_ROOT, 'docs', 'ROLLING_CONTEXT.md');
-  const rollRoot = path.join(cwd, 'docs', 'ROLLING_CONTEXT.md');
-  if (fs.existsSync(rollHex)) ok.push('HEXCURSE/docs/ROLLING_CONTEXT.md present');
-  else if (fs.existsSync(rollRoot)) ok.push('Legacy docs/ROLLING_CONTEXT.md present (prefer HEXCURSE/docs/)');
-  else warn.push('HEXCURSE/docs/ROLLING_CONTEXT.md missing — optional; installer seeds it on new projects');
-
-  const skillsDir = path.join(cwd, '.cursor', 'skills');
-  if (fs.existsSync(skillsDir)) ok.push('.cursor/skills/ present');
-  else warn.push('.cursor/skills/ missing — optional; create for procedural skills');
-
-  const skQueue = path.join(cwd, '.cursor', 'hooks', 'state', 'skill-promotion-queue.json');
-  if (fs.existsSync(skQueue)) ok.push('skill-promotion-queue.json present');
-  else warn.push('skill-promotion-queue.json missing — optional seed from cursor-governance install');
-
+  // 9. tasks.json
+  const tmRoot = path.join(cwd, '.taskmaster');
+  const tasksJson = path.join(tmRoot, 'tasks', 'tasks.json');
   if (fs.existsSync(tasksJson)) {
     try {
       const tasksData = JSON.parse(fs.readFileSync(tasksJson, 'utf8'));
       const tasks = (tasksData.master && tasksData.master.tasks) || tasksData.tasks || [];
       if (tasks.length === 0) {
-        warn.push(
-          'tasks.json exists but has 0 tasks — run --parse-prd-via-agent to generate task graph'
-        );
-      } else if (
-        tasks.length === 1 &&
-        tasks[0].title &&
-        tasks[0].title.toLowerCase().includes('placeholder')
-      ) {
-        warn.push(
-          'tasks.json contains only the placeholder stub — run --parse-prd-via-agent to generate real task graph'
-        );
+        warn.push('tasks.json has 0 tasks — run --parse-prd-via-agent');
+      } else if (tasks.length === 1 && tasks[0].title && tasks[0].title.toLowerCase().includes('placeholder')) {
+        warn.push('tasks.json contains only the placeholder stub — run --parse-prd-via-agent');
       } else {
         ok.push(`tasks.json has ${tasks.length} task(s)`);
       }
     } catch (e) {
-      warn.push('tasks.json exists but could not be parsed as valid JSON');
+      warn.push('tasks.json could not be parsed as valid JSON');
     }
-  } else if (fs.existsSync(tmRoot)) bad.push('.taskmaster/ exists but tasks/tasks.json missing');
-  else warn.push('.taskmaster/ not found — run task-master init when you use Taskmaster');
-
-  const northPack = pathNorthStarPack(cwd);
-  const northLegacy = path.join(cwd, 'NORTH_STAR.md');
-  if (fs.existsSync(northPack)) ok.push('HEXCURSE/NORTH_STAR.md present (north star bridge entry point)');
-  else if (fs.existsSync(northLegacy)) {
-    if (sourceRepo) {
-      ok.push('Repo-root NORTH_STAR.md present (HexCurse / cursor-governance source layout)');
-    } else {
-      warn.push('Legacy repo-root NORTH_STAR.md present — move to HEXCURSE/NORTH_STAR.md for single-folder layout');
-    }
+  } else if (fs.existsSync(tmRoot)) {
+    bad.push('.taskmaster/ exists but tasks/tasks.json missing');
   } else {
-    warn.push('HEXCURSE/NORTH_STAR.md missing — installer seeds it; use --run-hexcurse after filling');
+    warn.push('.taskmaster/ not found — run task-master init');
   }
 
-  const cursorPack = path.join(cwd, HEXCURSE_ROOT, 'CURSOR.md');
-  if (fs.existsSync(cursorPack)) ok.push('HEXCURSE/CURSOR.md present');
-  else if (fs.existsSync(path.join(cwd, 'CURSOR.md'))) {
-    if (sourceRepo) {
-      ok.push('Repo-root CURSOR.md present (HexCurse / cursor-governance source layout)');
-    } else {
-      warn.push('Legacy repo-root CURSOR.md present — use HEXCURSE/CURSOR.md');
-    }
-  }
-
-  const onePrompt = path.join(cwd, HEXCURSE_ROOT, 'ONE_PROMPT.md');
-  if (fs.existsSync(onePrompt)) ok.push('HEXCURSE/ONE_PROMPT.md present (single-message Cursor kickoff)');
-  else if (fs.existsSync(hexRoot)) warn.push('HEXCURSE/ONE_PROMPT.md missing — re-run install to regenerate');
-
-  const headlessKick = path.join(cwd, HEXCURSE_ROOT, 'HEADLESS_KICKOFF.txt');
-  if (fs.existsSync(headlessKick)) ok.push('HEXCURSE/HEADLESS_KICKOFF.txt present (headless CLI kickoff)');
-  else if (fs.existsSync(hexRoot)) warn.push('HEXCURSE/HEADLESS_KICKOFF.txt missing — re-run install to regenerate');
-
-  const instPath = path.join(cwd, '.cursor', 'hexcurse-installer.path');
-  if (fs.existsSync(instPath)) ok.push('.cursor/hexcurse-installer.path present (path to setup.js for agents)');
-  else
-    warn.push(
-      '.cursor/hexcurse-installer.path missing — run install or `node …/setup.js --run-hexcurse` once to create it'
-    );
-
-  const rulesDir = path.join(cwd, '.cursor', 'rules');
-  if (fs.existsSync(rulesDir)) {
-    try {
-      const mdc = fs.readdirSync(rulesDir).filter((f) => f.endsWith('.mdc'));
-      ok.push(`.cursor/rules: ${mdc.length} rule file(s) — ${mdc.sort().join(', ')}`);
-    } catch (e) {
-      warn.push(`.cursor/rules: could not list (${e.message})`);
-    }
-  } else {
-    bad.push('.cursor/rules/ directory missing');
-  }
-
-  if (sourceRepo) {
-    ok.push('Layout: HexCurse source — no HEXCURSE/ pack (governance at repo root)');
-  } else if (fs.existsSync(hexRoot)) {
-    ok.push('Layout: consumer — HEXCURSE/ governance pack present');
-  } else {
-    ok.push('Layout: legacy — root-level docs without HEXCURSE/ pack');
-  }
-
-  const parityRoot = path.join(cwd, 'docs', 'GOVERNANCE_PARITY.md');
-  const parityHex = path.join(cwd, HEXCURSE_ROOT, 'docs', 'GOVERNANCE_PARITY.md');
-  if (fs.existsSync(parityHex)) ok.push('HEXCURSE/docs/GOVERNANCE_PARITY.md present');
-  else if (fs.existsSync(parityRoot)) ok.push('docs/GOVERNANCE_PARITY.md present (governance parity)');
-  else warn.push('docs/GOVERNANCE_PARITY.md missing — see template in cursor-governance');
-
-  if (fs.existsSync(hexRoot)) {
-    const templatesRoot = path.join(__dirname, 'templates');
-    if (fs.existsSync(templatesRoot)) {
-      try {
-        const fp = fingerprintTemplateDirectory(templatesRoot);
-        const hexDocs = path.join(cwd, HEXCURSE_ROOT, 'docs');
-        const docCount = fs.existsSync(hexDocs) ? countFilesRecursive(hexDocs, () => true) : 0;
-        ok.push(
-          `Template parity (consumer): ${fp.fileCount} installer template file(s), fingerprint sha256:${fp.fingerprintHex.slice(0, 16)}… — HEXCURSE/docs: ${docCount} file(s)`
-        );
-      } catch (e) {
-        warn.push(`Template parity check failed: ${e.message}`);
-      }
-    } else {
-      warn.push('cursor-governance/templates not found next to setup.js — template parity skipped');
-    }
-  }
-
+  // 10. ~/.cursor/mcp.json + 4 core servers
+  const mcpPath = path.join(os.homedir(), '.cursor', 'mcp.json');
   if (fs.existsSync(mcpPath)) {
     migrateSentryMcpEnvInMcpJson(mcpPath);
     migrateSemgrepMcpInMcpJson(mcpPath);
@@ -1513,148 +1057,56 @@ function runDoctor(cwd) {
     try {
       const mj = JSON.parse(fs.readFileSync(mcpPath, 'utf8'));
       const names = mj.mcpServers && typeof mj.mcpServers === 'object' ? Object.keys(mj.mcpServers) : [];
-      const mcpServers = mj.mcpServers && typeof mj.mcpServers === 'object' ? mj.mcpServers : {};
-      const semgrepEntry = mcpServers.semgrep;
-      if (semgrepEntry) {
-        if (!semgrepEntry.command && !semgrepEntry.url) {
-          warn.push('semgrep entry has neither command nor url');
-        } else if (semgrepEntry.command && String(semgrepEntry.command).includes('uvx')) {
-          warn.push(
-            'semgrep MCP is using deprecated uvx/stdio pattern — update to streamable-http: https://mcp.semgrep.ai/mcp'
-          );
-        }
+      const mcpServers = mj.mcpServers || {};
+
+      for (const id of MCP_CORE_IDS) {
+        if (names.includes(id)) ok.push(`mcp.json: ${id} present (core)`);
+        else if (ciRelaxed) warn.push(`mcp.json: ${id} missing (core — non-blocking in CI)`);
+        else bad.push(`mcp.json: ${id} missing (v2 core required)`);
       }
-      if (names.includes('github')) ok.push('mcp.json defines github server');
-      else if (ciRelaxed) warn.push('mcp.json has no github server entry (non-blocking in CI)');
-      else warn.push('mcp.json has no github server entry (optional — local git + push; add github MCP only for PR/issue automation)');
-      if (names.includes('jcodemunch')) ok.push('mcp.json defines jcodemunch server');
-      else if (ciRelaxed) warn.push('mcp.json has no jcodemunch entry (non-blocking in CI)');
-      else warn.push('mcp.json has no jcodemunch entry (recommended — RULE 10 / jcodemunch-mcp via uvx; installer merges it)');
-      if (names.includes('taskmaster-ai')) ok.push('mcp.json defines taskmaster-ai');
-      else if (ciRelaxed) warn.push('mcp.json has no taskmaster-ai entry (non-blocking in CI)');
-      else bad.push('mcp.json has no taskmaster-ai entry');
-      const mcpOptionalWarn = (id, hint) => {
-        if (names.includes(id)) ok.push(`mcp.json defines ${id} server`);
-        else if (ciRelaxed) warn.push(`mcp.json has no ${id} entry (non-blocking in CI)`);
-        else warn.push(`mcp.json has no ${id} entry (${hint})`);
-      };
-      mcpOptionalWarn('context7', 'recommended — library API docs');
-      mcpOptionalWarn('repomix', 'recommended — structural repo map');
-      mcpOptionalWarn('serena', 'recommended — symbol-level edits');
-      mcpOptionalWarn('gitmcp', 'optional — niche GitHub library docs');
-      mcpOptionalWarn('gitmcp-adafruit-mpu6050', 'optional — Adafruit MPU6050 hardware docs via gitmcp.io');
-      mcpOptionalWarn('sequential-thinking', 'recommended — planning');
-      mcpOptionalWarn('memory', 'recommended — durable facts');
-      mcpOptionalWarn('supabase', 'optional — Supabase MCP when using Supabase backend');
-      mcpOptionalWarn('playwright', 'optional — UI / debugging.mdc');
-      mcpOptionalWarn('semgrep', 'recommended — security.mdc');
-      mcpOptionalWarn('sentry', 'optional — error context');
-      mcpOptionalWarn('firecrawl', 'optional — research');
-      mcpOptionalWarn('linear', 'optional — linear-sync.mdc');
-      mcpOptionalWarn('pampa', 'optional — semantic skill search');
+
+      // Semgrep migration hint
+      const semgrepEntry = mcpServers.semgrep;
+      if (semgrepEntry && semgrepEntry.command && String(semgrepEntry.command).includes('uvx')) {
+        warn.push('semgrep MCP using deprecated uvx/stdio — update to streamable-http: https://mcp.semgrep.ai/mcp');
+      }
+
+      // 4 optional server checks (warn only)
+      for (const id of ['playwright', 'semgrep', 'supabase', 'lightrag']) {
+        if (!names.includes(id)) warn.push(`mcp.json: ${id} not installed (optional — select at install if needed)`);
+      }
     } catch (e) {
       if (ciRelaxed) warn.push(`~/.cursor/mcp.json parse error (non-blocking in CI): ${e.message}`);
       else bad.push(`~/.cursor/mcp.json parse error: ${e.message}`);
     }
   } else if (ciRelaxed) {
-    warn.push('~/.cursor/mcp.json missing (expected on CI runners — configure locally for MCP)');
+    warn.push('~/.cursor/mcp.json missing (expected on CI runners)');
   } else {
     bad.push('~/.cursor/mcp.json missing');
   }
 
-  if (fs.existsSync(hexRoot)) {
-    const mcpBudgetDoc = path.join(cwd, HEXCURSE_ROOT, 'docs', 'MCP_TOKEN_BUDGET.md');
-    if (!fs.existsSync(mcpBudgetDoc)) {
-      warn.push('HEXCURSE/docs/MCP_TOKEN_BUDGET.md missing — re-run install or copy from cursor-governance/templates');
-    }
-    const adrLogDoc = path.join(cwd, HEXCURSE_ROOT, 'docs', 'ADR_LOG.md');
-    if (!fs.existsSync(adrLogDoc)) {
-      warn.push('HEXCURSE/docs/ADR_LOG.md missing — re-run install for ADR stub');
-    }
-  }
-
-  for (const ruleName of ['security.mdc', 'adr.mdc', 'memory-management.mdc', 'debugging.mdc']) {
-    const rp = path.join(cwd, '.cursor', 'rules', ruleName);
-    if (!fs.existsSync(rp)) {
-      warn.push(`.cursor/rules/${ruleName} missing — run install or --refresh-rules`);
-    }
-  }
-
-  if (fs.existsSync(skillsDir)) {
-    try {
-      const mdSkills = fs.readdirSync(skillsDir).filter((f) => f.endsWith('.md')).length;
-      if (mdSkills >= 3 && !fs.existsSync(path.join(cwd, '.pampa'))) {
-        warn.push(
-          '.cursor/skills has 3+ .md files but no .pampa/ index — run `npx -y --package=pampa pampa-mcp index .cursor/skills/` or re-run install'
-        );
-      }
-    } catch (e) {
-      warn.push(`.cursor/skills: could not check PAMPA index (${e.message})`);
-    }
-  }
-
-  try {
-    const rootEnts = fs.readdirSync(cwd, { withFileTypes: true });
-    for (const ent of rootEnts) {
-      if (!ent.isDirectory()) continue;
-      const n = ent.name;
-      if (n.startsWith('.') || n === 'node_modules' || n === HEXCURSE_ROOT) continue;
-      if (n === 'cursor-governance' && sourceRepo) continue;
-      const subPkg = path.join(cwd, n, 'package.json');
-      const subAgents = path.join(cwd, n, 'AGENTS.md');
-      if (fs.existsSync(subPkg) && !fs.existsSync(subAgents)) {
-        warn.push(
-          `Monorepo folder ${n}/ has package.json but no AGENTS.md — add hierarchical AGENTS.md (existing-repo install or copy template)`
-        );
-      }
-    }
-  } catch (e) {
-    warn.push(`Monorepo AGENTS.md scan failed: ${e.message}`);
-  }
-
-  if (fs.existsSync(hexRoot)) {
-    const adrPath = path.join(cwd, HEXCURSE_ROOT, 'docs', 'ADR_LOG.md');
-    if (fs.existsSync(adrPath)) {
-      const sessionLogPath = resolveSessionLogForRollup(cwd);
-      let sessionMd = '';
-      if (fs.existsSync(sessionLogPath)) {
-        try {
-          sessionMd = fs.readFileSync(sessionLogPath, 'utf8');
-        } catch (_) {
-          /* skip */
-        }
-      }
-      const sessionBlocks = (sessionMd.match(/^### Session /gm) || []).length;
-      if (sessionBlocks >= 5) {
-        try {
-          const adrText = fs.readFileSync(adrPath, 'utf8');
-          if (!/###\s+ADR-/m.test(adrText)) {
-            warn.push(
-              'HEXCURSE/docs/ADR_LOG.md has no ADR entries after 5+ session blocks in SESSION_LOG — add ADRs per adr.mdc'
-            );
-          }
-        } catch (_) {
-          /* skip */
-        }
-      }
-    }
-  }
-
+  // 11. task-master CLI
   try {
     execSync('task-master --version', { shell: true, stdio: 'pipe', encoding: 'utf8' });
     ok.push('task-master CLI on PATH');
   } catch (e) {
-    if (ciRelaxed) warn.push('task-master not on PATH (non-blocking in CI; install task-master-ai globally for local dev)');
-    else bad.push('task-master not on PATH (install task-master-ai globally)');
+    if (ciRelaxed) warn.push('task-master not on PATH (non-blocking in CI)');
+    else bad.push('task-master not on PATH — run: npm install -g task-master-ai');
   }
 
+  // installer path file
+  const instPath = path.join(cwd, '.cursor', 'hexcurse-installer.path');
+  if (fs.existsSync(instPath)) ok.push('.cursor/hexcurse-installer.path present');
+  else warn.push('.cursor/hexcurse-installer.path missing — run install once to create it');
+
+  // Print results
   console.log(chalk.cyan.bold('\nhexcurse-doctor'), chalk.dim(`cwd: ${cwd}\n`));
   ok.forEach((s) => console.log(chalk.green('✓'), s));
   warn.forEach((s) => console.log(chalk.yellow('!'), s));
   bad.forEach((s) => console.log(chalk.red('✗'), s));
   console.log('');
   if (bad.length) {
-    console.log(chalk.yellow('Fix blocking issues above, then re-run doctor or the installer.\n'));
+    console.log(chalk.yellow('Fix blocking issues above, then re-run --doctor or the installer.\n'));
     process.exitCode = 1;
   } else {
     console.log(chalk.green('No blocking issues.\n'));
@@ -1674,7 +1126,7 @@ async function writeGovernanceRuleForceful(cwd, basename, content, hasHexDir) {
 /** Overwrites rule files from bundled templates; rebuilds base.mdc from repo docs when possible. */
 async function runRefreshRules(cwd) {
   const pkg = readInstallerPackageJson();
-  console.log(chalk.bold(`cursor-governance ${pkg.version}`), chalk.dim('— refresh-rules\n'));
+  console.log(chalk.bold(`HEXCURSE installer ${pkg.version}`), chalk.dim('— refresh-rules\n'));
 
   const hexAgents = path.join(cwd, HEXCURSE_ROOT, 'AGENTS.md');
   const rootAgents = path.join(cwd, 'AGENTS.md');
@@ -1719,18 +1171,12 @@ async function runRefreshRules(cwd) {
   );
 
   const hasHexDir = await fs.pathExists(path.join(cwd, HEXCURSE_ROOT));
-  const governanceContent = readBundledGovernanceMdc();
   await writeGovernanceRuleForceful(cwd, 'mcp-usage.mdc', MCP_USAGE_TEMPLATE, hasHexDir);
   await writeGovernanceRuleForceful(cwd, 'process-gates.mdc', PROCESS_GATES_TEMPLATE, hasHexDir);
   await writeGovernanceRuleForceful(cwd, 'base.mdc', baseContent, hasHexDir);
-  await writeGovernanceRuleForceful(cwd, 'governance.mdc', governanceContent, hasHexDir);
   await writeGovernanceRuleForceful(cwd, 'security.mdc', SECURITY_MDC_TEMPLATE, hasHexDir);
   await writeGovernanceRuleForceful(cwd, 'adr.mdc', ADR_MDC_TEMPLATE, hasHexDir);
-  await writeGovernanceRuleForceful(cwd, 'memory-management.mdc', MEMORY_MANAGEMENT_MDC_TEMPLATE, hasHexDir);
-  await writeGovernanceRuleForceful(cwd, 'debugging.mdc', DEBUGGING_MDC_TEMPLATE, hasHexDir);
-  await writeGovernanceRuleForceful(cwd, 'multi-agent.mdc', MULTI_AGENT_MDC_TEMPLATE, hasHexDir);
-  await writeGovernanceRuleForceful(cwd, 'linear-sync.mdc', LINEAR_SYNC_MDC_TEMPLATE, hasHexDir);
-  console.log(chalk.green('✓'), 'Wrote .cursor/rules/*.mdc (10 governance files)');
+  console.log(chalk.green('✓'), 'Wrote .cursor/rules/*.mdc (5 default governance files)');
   if (hasHexDir) {
     console.log(chalk.green('✓'), `Wrote ${HEXCURSE_ROOT}/rules/*.mdc (mirror)`);
   } else {
@@ -1740,494 +1186,145 @@ async function runRefreshRules(cwd) {
 }
 
 const PROCESS_GATES_TEMPLATE = `---
-description: Short non-negotiable process gates for HexCurse implementation chats
+description: Non-negotiable process gates for implementation work
 alwaysApply: true
 ---
 
-# PROCESS GATES (HexCurse — implementation agent)
+# PROCESS GATES
 
-Full MCP stack, session timeline, and rule mapping: **\`docs/MCP_COORDINATION.md\`** (pack: **\`HEXCURSE/docs/MCP_COORDINATION.md\`**). Binding detail: **\`mcp-usage.mdc\`**. If anything here conflicts, the **stricter** requirement wins.
+Binding detail: **mcp-usage.mdc**. Stricter requirement wins.
 
-1. **Memory then Taskmaster:** Query **memory** at session start (before DIRECTIVES / ARCHITECTURE); then **get_tasks** before planning or implementing — or **\`DEGRADED_MODE: <mcp> — <reason>\`** if a server is missing or red.
-2. **Structural map:** **repomix --compress** once at session start on an existing codebase — or **DEGRADED_MODE** if repomix is unavailable.
-2b. **Indexed code map (local):** **jcodemunch** — **\`resolve_repo\`** / **\`index_folder\`** on the workspace root after repomix when code work is in scope; **\`get_repo_outline\`** / **\`suggest_queries\`** as needed; use **\`search_symbols\`**, **\`get_context_bundle\`**, **\`get_blast_radius\`**, **\`find_references\`**, etc., during work — or **DEGRADED_MODE** (**mcp-usage.mdc** RULE 10).
-3. **Plans:** **sequential-thinking** before non-trivial implementation plans — or **DEGRADED_MODE**.
-4. **Code:** **jcodemunch** for discovery/impact + **Serena** symbol tools for edits — before broad reads/edits when applicable — or **DEGRADED_MODE** / explicit human approval for large reads per **mcp-usage.mdc**.
-5. **Libraries:** **context7** before external library/API calls when relevant — or **DEGRADED_MODE**.
-6. **Niche SDKs:** **gitmcp** for firmware / niche GitHub deps not covered as mainstream library docs — or **DEGRADED_MODE**.
-7. **Local git & disk:** Work branches with **local git** after scope confirm (**mcp-usage.mdc** RULE 8). **github** MCP is optional (remote PR/issue only). **Source of truth** is the workspace on disk — not GitHub.
-8. **Continual learning:** **agents-memory-updater** per **RULE 9** — human request; **governance** paths touched (no debounce); or **parent transcript delta** vs index with **debounce** via **continual-learning.json** \`lastMemoryUpdaterRunDateUtc\`. Optional \`node cursor-governance/setup.js --learning-rollup\` when **lastRollupAt** is stale (appends to **\`HEXCURSE/docs/ROLLING_CONTEXT.md\`** or legacy **\`docs/ROLLING_CONTEXT.md\`**). See **\`docs/CONTINUAL_LEARNING.md\`** (pack: **\`HEXCURSE/docs/CONTINUAL_LEARNING.md\`**).
-9. **Memory vs repo:** **Memory** does not override Taskmaster, DIRECTIVES, ARCHITECTURE, or the live tree.
+1. **memory** then **taskmaster-ai** **get_tasks** before planning or code — or state **DEGRADED_MODE** with server id and reason.
+2. **repomix --compress** once per session start on existing codebases when repomix is available.
+3. **jcodemunch** index (**resolve_repo** / **index_folder**) when code work is in scope — or DEGRADED_MODE.
+4. **sequential-thinking** before non-trivial plans — or DEGRADED_MODE.
+5. **context7** before external library/API calls — or DEGRADED_MODE.
+6. **Serena** symbol tools for edits; avoid **read_file** on files over 100 lines without approval — or DEGRADED_MODE.
 
-If any required MCP is missing or red in Cursor, announce **\`DEGRADED_MODE\`** and what you will not assume — do not silently skip.
+If a required MCP is missing or red, state **DEGRADED_MODE** and what you will not assume.
 
-## Gate: Pre-commit security (semgrep)
+## Semgrep (commits touching source)
 
-Before any **git commit** involving **source code** changes:
+1. Run **semgrep** **security_check** on modified source files.
+2. **HIGH/CRITICAL:** do not commit until resolved.
+3. **MEDIUM:** note in handoff; commit allowed with acknowledgment.
+4. If semgrep unavailable: note in handoff; proceed only with human awareness.
 
-1. Invoke **semgrep** MCP **\`security_check\`** on all modified source files.
-2. If **HIGH** or **CRITICAL** findings: **do not commit** — fix first.
-3. If **MEDIUM** findings: commit is permitted, but log findings in **SESSION_LOG.md** under **\`## Security Notes\`**.
-4. If **semgrep** is unavailable: note the exception in **SESSION_LOG.md** and proceed only with explicit human awareness.
+## Architecture
 
-This gate is mandatory. It cannot be skipped for “small” changes.
+Significant design changes: append an ADR per **adr.mdc** to **docs/ADR_LOG.md** (pack: **HEXCURSE/docs/ADR_LOG.md**).
 
-## Gate: Architectural decision (adr)
+## Session close
 
-Before implementing any **significant** architectural change:
-
-1. Write an ADR entry to **\`docs/ADR_LOG.md\`** (pack: **\`HEXCURSE/docs/ADR_LOG.md\`**) using the format in **\`adr.mdc\`**.
-2. The ADR should be written **before** implementation begins when practical — not only after merge.
-3. **Architectural** includes: new dependency, API contract change, data model change, new MCP server or external service, module boundary change, overriding **NORTH_STAR** / **DIRECTIVES** constraints.
-
-## Gate: Session close checklist
-
-Before ending any session, confirm:
-
-- [ ] **Taskmaster** task status updated
-- [ ] **Semgrep** final scan run on modified sources; **HIGH/CRITICAL** resolved or logged with exception
-- [ ] **Linear** issues synced if **LINEAR_API_KEY** is set
-- [ ] **ADR** written for any significant architectural decisions
-- [ ] **SESSION_LOG.md** entry written
-- [ ] **Memory** MCP updated with key learnings
+- [ ] Taskmaster task status updated
+- [ ] Semgrep on touched sources (or logged exception)
+- [ ] ADR if architecture changed
+- [ ] Handoff lists MCP used / not used
+- [ ] **memory** updated with key discoveries
 `;
 
 const MCP_USAGE_TEMPLATE = `---
-description: MCP tool automatic behavior — fires without being asked, every session
+description: When to use which MCP tools — automatic triggers
 alwaysApply: true
 ---
 
-# MCP AUTOMATIC BEHAVIOR RULES
-# These are not suggestions. They are hardwired automatic behaviors.
-# Every rule below fires on its trigger condition without the human asking.
-# If you find yourself about to do something a rule covers — the rule wins.
+# MCP UTILIZATION
 
-> **Token budget:** Each active MCP server adds roughly **500–1000** tokens of tool-description overhead per turn. See **\`docs/MCP_TOKEN_BUDGET.md\`** (pack: **\`HEXCURSE/docs/MCP_TOKEN_BUDGET.md\`**) for the full table and guidance on disabling session-conditional servers in **\`~/.cursor/mcp.json\`**.
+Disk in the open workspace is source of truth — not remote Git.
 
-## SOURCE OF TRUTH — workspace (disk)
+## Core order (when available)
 
-HexCurse is enforced on **files in the open Cursor workspace on disk**. Taskmaster, DIRECTIVES, SESSION_LOG, repomix, **jcodemunch**, and Serena operate on **local paths** only.
+1. **memory** — start of session; write discoveries immediately.
+2. **taskmaster-ai** — **get_tasks** before plan or implementation; **set_task_status** when work completes.
+3. **repomix** — **--compress** once per session on existing trees.
+4. **jcodemunch** — index workspace; use **search_symbols**, **get_context_bundle**, **find_references** for multi-file work.
+5. **sequential-thinking** — before non-trivial implementation plans.
+6. **Serena** — **find_symbol**, **find_referencing_symbols**, **replace_symbol_body** for edits.
+7. **context7** — before every external library or API call you add or change.
+8. **github** — only when the human asked for PR/issue/remote; use local git for branches.
 
-- **Never** use the **github** MCP (or any remote API) to decide whether a file exists or to browse the tree — unpushed work exists only on disk.
-- After the human adds or saves files, read them via **workspace paths** (\`read_file\`, Serena, repomix on the local tree). If a tool cannot see a file that exists on disk, state that and suggest refreshing the workspace / confirming the path — **do not** assume GitHub reflects the working tree.
-- **Publishing:** \`git commit\` and \`git push\` are how work reaches GitHub. The **github** MCP is **optional** (PRs, issues, remote queries) and **never** required for governance.
+After substantive code edits, run **semgrep** **security_check** before commit (**process-gates.mdc**). After UI changes, **playwright** when available. **supabase** for schema before DB queries when this project uses it. Use any other configured MCP when materially relevant; skipping needs an explicit reason in the handoff.
 
-## MANDATORY MCP UTILIZATION
+## DEGRADED_MODE
 
-HexCurse sessions must make **full, appropriate** use of available MCP tools. Agents must not default to manual reasoning, broad file reads, or ad hoc repo inspection when an MCP tool exists that can provide the needed data more directly, more accurately, or more efficiently.
+If a server is missing or failing: announce **DEGRADED_MODE** (server id and reason) and list what you will not assume.
 
-### Required MCP-first order
-1. **memory** — Read prior durable project facts and constraints first.
-2. **taskmaster-ai** — Call **get_tasks** before planning or implementation.
-3. **repomix** — Use when structural repo understanding is needed.
-4. **jcodemunch** — Tree-sitter index + token-efficient retrieval on the **local workspace** (RULE 10). Use **before** wide manual scanning or ad hoc multi-file reads when the server is available.
-5. **sequential-thinking** — Use before presenting any non-trivial implementation plan when available.
-6. **Serena** — Use symbol-aware tools for code navigation and edits instead of broad whole-file reading when applicable.
-7. **context7** — Use for external library/API/framework verification before relying on assumptions.
-8. **github** (optional) — Only when the human explicitly wants a GitHub PR, issue, or remote branch query; **not** for creating local branches or discovering files. Prefer **local git** (terminal) for branch/commit/push.
-9. **gitmcp** — Niche / firmware / hardware SDK docs not covered by context7 (RULE 7).
-10. **playwright** — After UI changes for verification when the server is available.
-11. **semgrep** — After substantive code writes and before commit (**process-gates.mdc**); **security_check** on touched files. Configure **Streamable HTTP** **\`https://mcp.semgrep.ai/mcp\`** in **\`~/.cursor/mcp.json\`** (no local **\`SEMGREP_PATH\`** / **\`SEMGREP_APP_TOKEN\`**).
-12. **sentry** — On runtime errors / triage when configured; fetch issue context before deep source reads.
-13. **firecrawl** — External research when context7 and local docs are insufficient.
-14. **linear** — When Linear is in use; sync issues with Taskmaster at session boundaries.
-15. **pampa** — Semantic search over **\`.cursor/skills/\`** when skills may apply (**SESSION START** 4e).
-16. **gitmcp-adafruit-mpu6050** — MPU6050 / **Adafruit_MPU6050** work before driver code (RULE 11).
-17. **supabase** — Schema, RLS, Auth, Edge Functions when this project uses Supabase (RULE 12).
+## Hard stops
 
-### Hard rule
-If an MCP tool is **available** and **materially relevant** to the task, the agent **must** use it. Skipping a relevant MCP requires an **explicit reason** in the session report (see Session-close requirement).
+- No implementation until the active Taskmaster task is known and scope is confirmed.
+- No guessing library APIs when **context7** is available — verify first.
+- No commits with unresolved **HIGH/CRITICAL** semgrep findings on touched code.
 
-### Minimum expectations by task type
-- **Architecture / planning:** memory, taskmaster, repomix, **jcodemunch** (index + outline / suggest_queries on unfamiliar trees), sequential-thinking
-- **Implementation:** memory, taskmaster, **jcodemunch** (search, context bundles, impact / references as needed), Serena, context7 when libraries/APIs are involved; **semgrep** after substantive code edits
-- **UI / frontend:** **playwright** for verification when the server is available
-- **Backend / database (Supabase):** **supabase** MCP for schema and policies — not raw terminal SQL when MCP can answer
-- **Security / commits:** **semgrep** before commit; resolve HIGH/CRITICAL
-- **Research:** **firecrawl** + context7 — do not trust training data for current APIs when tools are green
-- **Bug triage:** **sentry** before deep source reads when applicable; hypothesis-first per **debugging.mdc**
-- **Hardware / MPU6050:** **gitmcp-adafruit-mpu6050** before driver code
-- **Tracked work (Linear):** **linear** sync at close when **LINEAR_API_KEY** is set
-- **Governance sync:** memory, taskmaster; **local git** for branch/worktree; **github** MCP only if remote PR/issue actions are in scope
-- **Research / integration questions:** context7 first for supported libraries/docs, then **firecrawl** / **gitmcp** if still unresolved
+## Handoff
 
-### Forbidden behavior
-- Starting implementation without **get_tasks**
-- Producing a non-trivial plan without sequential-thinking when that MCP is available
-- Reading large code files end-to-end when **jcodemunch** retrieval or Serena symbol lookup would suffice
-- Skipping **jcodemunch** for multi-file discovery, impact analysis, or ranked context when it is green and the workspace is (or can be) indexed
-- Guessing library behavior without checking context7 when the dependency/API matters
-- **Relying on training data for library APIs when context7 is available**
-- **Committing code with unresolved HIGH/CRITICAL semgrep findings**
-- **Writing database queries without checking schema via supabase MCP** when Supabase is in use and the server is available
-- **Closing a session with Linear issues out of sync with Taskmaster** when Linear is in use
-- **Letting memory override repo-local sources of truth** for the active workspace (Taskmaster, DIRECTIVES, ARCHITECTURE, and the live codebase win over stale memory)
-
-### Session-close requirement
-Each governed session must state (**in the final handoff and in SESSION_LOG.md** or **HEXCURSE/SESSION_LOG.md** if your repo uses the install pack):
-- Which MCP tools were used, and why
-- Any available MCPs not used, with explicit reason
-
-## DEGRADED_MODE (required when MCP is missing or unavailable)
-
-If a Cursor MCP server is **not configured**, **red**, or a tool call **fails**, you must state **\`DEGRADED_MODE: <which MCP> — <reason>\`** before proceeding, and list **what you will not do** without it (e.g. no claimed task order without taskmaster-ai). Do **not** silently substitute manual guessing for a mandatory tool. See also **\`process-gates.mdc\`** and **\`docs/MCP_COORDINATION.md\`** (pack: **\`HEXCURSE/docs/MCP_COORDINATION.md\`**).
-
-**Essential — quality severely degraded without:** **taskmaster-ai**, **memory**, **Serena**, **context7**.
-
-**Important — degrade gracefully:** **sequential-thinking**, **repomix**, **gitmcp**, **jcodemunch**, **semgrep**.
-
-**Optional — note gaps explicitly:** **github** (remote), **playwright**, **sentry**, **firecrawl**, **linear**, **pampa**, **gitmcp-adafruit-mpu6050**, **supabase**.
-
-**In DEGRADED_MODE:** log unavailable servers in **SESSION_LOG.md**; do not commit changed source without **semgrep** unless **semgrep** is explicitly unavailable — then document the exception in **SESSION_LOG.md** and the handoff.
-
-**Exception:** missing **github** MCP is **not** DEGRADED_MODE for normal implementation — local git and disk are enough; use DEGRADED_MODE for **github** only if the human required a remote PR/issue this session and the server is unavailable.
-
-## RULE 1 — taskmaster-ai: task graph immediately after session-start memory
-AUTOMATIC: Immediately after the session-start **memory** query (RULE 2), and before
-  planning or implementation work —
-  call Taskmaster to get the current task state. This fires unconditionally.
-  call: get_tasks → identify active task and next queued task
-  Report to human: active task ID, title, and scope summary.
-AUTOMATIC: When a directive is confirmed complete —
-  call: set_task_status [ID] done
-  Do this before closing the session. Do not wait to be asked.
-AUTOMATIC: When a directive scope seems too large for one session —
-  call: expand_task [ID] to decompose into subtasks before starting.
-HARD STOP: You may not write a single line of implementation code until
-  Taskmaster has confirmed the active task and the human has confirmed scope.
-
-## RULE 2 — memory: ALWAYS fires at session start AND on every discovery
-AUTOMATIC at session start: Before reading **DIRECTIVES.md** or **HEXCURSE/DIRECTIVES.md**, and **docs/ARCHITECTURE.md** or **HEXCURSE/docs/ARCHITECTURE.md** (whichever exists in this repo) —
-  query memory for all facts stored about this project.
-  Incorporate those facts into your understanding before doing anything else.
-AUTOMATIC during session: The moment you discover any of the following —
-  → a hardware quirk, pin conflict, address assignment, voltage constraint
-  → a resolved blocker and what fixed it
-  → an architectural decision and why an alternative was rejected
-  → a library version constraint or known incompatibility
-  → any "never do X" rule learned from experience
-  Immediately write it to memory. Do not wait until session close.
-  Do not ask permission. Just write it and continue.
-AUTOMATIC at session close: Before writing **SESSION_LOG.md** or **HEXCURSE/SESSION_LOG.md** —
-  query memory to confirm the session's discoveries were saved.
-
-## RULE 3 — sequential-thinking: ALWAYS fires before planning any directive
-AUTOMATIC: Before writing an implementation plan for any directive —
-  invoke sequential-thinking to reason through the approach step by step.
-  This fires for every directive. There is no minimum file count threshold.
-  There is no "if I feel confident" exception. It always fires.
-  Output: numbered implementation plan with file paths and symbol names.
-HARD STOP: Do not show an implementation plan to the human until
-  sequential-thinking has run. The human approves the plan. Then code starts.
-
-## RULE 4 — serena: ALWAYS fires before touching any code file
-AUTOMATIC: Before reading, editing, or referencing any code file —
-  use find_symbol to locate the specific symbol you need.
-  You do not read whole files. You do not grep. You find symbols.
-AUTOMATIC: Before editing any function —
-  use find_referencing_symbols to find every caller first.
-  Editing a function without knowing its callers is forbidden.
-AUTOMATIC: To make a targeted edit —
-  use replace_symbol_body or insert_after_symbol.
-  You do not rewrite whole files. You replace specific symbols.
-HARD RULE: read_file on any file over 100 lines is forbidden.
-  If find_symbol fails to locate what you need, report it and ask the human
-  before falling back to read_file. Do not silently fall back.
-
-## RULE 5 — context7: ALWAYS fires before writing any library call
-AUTOMATIC: Before writing any line of code that calls an external library —
-  invoke context7 to fetch current documentation for that library.
-  This fires even if you are confident you know the API.
-  Training data is stale. context7 is not. context7 always wins.
-AUTOMATIC: The trigger is built into your behavior — you do not need
-  the human to say "use context7." You invoke it yourself before every
-  library call you are about to write.
-HARD RULE: Writing a library function call from memory without first
-  verifying it via context7 is forbidden.
-
-## RULE 6 — repomix: ALWAYS fires at session start on an existing codebase
-AUTOMATIC: At the start of any session on an existing codebase —
-  run: repomix --compress
-  Use the output to build your structural understanding.
-  Do not load individual files to get the big picture. Use repomix.
-HARD RULE: Run repomix once at session start. Do not re-run mid-session.
-
-## RULE 7 — gitmcp: ALWAYS fires for any external SDK or niche library
-AUTOMATIC: When the directive involves any hardware sensor library,
-  firmware SDK, niche framework, or any dependency that is not a major
-  mainstream library (not PyTorch/React/FastAPI tier) —
-  query gitmcp for that library's current documentation before writing
-  any code that touches it. You do not need to be asked. You do it.
-
-## RULE 8 — Local git (branch); GitHub MCP optional
-AUTOMATIC at directive start: The moment scope is confirmed by the human —
-  create a local branch **D[NNN]-[kebab-case-description]** using **local git** (e.g. \`git checkout -b …\` or equivalent) **before** the first line of implementation code,
-  unless the human says the branch already exists — then checkout that branch.
-  Do not use **github** MCP to create the branch unless the human explicitly asks for a remote branch via API.
-AUTOMATIC at session close: After git diff verification —
-  ensure commits are ready locally; **SESSION_LOG** and DIRECTIVES updates are mandatory.
-  **Opening a PR via github MCP is optional** — only if the human asked for it this session. Default workflow: human runs \`git push\` and opens a PR in the GitHub UI if desired.
-AUTOMATIC when a blocker is discovered —
-  write the blocker to **memory** and **DIRECTIVES.md** (Blockers field). **GitHub issue via github MCP is optional** — only if the human asked to file one.
-
-## RULE 9 — agents-memory-updater (continual learning): self-improve from transcripts
-AUTOMATIC when the human asks for continual learning, transcript mining,
-  agents-memory-updater, memory update from chats, or self-improve from
-  conversation history:
-  Invoke Task subagent_type agents-memory-updater (or equivalent) per
-  **docs/CONTINUAL_LEARNING.md** or **HEXCURSE/docs/CONTINUAL_LEARNING.md** — incremental index at
-  .cursor/hooks/state/continual-learning-index.json (see **HEXCURSE/PATHS.json** if present for
-  continualLearningIndex); parent transcripts only; refresh index mtimes;
-  classify per **docs/MEMORY_TAXONOMY.md** / **HEXCURSE/docs/MEMORY_TAXONOMY.md**; skill promotion queue
-  **.cursor/hooks/state/skill-promotion-queue.json**; high-signal memory + **AGENTS.md** subsection merges only; no secrets.
-
-AUTOMATIC at session close, after SESSION_LOG steps when those apply,
-  when this session changed governance or agent-behavior sources (git diff or
-  confirmed scope), including any of: .cursor/rules/, AGENTS.md, HEXCURSE/AGENTS.md,
-  HEXCURSE/rules/, mcp-usage.mdc, base.mdc, cursor-governance/, CONTINUAL_LEARNING.md,
-  MEMORY_TAXONOMY.md, HEXCURSE/docs/MEMORY_TAXONOMY.md, docs/MEMORY_TAXONOMY.md,
-  ROLLING_CONTEXT.md, docs/ROLLING_CONTEXT.md, .cursor/skills/,
-  HEXCURSE/docs/ARCH_PROMPT.md, ARCH_PROMPT.md, docs/ARCH_PROMPT.md,
-  MCP_COORDINATION.md, HEXCURSE/docs/MCP_COORDINATION.md, docs/MCP_COORDINATION.md,
-  SESSION_START_PROMPT.md, HEXCURSE/SESSION_START_PROMPT.md, PATHS.json, HEXCURSE/PATHS.json,
-  DIRECTIVES.md, HEXCURSE/DIRECTIVES.md:
-  Before the final handoff message, run agents-memory-updater once unless you already
-  ran it this session or the human said to skip continual learning for this close.
-  **No debounce** for governance-touch closes.
-
-AUTOMATIC at session close for **implementation** work when **governance paths above did not change**:
-  If any **parent** transcript under this workspace is **new** or has **filesystem mtime** newer than
-  the \`mtimeUtc\` stored in **continual-learning-index.json** for that path, run **agents-memory-updater**
-  once — **debounced:** skip if **continual-learning.json** \`lastMemoryUpdaterRunDateUtc\` equals
-  **today's UTC date** (YYYY-MM-DD) unless the human asked for mining in this session. If you **skip** due
-  to debounce but transcript delta was real, set **\`pendingLearning\`: true** in **continual-learning.json**
-  so the next session can run RULE 9 early (**SESSION_START_PROMPT**). After a successful run, set
-  \`lastMemoryUpdaterRunDateUtc\` to today's UTC date and set **\`pendingLearning\`** to **false**.
-
-OPTIONAL (recommended weekly or via OS cron): run \`node cursor-governance/setup.js --learning-rollup\`
-  from repo root to append **SESSION_LOG** excerpts to **HEXCURSE/docs/ROLLING_CONTEXT.md** (or legacy **docs/ROLLING_CONTEXT.md**; no LLM). If
-  **lastRollupAt** in **continual-learning.json** is **older than 14 days** or missing, prefer running this
-  at session close before final handoff when convenient.
-
-If none of: human request, governance touch, transcript delta (per index) — do not run
-  agents-memory-updater. **Quick exit:** if no high-signal content after scan, apply index mtime refresh only
-  and respond \`No high-signal memory updates.\`
-
-## RULE 10 — jcodemunch: ALWAYS fires for local code exploration and impact when the server is available
-Package name: **\`jcodemunch-mcp\`** (MCP server name often **\`jcodemunch\`**). Spelling **jcodemuch** in chat maps to the same server.
-
-AUTOMATIC **right after** repomix (RULE 6) on an existing codebase when **any** implementation or code-navigation work is planned —
-  ensure a local index exists: **\`resolve_repo\`** with the **workspace root path**, or **\`index_folder\`** on that path (incremental is fine).
-  Then at minimum: **\`get_repo_outline\`** and/or **\`suggest_queries\`** if the tree is unfamiliar; use **\`list_repos\`** only if you truly do not know the repo id.
-AUTOMATIC **during** implementation — prefer jcodemunch over brute force whenever multiple files or symbols are involved:
-  **\`search_symbols\`** / **\`get_symbol_source\`** / **\`get_context_bundle\`** / **\`get_ranked_context\`** for scoped reads;
-  **\`find_references\`**, **\`find_importers\`**, **\`get_dependency_graph\`**, **\`get_blast_radius\`** before changing shared contracts or hot paths;
-  **\`search_text\`** for non-symbol needles (string literals, TODOs, config keys);
-  **\`get_changed_symbols\`** (with git SHAs) when correlating a diff to symbols;
-  **\`invalidate_cache\`** + re-index when the index is clearly stale after large refactors.
-RELATIONSHIP TO **Serena** (RULE 4): jcodemunch is for **AST-rich discovery, ranking, import/reference graphs, and token-budgeted retrieval** on the indexed tree; Serena remains mandatory for **workspace symbol edits** (\`replace_symbol_body\`, \`insert_after_symbol\`, etc.) and precise \`find_symbol\` / \`find_referencing_symbols\` when you are editing. When **both** are green, use jcodemunch **first** for broad or fuzzy discovery and impact; then Serena for surgical edits. Do **not** use **github** remote search as a substitute for local jcodemunch + disk.
-HARD RULE: If jcodemunch is **available** and the session touches **application/source code** (not markdown-only governance with zero code reads), you must **not** skip indexing + at least one retrieval pass that jcodemunch serves better than opening whole files — unless you state **DEGRADED_MODE: jcodemunch — reason** in the handoff.
-
-## RULE 11 — gitmcp-adafruit-mpu6050: hardware / sensor library lookups (Adafruit MPU6050)
-AUTOMATIC: When the task involves the **Adafruit MPU6050** sensor, I²C wiring, register maps, or the **Adafruit_MPU6050** Arduino / CircuitPython library —
-  query **gitmcp-adafruit-mpu6050** for current docs, examples, and API references on **gitmcp.io** before writing or refactoring driver code.
-  Do not rely on training data for hardware-specific register behavior or library call sequences.
-
-## RULE 12 — supabase: database and backend via Supabase MCP
-AUTOMATIC: When this project uses **Supabase** (Postgres, Auth, RLS, Edge Functions) —
-  use the **supabase** MCP for schema inspection, query execution, RLS policy verification, Edge Function management, and auth configuration.
-  Prefer MCP-driven checks over guessing from memory or ad hoc dashboard-only workflows when the server is available.
+State which MCP tools were used or skipped (with reason).
 `;
 
 const SECURITY_MDC_TEMPLATE = `---
-description: Automatically run Semgrep security scan on any generated or modified code before committing. Required for all non-trivial code changes.
+description: Semgrep security gate before commits
 alwaysApply: false
 globs: "**/*.{ts,tsx,js,jsx,py,go,java,rb,php,rs,cs}"
 ---
 
-# RULE: Security Gate (Semgrep)
+# Security (Semgrep)
 
-## Trigger
-Any time you generate new code, modify existing code, or complete a task that involves writing to source files.
+## When
+Any change that writes or rewrites source files.
 
-## Required Actions
+## Actions
 
-1. After writing code to disk, invoke the \`semgrep\` MCP tool \`security_check\` on the modified files.
-2. If Semgrep returns findings of severity HIGH or CRITICAL:
-   - Do NOT proceed to commit.
-   - Report findings inline in the session.
-   - Propose specific fixes for each finding before moving forward.
-3. If Semgrep returns MEDIUM findings:
-   - Log them in SESSION_LOG.md under a \`## Security Notes\` subsection.
-   - Proceed only after acknowledging the finding.
-4. LOW / INFO findings: log only, do not block.
+1. Run **semgrep** MCP **security_check** on modified paths.
+2. **HIGH/CRITICAL:** do not commit; fix and re-scan.
+3. **MEDIUM:** record in handoff under security notes; then proceed.
+4. **LOW/INFO:** note only.
 
 ## Forbidden
-- Committing code that has unresolved HIGH or CRITICAL Semgrep findings.
-- Skipping this check because the change "looks small."
-
-## Example invocation
-Use the \`semgrep_scan\` tool with the list of modified file paths. Pass \`auto\` as the config string to use community rules.
+- Committing with unresolved HIGH/CRITICAL findings.
+- Skipping the scan because the change looks small.
 `;
 
 const ADR_MDC_TEMPLATE = `---
-description: Automatically capture Architecture Decision Records (ADRs) whenever a significant architectural choice is made during a session.
+description: Record significant architecture decisions
 alwaysApply: false
-globs: "HEXCURSE/docs/ARCHITECTURE.md, **/ARCHITECTURE.md, **/adr/**"
+globs: "**/ARCHITECTURE.md, **/adr/**, HEXCURSE/docs/ARCHITECTURE.md"
 ---
 
-# RULE: Architecture Decision Records (ADR)
+# Architecture Decision Records
 
-## What triggers an ADR
-Any decision that involves:
-- Choosing between two or more approaches for a non-trivial feature
-- Changing a data model, API contract, or module boundary
-- Adding or removing a dependency
-- Choosing a new MCP server, tool, or external service
-- Overriding a constraint in NORTH_STAR.md or DIRECTIVES.md
+## Triggers
+- Non-trivial design fork, data/API contract change, new dependency or external service, MCP/tool choice, or overriding NORTH_STAR / DIRECTIVES constraints.
 
-## Required Format
-When an ADR-triggering decision is made, append to \`HEXCURSE/docs/ADR_LOG.md\` (create if absent):
+## Format
+Append to **HEXCURSE/docs/ADR_LOG.md** or **docs/ADR_LOG.md** using heading **### ADR-{N}: Title**, then lines **Date**, **Status**, **Context**, **Decision**, **Consequences**, **Alternatives**, and a horizontal rule.
 
-\`\`\`
-### ADR-{SEQUENCE}: {Short Title}
-**Date:** {ISO date}
-**Status:** Accepted
-**Context:** {1–3 sentences: what problem necessitated this decision}
-**Decision:** {What was chosen and why}
-**Consequences:** {What becomes easier, what becomes harder, any risks}
-**Alternatives considered:** {Brief list of what was rejected and why}
----
-\`\`\`
-
-## Forbidden
-- Making a significant architectural change without logging an ADR.
-- Deleting or modifying past ADR entries (they are append-only).
-`;
-
-const MEMORY_MANAGEMENT_MDC_TEMPLATE = `---
-description: Intelligent context management — prune stale context, detect architecture drift, and maintain state across session compactions.
-alwaysApply: true
----
-
-# RULE: Memory & Context Management
-
-## Context Budget Awareness
-- Monitor your active context window. When it exceeds ~70% capacity, begin pruning.
-- Pruning priority (remove first): verbose tool output logs, repeated file reads, superseded plans.
-- Never prune: NORTH_STAR.md content, Sacred Constraints, current task description, file paths of modified files.
-
-## Pattern Recognition
-Actively detect and flag:
-- **Architecture drift:** Implementation diverging from HEXCURSE/docs/ARCHITECTURE.md — log to SESSION_LOG.md immediately.
-- **Code smell accumulation:** Three or more TODO/FIXME comments added in one session without a corresponding Taskmaster task — create tasks automatically.
-- **Scope creep:** Work extending beyond the current Taskmaster task scope — pause and confirm with user before proceeding.
-
-## State Persistence on Compaction
-Before your context is compacted (or when you anticipate it), write a \`## COMPACTION CHECKPOINT\` block to SESSION_LOG.md containing:
-1. Current Taskmaster task ID and status
-2. Files modified this session (list)
-3. Decisions made (summary)
-4. Next immediate action
-
-## Recovery
-When resuming after a compaction, read SESSION_LOG.md and HEXCURSE/docs/ROLLING_CONTEXT.md before any other action.
-`;
-
-const DEBUGGING_MDC_TEMPLATE = `---
-description: Minimize tool call loops during debugging. Use structured hypothesis-driven investigation.
-alwaysApply: false
-globs: "**/*.{ts,tsx,js,jsx,py,go}"
----
-
-# RULE: Debugging Protocol
-
-## Hypothesis-First
-Before calling any diagnostic tool, state a hypothesis: "I believe the error is caused by X because Y."
-Then select the single tool call most likely to confirm or deny that hypothesis.
-
-## Tool Call Efficiency
-- Maximum 3 consecutive tool calls without updating your hypothesis.
-- After 3 failed tool calls, stop and summarize findings so far in plain language before continuing.
-- Prefer \`semgrep\` MCP \`get_abstract_syntax_tree\` over repeated file reads for structural questions.
-- Use \`sentry\` MCP \`sentry_get_issue\` to fetch real error context before reading source.
-
-## Browser Errors
-Use \`playwright\` MCP to reproduce UI errors before attempting code fixes:
-1. Navigate to the failing page.
-2. Capture the exact error from console/network.
-3. Only then modify source.
-
-## Forbidden
-- Reading the same file more than twice in a single debugging loop without acting on its contents.
-- Running a full test suite to diagnose a single failing test — use targeted test execution only.
+## Rules
+- ADRs are append-only; do not delete prior entries.
 `;
 
 const MULTI_AGENT_MDC_TEMPLATE = `---
-description: Coordination rules for when HexCurse is operating in multi-agent mode with parallel agents in git worktrees.
+description: Multi-agent coordination (worktrees + swarm-protocol)
 alwaysApply: false
 globs: "HEXCURSE/docs/MULTI_AGENT.md, .swarm/**"
 ---
 
-# RULE: Multi-Agent Coordination
+# Multi-agent
 
-## Preconditions
-This rule activates only when \`HEXCURSE/docs/MULTI_AGENT.md\` exists and \`HEXCURSE_MULTI_AGENT=1\` is set in the environment.
+Active only when **HEXCURSE/docs/MULTI_AGENT.md** exists and **HEXCURSE_MULTI_AGENT=1**.
 
-## Work Claiming Protocol
-1. Before starting any task, claim it via the \`swarm-protocol\` MCP \`claim_work\` tool with your agent ID and task ID.
-2. If claim fails (another agent holds it), select the next unclaimed task from Taskmaster.
-3. Heartbeat every 5 minutes on long-running tasks via \`swarm_heartbeat\`.
-
-## File Conflict Prevention
-- Before writing to any file, call \`swarm_check_conflicts\` with the target file path.
-- If a conflict is detected, pause and notify the orchestrating agent via a SESSION_LOG.md entry tagged \`[CONFLICT]\`.
-- Never force-write over a locked file.
-
-## Handoff Protocol
-When completing a task, write a structured handoff block to \`HEXCURSE/docs/AGENT_HANDOFFS.md\`:
-\`\`\`
-### Handoff — Task {ID} — Agent {AGENT_ID} — {ISO datetime}
-**Completed:** {What was done}
-**Files modified:** {list}
-**Tests added:** {list or "none"}
-**Blocked on:** {any unresolved dependencies}
-**Next agent should:** {specific next action}
----
-\`\`\`
-
-## Merge Discipline
-- Each agent works in its own git worktree branch: \`hexcurse/agent/{AGENT_ID}/{TASK_ID}\`.
-- Do not merge your own branch — open a PR and let the orchestrator review.
+1. Claim work via **swarm-protocol** **claim_work** before starting; heartbeat long tasks.
+2. **swarm_check_conflicts** before writes; on conflict, pause and note in **session_log.md** with **[CONFLICT]**.
+3. Handoffs go to **HEXCURSE/docs/AGENT_HANDOFFS.md** with task id, files, blockers, next step.
+4. Branch per agent **hexcurse/agent/{AGENT_ID}/{TASK_ID}**; do not self-merge — orchestrator reviews.
 `;
 
-const LINEAR_SYNC_MDC_TEMPLATE = `---
-description: Keep Linear issues and Taskmaster tasks bidirectionally synchronized during sessions.
-alwaysApply: false
-globs: ".taskmaster/tasks/tasks.json, HEXCURSE/DIRECTIVES.md"
----
-
-# RULE: Linear ↔ Taskmaster Sync
-
-## On Session Start (if LINEAR_API_KEY is set)
-1. Call \`linear\` MCP \`get_my_issues\` filtered to \`In Progress\`.
-2. For each Linear issue not present in Taskmaster, create a corresponding Taskmaster task using \`task-master add-task\`.
-3. Log any new tasks created in SESSION_LOG.md.
-
-## On Task Completion
-When marking a Taskmaster task \`done\`:
-1. Search Linear for a matching issue by task title or ID.
-2. If found, move the Linear issue to \`Done\` via \`linear\` MCP \`update_issue\`.
-
-## On Session Close
-Ensure all Taskmaster tasks modified this session have a corresponding Linear issue. Create missing issues via \`linear\` MCP \`create_issue\` with:
-- Title = task title
-- Description = task details
-- Labels = \`hexcurse\`, \`ai-generated\`
-
-## Forbidden
-- Manually editing \`.taskmaster/tasks/tasks.json\` to reconcile with Linear — always use the MCP tool.
-`;
+/** Keeps generated base.mdc under the line-count budget (see V.4 in D-009). */
+function limitMarkdownBlock(text, maxLines) {
+  const raw = String(text || '').trim();
+  if (!raw) return '_TBD — see ARCHITECTURE.md_';
+  const lines = raw.split(/\r?\n/);
+  if (lines.length <= maxLines) return raw;
+  return `${lines.slice(0, maxLines).join('\n')}\n*(truncated — see ARCHITECTURE.md for full text)*`;
+}
 
 function formatConstraintBullets(commaOrNewlineSeparated) {
   const raw = String(commaOrNewlineSeparated || '').trim();
@@ -2242,52 +1339,48 @@ function baseMdc(projectName, purpose, constraintsList, stack, outOfScope) {
   const purposeOneLine = String(purpose || '')
     .replace(/\r?\n+/g, ' ')
     .trim();
+  const c = limitMarkdownBlock(constraintsList, 12);
+  const s = limitMarkdownBlock(stack, 14);
+  const o = limitMarkdownBlock(outOfScope, 10);
   return `---
-description: Global governance rules — loaded in every session
+description: Project governance — loaded every session
 alwaysApply: true
 ---
 
 # PROJECT: ${projectName}
 # PURPOSE: ${purposeOneLine}
 
-## How this system runs (agent-first)
-- **Nothing runs unattended.** Governance works when the **Cursor agent** is aware of it: \`alwaysApply\` rules load here, but you must still execute session start from **\`AGENTS.md\`** or **\`HEXCURSE/AGENTS.md\`** (memory → Taskmaster → DIRECTIVES → repomix → **jcodemunch** index/outline → sequential-thinking → confirm → **local git branch**) every implementation chat — use whichever layout **this** repo has.
-- **Humans prime each chat** by pasting **\`docs/SESSION_START_PROMPT.md\`** or **\`HEXCURSE/SESSION_START_PROMPT.md\`** (or \`@\` the paths listed there; pack repos also have **\`HEXCURSE/PATHS.json\`**). Unprimed chats may skip MCP and Taskmaster — that is a **workflow gap**, not a missing daemon.
-- **Session priming:** If the human has not pasted the session-start block (or \`@\` its files) and you are about to plan or implement, **ask once**: run the SESSION START sequence from **\`AGENTS.md\`** / **\`HEXCURSE/AGENTS.md\`**, or did they intend to skip?
-- **Governance artifacts:** When editing directives, session log, or **\`AGENTS.md\`** (root or under **\`HEXCURSE/**\`), apply **\`governance.mdc\`** standards (Taskmaster sync, single In Progress, IDs).
-- **Continual learning:** Run **agents-memory-updater** per **mcp-usage.mdc RULE 9** and **\`docs/CONTINUAL_LEARNING.md\`** / **\`HEXCURSE/docs/CONTINUAL_LEARNING.md\`** — human request; governance paths touched (no debounce); or parent transcript delta + debounce via **\`continual-learning.json\`**. Optional **\`setup.js --learning-rollup\`** when rollup is stale.
-- **When:** every new implementation session; after major scope changes; **Architect** is **external** (not Cursor)—see **\`docs/CURSOR_MODES.md\`** or **\`HEXCURSE/docs/CURSOR_MODES.md\`**.
+## Workflow
 
-## Sacred Constraints (NEVER violate these)
-${constraintsList}
+- Follow **AGENTS.md** or **HEXCURSE/AGENTS.md** for session start (memory, Taskmaster, directives, tooling, plan → confirm → local branch).
+- Resolve prompt paths via **PATHS.json** when the pack is installed.
+- **mcp-usage.mdc** defines MCP triggers; **process-gates.mdc** defines quality gates.
+- Keep **DIRECTIVES** aligned with Taskmaster; at most one item **In Progress**.
+
+## Sacred Constraints
+
+${c}
 
 ## Tech Stack
-${stack}
+
+${s}
 
 ## Out of Scope
-${outOfScope}
 
-## Code Behavior Rules
-- One task per session. Scope is fixed at confirmation. It does not expand.
-- **jcodemunch** (RULE 10) indexes and retrieves local code; **Serena** \`find_symbol\` fires before touching any code file for edits. read_file on files
-  over 100 lines is forbidden. This is not conditional.
-- context7 fires before writing any library call. Training data is stale.
-  This is not conditional. It fires every time.
-- sequential-thinking fires before every implementation plan. Every directive.
-  No threshold. No exceptions.
-- memory is queried at session start and written on every discovery.
-  Discoveries are not saved "later." They are saved immediately.
-- Taskmaster **get_tasks** runs immediately after memory, before planning or implementation.
-- MCP coordination map: **docs/MCP_COORDINATION.md** or **HEXCURSE/docs/MCP_COORDINATION.md**; binding triggers: **mcp-usage.mdc**.
-- Local **git** branch is created when scope is confirmed (RULE 8). **Git push** / optional PR are human-driven; **github** MCP is not required for governance.
-- Never create files outside the established directory structure without asking.
-- Never install a new dependency without stating why and waiting for approval.
-- Every function gets a one-line contract comment above it.
-- If uncertain: STOP and ask. Do not guess. Do not proceed on assumptions.
+${o}
 
-## Commit Convention
-Format: "D[NUMBER]: [description] | [status]"
-Example: "D003: sensor pipeline bring-up | verified clean"
+## Code rules
+
+- One task per session after scope is fixed.
+- **jcodemunch** + **Serena** for discovery and edits; no **read_file** over 100 lines without approval.
+- **context7** before external library calls; **sequential-thinking** before non-trivial plans.
+- **memory** at session start and when you learn something material.
+- Local **git** branch after scope confirm; **github** MCP optional for remotes.
+- No new dependencies without approval. One-line contract on new functions.
+
+## Commits
+
+Format: \`D[NNN]: description | status\`
 `;
 }
 
@@ -2295,10 +1388,18 @@ function readBundledAgentsPackMd() {
   return fs.readFileSync(path.join(__dirname, 'templates', 'AGENTS.md'), 'utf8');
 }
 
-/** Consumer HEXCURSE/AGENTS.md — template copy of repository root AGENTS.md. */
-function agentsMd(projectName) {
+/** Consumer HEXCURSE/AGENTS.md — generic template; placeholders {{PROJECT_NAME}}, {{PURPOSE}}, {{STACK}}, {{SACRED}}. */
+function agentsMd(projectName, purpose, stack, sacredRaw) {
   const name = String(projectName || 'Project').trim();
-  return readBundledAgentsPackMd().replace(/^# HexCurse$/m, `# ${name}`).replace(/\r\n/g, '\n');
+  const p = String(purpose || 'TBD — fill NORTH_STAR.md / ARCHITECTURE.md').trim();
+  const st = String(stack || 'TBD — confirm with maintainers').trim();
+  const sacred = formatConstraintBullets(sacredRaw || '');
+  return readBundledAgentsPackMd()
+    .replace(/\{\{PROJECT_NAME\}\}/g, name)
+    .replace(/\{\{PURPOSE\}\}/g, p)
+    .replace(/\{\{STACK\}\}/g, st)
+    .replace(/\{\{SACRED\}\}/g, sacred)
+    .replace(/\r\n/g, '\n');
 }
 
 function directivesMd(projectName) {
@@ -2352,7 +1453,7 @@ TBD — fill in after first planning session
 │   ├── AGENTS.md
 │   ├── DIRECTIVES.md
 │   ├── SESSION_LOG.md
-│   ├── SESSION_START_PROMPT.md
+│   ├── SESSION_START.md
 │   ├── docs/
 │   │   ├── ARCHITECTURE.md      # This file (after install)
 │   │   ├── ARCH_PROMPT.md
@@ -2400,197 +1501,52 @@ ${dod}
 `;
 }
 
-function sessionLogMd(projectName, todayDate) {
-  return `# SESSION LOG — ${projectName}
-# One entry per chat session. Append only — never edit past entries.
-
----
-
-## Entry checklist (copy into each session block)
-
-- [ ] memory queried at start; discoveries saved same session
-- [ ] Taskmaster active task reported; scope confirmed before code
-- [ ] sequential-thinking ran before plan shown
-- [ ] git diff verified at close; SESSION_LOG entry appended
-- [ ] Taskmaster task marked done; DIRECTIVES.md updated if required
-- [ ] MCP utilization report (used / not used + reasons) recorded
-- [ ] Continual learning (RULE 9): governance touch, transcript delta + debounce, or human request handled
-
----
-
-## Sessions
-
-### Session S-001 — ${todayDate}
-**Directive:** SETUP — governance scaffold via cursor-governance installer
-**Taskmaster Task ID:** (if applicable)
-**Branch:** (if applicable)
-**Files modified:** (list)
-**Files created:** (list)
-**Outcome:** COMPLETE
-**Blockers logged to memory:** no
-**PR opened:** no
-**Commit hash:** (short)
-**MCP tools used (why):** (list)
-**MCP tools not used (reason each):** (list or none)
-**Token estimate:** ~{N} input / ~{N} output
-**Tool calls:** {N} total ({N} MCP, {N} file reads, {N} redundant)
-**Context efficiency:** {N}% context used at peak
-**Notes:** Run HEXCURSE/SESSION_START_PROMPT.md in a new Cursor chat to begin D001. Run \`node path/to/cursor-governance/setup.js --doctor\` from repo root anytime.
-
-`;
-}
-
-/** HEXCURSE/CURSOR.md — human quick-start (session priming, doctor, modes). */
+/** HEXCURSE/CURSOR.md — human quick-start (session priming, doctor). */
 function cursorPackMd(projectName) {
   return `# Cursor — ${projectName}
 
-This file lives in **\`HEXCURSE/\`** with **\`NORTH_STAR.md\`**, **\`AGENTS.md\`**, and **\`docs/\`** — one folder for all governance.
+Governance for this repo lives in **\`HEXCURSE/\`**. Use **\`NORTH_STAR.md\`**, **\`AGENTS.md\`**, **\`SESSION_START.md\`**, and **\`ONE_PROMPT.md\`** as entry points.
 
-## Fastest start (NORTH STAR only)
+## After install
 
-1. Fill **\`NORTH_STAR.md\`** in this folder (real product text — not the template boilerplate).
-2. **Either** run the **Cursor headless CLI** with **Composer 2** using **\`HEXCURSE/HEADLESS_KICKOFF.txt\`** (commands are in **\`ONE_PROMPT.md\`** — \`agent -p --model composer-2 --trust --workspace …\`), **or** open **\`ONE_PROMPT.md\`**, copy the **in-IDE** fenced block, and paste as the **only** first message in a **new Agent** chat. That runs the bridge + full session start for you.
+1. Restart Cursor so \`.cursor/rules\` and MCP reload.
+2. **Settings → MCP** — fix any red servers (tokens / paths).
+3. New Agent chat: paste **\`HEXCURSE/SESSION_START.md\`** (or follow **\`ONE_PROMPT.md\`**).
 
-## First time after \`setup.js\` finished
+## CLI (repo root)
 
-1. **Restart Cursor** with this folder open (reloads \`.cursor/rules\` and MCP).
-2. **Settings → MCP** — all HexCurse-related servers should be **green**; fix tokens/paths if not.
-3. **(Recommended)** **Settings → Rules** — paste the bullets from \`.cursor/rules/process-gates.mdc\`.
-4. Either use **Fastest start** above, **or** open a **new** chat and paste **\`SESSION_START_PROMPT.md\`** (this folder) as **message 1** only; your task in **message 2**.
+- Health: \`node <path-to>/cursor-governance/setup.js --doctor\` (path also in **\`.cursor/hexcurse-installer.path\`**).
+- Refresh rules: \`node <path-to>/cursor-governance/setup.js --refresh-rules\`
+- Task graph from PRD (via Cursor agent): \`node <path-to>/cursor-governance/setup.js --parse-prd-via-agent\`
 
-You are then **ready to start** — for daily work use **SESSION_START_PROMPT** or ONE_PROMPT after NORTH_STAR edits.
-
-## Start every implementation chat
-
-1. Paste **\`HEXCURSE/SESSION_START_PROMPT.md\`** at the top of the chat (or \`@\` the paths it lists). See **\`PATHS.json\`** in this folder for stable paths. (Or **\`ONE_PROMPT.md\`** after changing **\`NORTH_STAR.md\`**.)
-2. **MCP:** Cursor Settings → MCP — keep the **17 servers** you need green (see **Active governance rules** + **MCP quick reference** below and **\`docs/MCP_TOKEN_BUDGET.md\`**). **agents-memory-updater** is a Cursor **Task** subagent (RULE 9), not an \`mcp.json\` id.
-
-## Active governance rules (10 × \`.mdc\`)
-
-- **Always loaded:** \`base.mdc\`, \`mcp-usage.mdc\`, \`process-gates.mdc\`, \`governance.mdc\` (when editing directives / Taskmaster sync).
-- **When writing/editing source:** \`security.mdc\`, \`debugging.mdc\` (per globs/triggers).
-- **Architectural decisions:** \`adr.mdc\`.
-- **Large context / compaction:** \`memory-management.mdc\`.
-- **Multi-agent / worktrees:** \`multi-agent.mdc\` when **\`HEXCURSE_MULTI_AGENT=1\`** or **\`HEXCURSE/docs/MULTI_AGENT.md\`** governs the session.
-- **Linear in use:** \`linear-sync.mdc\`.
-
-## MCP quick reference (17 servers)
-
-**Core ritual:** \`taskmaster-ai\`, \`memory\`, \`sequential-thinking\`, \`context7\`, \`repomix\`, \`serena\`, \`gitmcp\`, \`jcodemunch\` — plus \`github\` when you need remote PR/issue/API (optional per **mcp-usage.mdc**).
-
-**Session-conditional:** \`playwright\`, \`semgrep\`, \`sentry\`, \`firecrawl\`, \`linear\`, \`pampa\`.
-
-**Project-specific:** \`gitmcp-adafruit-mpu6050\`, \`supabase\`.
-
-Full map: **\`docs/MCP_COORDINATION.md\`**.
-
-## New in v1.5.x
-
-Six new general MCPs (**playwright**, **semgrep**, **sentry**, **firecrawl**, **linear**, **pampa**); two URL MCPs (**gitmcp-adafruit-mpu6050**, **supabase**); six new \`.mdc\` rules (**security**, **adr**, **memory-management**, **debugging**, **multi-agent**, **linear-sync**); installer **\`--multi-agent\`** and **\`--sync-rules\`**.
-
-## Architect / planning chats
-
-Use **\`docs/ARCH_PROMPT.md\`** (this folder). Mode overview: **\`docs/CURSOR_MODES.md\`**.
-
-## CLI (from repository root)
-
-- **Headless Cursor Agent ([docs](https://cursor.com/docs/cli/headless)):** install the [Cursor CLI](https://cursor.com/docs/cli/installation.md), set **\`CURSOR_API_KEY\`** if needed ([auth](https://cursor.com/docs/cli/reference/authentication.md)), then from repo root run **\`agent -p --model composer-2 --trust --workspace .\`** with the prompt in **\`HEXCURSE/HEADLESS_KICKOFF.txt\`** (full one-liners in **\`HEXCURSE/ONE_PROMPT.md\`**). Default model id is **\`composer-2\`**; use **\`composer-2-fast\`** for the fast tier ([parameters](https://cursor.com/docs/cli/reference/parameters)).
-- **In-IDE single-paste flow:** **\`HEXCURSE/ONE_PROMPT.md\`** (uses **\`.cursor/hexcurse-installer.path\`** for \`setup.js\`).
-- Health check: \`node <path-to>/cursor-governance/setup.js --doctor\`
-- Refresh \`.cursor/rules\`: \`node <path-to>/cursor-governance/setup.js --refresh-rules\`
-- **North star bridge** (after filling **\`HEXCURSE/NORTH_STAR.md\`**): \`node <path-to>/cursor-governance/setup.js --run-hexcurse\` — AI expands star → **\`.taskmaster/docs/prd.txt\`**, **\`parse-prd\`**, syncs **\`HEXCURSE/DIRECTIVES.md\`** **\`## 📋 Queued\`**. Use **\`--run-hexcurse-raw\`** to skip AI.
-
-Replace \`<path-to>\` with your **cursor-governance** \`setup.js\` path (same as **\`.cursor/hexcurse-installer.path\`**).
-
-## MCP coordination
-
-**\`docs/MCP_COORDINATION.md\`** (binding rules remain **\`.cursor/rules/mcp-usage.mdc\`**).
-
-## Continual learning
-
-- **Procedure:** **\`docs/CONTINUAL_LEARNING.md\`**
-- **Taxonomy:** **\`docs/MEMORY_TAXONOMY.md\`** — **\`AGENTS.md\`** **Learned Workspace Facts**
-- **Skills:** **\`../.cursor/skills/README.md\`**
-- **Rolling context:** **\`docs/ROLLING_CONTEXT.md\`** — \`node path/to/cursor-governance/setup.js --learning-rollup\`
-- **Transcript index:** **\`../.cursor/hooks/state/continual-learning-index.json\`**
+See **\`docs/MCP_TOKEN_BUDGET.md\`** and **\`docs/CURSOR_MODES.md\`** for detail.
 `;
 }
 
-/** When to use Agent vs Architect vs Ask mode in Cursor. */
+/** When to use Agent vs Ask mode in Cursor. */
 function cursorModesMd() {
-  return `# Cursor modes — HexCurse
+  return `# Cursor modes — ${HEXCURSE_ROOT} pack
 
-Use the right Cursor mode for the job so rules and expectations stay aligned.
+## Agent (implementation)
 
-## Agent (default implementation)
-
-- **Use for:** Writing code, running tests, editing files, executing an approved directive.
-- **Load:** \`alwaysApply\` rules + **HEXCURSE/AGENTS.md** session start (memory → Taskmaster → DIRECTIVES → repomix → **jcodemunch** index/outline → sequential-thinking → human confirm → branch).
-- **MCP map:** **HEXCURSE/docs/MCP_COORDINATION.md** (source repo: **docs/MCP_COORDINATION.md**) — how tools coordinate with **mcp-usage.mdc**.
-- **Human primes:** Paste **HEXCURSE/SESSION_START_PROMPT.md** (or equivalent paths in legacy layouts).
-
-## Architect / plan
-
-- **Use for:** System design, trade-offs, phased roadmaps, reviewing structure before coding.
-- **Load:** **HEXCURSE/docs/ARCH_PROMPT.md** or **docs/ARCH_PROMPT.md** in a **dedicated** chat; do not mix ad-hoc implementation in the same thread unless the human explicitly collapses scope.
-- **Output:** Plans and decisions the implementation agent can execute under a single directive per session.
+- Writing code, running tests, editing files under an approved task.
+- Load **\`HEXCURSE/AGENTS.md\`** and paste **\`HEXCURSE/SESSION_START.md\`** at session start.
+- Binding MCP behavior: **\`.cursor/rules/mcp-usage.mdc\`**.
 
 ## Ask / read-only
 
-- **Use for:** Explaining code, answering questions, exploring the repo without edits.
-- **Expectation:** No commits, no Taskmaster state changes, no GitHub PR actions unless the human promotes the chat to an implementation session.
+- Explaining code and exploring without edits.
+- No commits or Taskmaster changes unless the human promotes the chat.
 
-## Headless CLI (scripts / CI)
+## Optional: Cursor CLI
 
-- **Use for:** Non-interactive runs, automation, or when you want the same **Agent** tools and rules without the IDE chat UI.
-- **How:** [Cursor headless / print mode](https://cursor.com/docs/cli/headless) — \`agent -p\` with **\`--model composer-2\`** (default HexCurse kickoff model), **\`--trust\`**, and **\`--workspace\`** pointing at the repo root ([parameters](https://cursor.com/docs/cli/reference/parameters)). Prompt body: **\`HEXCURSE/HEADLESS_KICKOFF.txt\`**; copy **\`ONE_PROMPT.md\`** one-liners for bash or PowerShell.
-- **MCP:** The CLI loads **\`~/.cursor/mcp.json\`** like the editor ([Using Agent in CLI](https://cursor.com/docs/cli/using)).
-
-## Quick reference
-
-| Goal              | Mode    | Primary doc                          |
-|-------------------|---------|--------------------------------------|
-| Ship a directive  | Agent   | HEXCURSE/AGENTS.md + SESSION_START   |
-| Ship (headless)   | Agent \`agent -p\` | HEXCURSE/ONE_PROMPT.md + HEADLESS_KICKOFF.txt |
-| Design / roadmap  | Architect | ARCH_PROMPT.md                     |
-| Learn / explore   | Ask     | (no session-start required)          |
+- [Headless / print mode](https://cursor.com/docs/cli/headless) — same MCP and rules as the IDE when configured.
 `;
 }
 
-/** Seeded on install; stores per-transcript mtimes for incremental continual-learning passes. */
-function continualLearningIndexSeedJson() {
-  return `${JSON.stringify({ version: 1, files: {} }, null, 2)}\n`;
-}
-
-/** Optional hook/automation state; safe empty seed for Cursor hooks or custom scripts. */
-function continualLearningHookStateSeedJson() {
-  return `${JSON.stringify(
-    {
-      version: 2,
-      lastRunAtMs: null,
-      turnsSinceLastRun: 0,
-      lastTranscriptMtimeMs: null,
-      lastProcessedGenerationId: null,
-      trialStartedAtMs: null,
-      lastRollupAt: null,
-      lastRollupSessionKey: null,
-      sessionsSinceRollup: 0,
-      lastMemoryUpdaterRunDateUtc: null,
-      pendingLearning: false,
-    },
-    null,
-    2
-  )}\n`;
-}
-
-/** Gitignored; agents-memory-updater increments counts per lessonKey for skill promotion. */
-function skillPromotionQueueSeedJson() {
-  return `${JSON.stringify({ version: 1, candidates: {} }, null, 2)}\n`;
-}
-
 /**
- * True for the HexCurse / cursor-governance source repository (root package.json name hexcurse,
- * no consumer HEXCURSE/ pack, installer lives under cursor-governance/).
+ * True for the HEXCURSE source repository (root `package.json` name `hexcurse`,
+ * no consumer HEXCURSE/ pack, installer lives under `cursor-governance/`).
  */
 function isHexcurseGovernanceSourceRepo(cwd) {
   try {
@@ -2606,29 +1562,15 @@ function isHexcurseGovernanceSourceRepo(cwd) {
   }
 }
 
-/**
- * Seeds gitignored continual-learning queue and installer path so `setup.js --doctor` is clean
- * on the governance source tree (optional files are not missing warnings).
- */
+/** Seeds installer path on the governance source tree so `setup.js --doctor` is clean. */
 function ensureHexcurseSourceRepoDoctorArtifacts(cwd) {
   if (!isHexcurseGovernanceSourceRepo(cwd)) return;
-  const stateDir = path.join(cwd, '.cursor', 'hooks', 'state');
-  const skQueue = path.join(stateDir, 'skill-promotion-queue.json');
-  if (!fs.existsSync(skQueue)) {
-    fs.mkdirSync(stateDir, { recursive: true });
-    fs.writeFileSync(skQueue, skillPromotionQueueSeedJson(), 'utf8');
-  }
   const instPath = path.join(cwd, '.cursor', 'hexcurse-installer.path');
   if (!fs.existsSync(instPath)) {
     fs.mkdirSync(path.dirname(instPath), { recursive: true });
     const setupAbs = path.resolve(cwd, 'cursor-governance', 'setup.js');
     fs.writeFileSync(instPath, `${setupAbs}\n`, 'utf8');
   }
-}
-
-/** Documents the agents-memory-updater / incremental index workflow for consumer repos. */
-function continualLearningMd(projectName) {
-  return readContinualLearningPackTemplate(projectName.trim());
 }
 
 function prdTxt(projectName, purpose, stack, modules, constraintsList, outOfScope, dod, notesLead) {
@@ -2654,20 +1596,20 @@ ${outOfScope}
 ${dod}
 
 ## Notes
-${lead ? `${lead}\n\n` : ''}Generated by cursor-governance installer.
+${lead ? `${lead}\n\n` : ''}Generated by HEXCURSE installer.
 Edit this file to add detail, then re-run:
   task-master parse-prd --force .taskmaster/docs/prd.txt
 
 `;
 }
 
-function readBundledSessionStartPackMd() {
-  return fs.readFileSync(path.join(__dirname, 'templates', 'SESSION_START_PROMPT.pack.md'), 'utf8');
+function readBundledSessionStartMd() {
+  return fs.readFileSync(path.join(__dirname, 'templates', 'SESSION_START.md'), 'utf8');
 }
 
 function sessionStartMd(projectName) {
   const name = String(projectName || 'Project').trim();
-  return readBundledSessionStartPackMd()
+  return readBundledSessionStartMd()
     .replace(/\{\{PROJECT_NAME\}\}/g, name)
     .replace(/\r\n/g, '\n');
 }
@@ -2675,7 +1617,7 @@ function sessionStartMd(projectName) {
 function printHeader() {
   console.log('');
   console.log(chalk.cyan.bold('═══════════════════════════════════════════════════════════════'));
-  console.log(chalk.cyan.bold('  cursor-governance — Cursor AI governance + MCP installer'));
+  console.log(chalk.cyan.bold('  HEXCURSE — Cursor AI governance + MCP installer'));
   console.log(chalk.cyan.bold('═══════════════════════════════════════════════════════════════'));
   console.log('');
 }
@@ -2798,213 +1740,143 @@ function installNpmGlobalPackage(pkg, platform) {
 }
 
 function installGlobals(platform) {
-  console.log('Installing global CLI tools (task-master-ai, repomix)…');
-  if (commandOnPath('task-master', platform) && commandOnPath('repomix', platform)) {
-    console.log(chalk.green('✓'), 'already installed');
+  console.log('Installing global CLI tools…');
+  if (commandOnPath('task-master', platform)) {
+    console.log(chalk.green('✓'), 'task-master already on PATH');
   } else {
     installNpmGlobalPackage('task-master-ai', platform);
-    installNpmGlobalPackage('repomix', platform);
-    console.log(chalk.green('✓'), 'task-master-ai and repomix installed (or already present).');
+    console.log(chalk.green('✓'), 'task-master-ai installed.');
   }
-
-  console.log('Installing uv (Python)…');
-  let uvOk = false;
+  console.log('Installing uv (Python — required for LightRAG)…');
   if (!pythonPipAvailableForUv) {
     console.warn(
       chalk.yellow('⚠'),
-      'Skipping uv — Python/pip was not detected. Install Python, then run: py -3 -m pip install uv'
+      'Skipping uv — Python/pip not detected. Install Python, then run: pip install uv'
     );
     return;
   }
+  let uvOk = false;
   if (platform === 'win32') {
-    const tryUv = [
-      'py -3 -m pip install uv',
-      'python -m pip install uv',
-      'python3 -m pip install uv',
-      'pip install uv',
-      'pip3 install uv',
-    ];
-    for (const line of tryUv) {
+    for (const line of ['py -3 -m pip install uv', 'python -m pip install uv', 'pip install uv']) {
       try {
         execSync(line, { stdio: 'inherit', shell: true });
         uvOk = true;
         break;
-      } catch (e2) {
-        /* try next */
-      }
+      } catch (_) {}
     }
   } else {
     try {
       execSync('pip3 install uv', { stdio: 'inherit', shell: true });
       uvOk = true;
-    } catch (e) {
+    } catch (_) {
       try {
         execSync('curl -LsSf https://astral.sh/uv/install.sh | sh', { stdio: 'inherit', shell: true });
         uvOk = true;
-      } catch (e2) {
-        /* will warn below */
-      }
+      } catch (_2) {}
     }
   }
   if (uvOk) {
     console.log(chalk.green('✓'), 'uv installed (or already present).');
   } else {
-    console.warn(
-      chalk.yellow('⚠'),
-      'uv install failed — install uv manually; Serena MCP needs uvx.'
-    );
+    console.warn(chalk.yellow('⚠'), 'uv install failed — install manually if using LightRAG.');
   }
+}
+
+/** Fallback Supabase project ref when `SUPABASE_PROJECT_REF` is unset (same as pre-v2 installer). */
+const DEFAULT_SUPABASE_PROJECT_REF = 'dpivknupklbxjbrcntes';
+
+/** Optional MCP ids — prompt order and merge order after the four core servers. */
+const MCP_OPTIONAL_IDS_ORDER = ['playwright', 'semgrep', 'supabase', 'lightrag', 'custom'];
+
+/** v2 core MCP ids — doctor treats these as required (bad if missing when not CI-relaxed). */
+const MCP_CORE_IDS = ['github', 'context7', 'memory', 'taskmaster-ai'];
+
+/**
+ * Builds the `mcpServers` entries this installer merges into `~/.cursor/mcp.json` (v2: 4 core + selected optionals).
+ * Does not remove or overwrite existing keys — see `mergeMcpJson`.
+ */
+function buildMcpServers(answers) {
+  const taskmasterEnv = { ...(answers.taskmasterEnv || {}) };
+  const githubToken = String(answers.github || '').trim();
+  const selected = new Set(
+    Array.isArray(answers.selectedOptionals)
+      ? answers.selectedOptionals.map((s) => String(s).trim().toLowerCase())
+      : []
+  );
+
+  const servers = {};
+
+  servers.github = {
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-github'],
+    env: { GITHUB_PERSONAL_ACCESS_TOKEN: githubToken },
+  };
+  servers.context7 = {
+    command: 'npx',
+    args: ['-y', '@upstash/context7-mcp'],
+  };
+  servers.memory = {
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-memory'],
+  };
+  servers['taskmaster-ai'] = {
+    command: 'npx',
+    args: ['-y', '--package=task-master-ai', 'task-master-ai'],
+    env: { ...taskmasterEnv },
+  };
+
+  const supabaseRef =
+    String(process.env.SUPABASE_PROJECT_REF || '').trim() ||
+    String(answers.supabaseProjectRef || '').trim() ||
+    DEFAULT_SUPABASE_PROJECT_REF;
+
+  for (const id of MCP_OPTIONAL_IDS_ORDER) {
+    if (!selected.has(id)) continue;
+    if (id === 'playwright') {
+      servers.playwright = {
+        command: 'npx',
+        args: ['-y', '@playwright/mcp'],
+      };
+    } else if (id === 'semgrep') {
+      servers.semgrep = {
+        type: 'streamable-http',
+        url: 'https://mcp.semgrep.ai/mcp',
+      };
+    } else if (id === 'supabase') {
+      servers.supabase = {
+        url: `https://mcp.supabase.com/mcp?project_ref=${supabaseRef}`,
+      };
+    } else if (id === 'lightrag') {
+      servers.lightrag = {
+        command: 'uvx',
+        args: ['lightrag-mcp'],
+      };
+    } else if (id === 'custom' && answers.customMcp) {
+      const c = answers.customMcp;
+      if (c.mode === 'url' && c.url) {
+        servers.custom = { type: 'streamable-http', url: c.url };
+      } else if (c.mode === 'stdio' && c.command) {
+        servers.custom = {
+          command: c.command,
+          args: Array.isArray(c.args) ? c.args : [],
+        };
+      }
+    }
+  }
+
+  return servers;
 }
 
 /**
- * Resolves the global pampa package MCP entry script for ~/.cursor/mcp.json (stdio).
- * Multi-strategy: npm root -g, pampa bin prefix, then conventional fallback (D-HEXCURSE-MCP-RECONCILE-003).
+ * Merges v2 lean MCP definitions into `~/.cursor/mcp.json`.
+ *
+ * **Migration:** Existing files keep any servers already present — this function only **adds** keys that are missing.
+ * Dropping servers from `buildMcpServers()` does not remove them on reinstall; developers must delete keys manually
+ * if they want a slimmer config. On parse failure, the file is backed up and replaced with a fresh object before merge.
  */
-function resolvePampaGlobalPath() {
-  try {
-    const globalRoot = execSync('npm root -g', { encoding: 'utf8' }).trim();
-    const candidate = path.join(globalRoot, 'pampa', 'mcp-server.js');
-    if (fs.existsSync(candidate)) return candidate;
-  } catch (_) {
-    /* try next */
-  }
-  try {
-    const globalRoot = execSync('npm root -g', { encoding: 'utf8' }).trim();
-    const candidateSrc = path.join(globalRoot, 'pampa', 'src', 'mcp-server.js');
-    if (fs.existsSync(candidateSrc)) return candidateSrc;
-  } catch (_) {
-    /* try next */
-  }
-  try {
-    const binPath = execSync(process.platform === 'win32' ? 'where pampa' : 'which pampa', {
-      encoding: 'utf8',
-    })
-      .trim()
-      .split(/\r?\n/)[0];
-    const parts = binPath.split(path.sep);
-    const prefixIdx = parts.lastIndexOf('bin');
-    if (prefixIdx !== -1) {
-      const prefix = parts.slice(0, prefixIdx).join(path.sep);
-      const candidate = path.join(prefix, 'lib', 'node_modules', 'pampa', 'mcp-server.js');
-      if (fs.existsSync(candidate)) return candidate;
-      const candidateSrc = path.join(prefix, 'lib', 'node_modules', 'pampa', 'src', 'mcp-server.js');
-      if (fs.existsSync(candidateSrc)) return candidateSrc;
-    }
-  } catch (_) {
-    /* fall through */
-  }
-  if (process.platform === 'win32') {
-    return path.join(
-      process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
-      'npm',
-      'node_modules',
-      'pampa',
-      'src',
-      'mcp-server.js'
-    );
-  }
-  const linuxBase = path.join('/usr/local/lib/node_modules/pampa');
-  const linuxMcp = path.join(linuxBase, 'mcp-server.js');
-  const linuxSrc = path.join(linuxBase, 'src', 'mcp-server.js');
-  if (fs.existsSync(linuxMcp)) return linuxMcp;
-  if (fs.existsSync(linuxSrc)) return linuxSrc;
-  return linuxMcp;
-}
-
-function buildMcpServers(taskmasterEnv, githubToken) {
-  const supabaseRef = process.env.SUPABASE_PROJECT_REF || 'dpivknupklbxjbrcntes';
-  return {
-    'taskmaster-ai': {
-      command: 'npx',
-      args: ['-y', '--package=task-master-ai', 'task-master-ai'],
-      env: { ...taskmasterEnv },
-    },
-    context7: {
-      command: 'npx',
-      args: ['-y', '@upstash/context7-mcp'],
-    },
-    repomix: {
-      command: 'npx',
-      args: ['-y', 'repomix', '--mcp'],
-    },
-    serena: {
-      command: 'uvx',
-      args: [
-        '--from',
-        'git+https://github.com/oraios/serena',
-        'serena-mcp-server',
-        '--project',
-        '${workspaceFolder}',
-      ],
-    },
-    gitmcp: {
-      url: 'https://gitmcp.io/docs',
-    },
-    'gitmcp-adafruit-mpu6050': {
-      url: 'https://gitmcp.io/adafruit/Adafruit_MPU6050',
-    },
-    'sequential-thinking': {
-      command: 'npx',
-      args: ['-y', '@modelcontextprotocol/server-sequential-thinking'],
-    },
-    memory: {
-      command: 'npx',
-      args: ['-y', '@modelcontextprotocol/server-memory'],
-    },
-    github: {
-      command: 'npx',
-      args: ['-y', '@modelcontextprotocol/server-github'],
-      env: { GITHUB_PERSONAL_ACCESS_TOKEN: githubToken },
-    },
-    jcodemunch: {
-      command: 'uvx',
-      args: ['jcodemunch-mcp'],
-    },
-    playwright: {
-      command: 'npx',
-      args: ['-y', '@playwright/mcp'],
-    },
-    semgrep: {
-      type: 'streamable-http',
-      url: 'https://mcp.semgrep.ai/mcp',
-    },
-    sentry: {
-      command: 'npx',
-      args: ['-y', '@sentry/mcp-server@latest'],
-      env: {
-        // @sentry/mcp-server reads SENTRY_ACCESS_TOKEN (not SENTRY_AUTH_TOKEN).
-        SENTRY_ACCESS_TOKEN:
-          process.env.SENTRY_ACCESS_TOKEN || process.env.SENTRY_AUTH_TOKEN || '',
-      },
-    },
-    firecrawl: {
-      command: 'npx',
-      args: ['-y', 'firecrawl-mcp'],
-      env: {
-        FIRECRAWL_API_KEY: process.env.FIRECRAWL_API_KEY || '',
-      },
-    },
-    linear: {
-      command: 'npx',
-      args: ['-y', '@mseep/linear-mcp'],
-      env: {
-        LINEAR_API_KEY: process.env.LINEAR_API_KEY || '',
-      },
-    },
-    pampa: {
-      command: process.platform === 'win32' ? 'node.exe' : 'node',
-      args: [resolvePampaGlobalPath()],
-      cwd: '${workspaceFolder}',
-    },
-    supabase: {
-      url: `https://mcp.supabase.com/mcp?project_ref=${supabaseRef}`,
-    },
-  };
-}
-
-function mergeMcpJson(taskmasterEnv, githubToken) {
+function mergeMcpJson(answers) {
   const mcpPath = path.join(os.homedir(), '.cursor', 'mcp.json');
-  const required = buildMcpServers(taskmasterEnv, githubToken);
+  const required = buildMcpServers(answers);
   let data = { mcpServers: {} };
   if (fs.existsSync(mcpPath)) {
     try {
@@ -3332,6 +2204,143 @@ function createBufferedPrompts(rawLines) {
   return { ask: buffAsk, choose: buffChoose, askRequired: buffAskRequired };
 }
 
+/** Quick-install / env: comma- or space-separated optional MCP ids (see MCP_OPTIONAL_IDS_ORDER). */
+function parseSelectedOptionalsFromEnv() {
+  const raw = String(process.env.HEXCURSE_SELECTED_MCP_OPTIONALS || '').trim();
+  if (!raw) return [];
+  const allowed = new Set(MCP_OPTIONAL_IDS_ORDER);
+  const out = [];
+  for (const part of raw.split(/[,;\s]+/).filter(Boolean)) {
+    const id = String(part).trim().toLowerCase();
+    if (allowed.has(id) && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+/** Quick-install: `HEXCURSE_CUSTOM_MCP_URL` or `HEXCURSE_CUSTOM_MCP_COMMAND` + optional JSON/string args. */
+function parseCustomMcpFromEnv() {
+  const url = String(process.env.HEXCURSE_CUSTOM_MCP_URL || '').trim();
+  if (url && /^https?:\/\//i.test(url)) return { mode: 'url', url };
+  const command = String(process.env.HEXCURSE_CUSTOM_MCP_COMMAND || '').trim();
+  if (!command) return null;
+  let args = [];
+  const argsRaw = String(process.env.HEXCURSE_CUSTOM_MCP_ARGS || '').trim();
+  if (argsRaw) {
+    try {
+      const parsed = JSON.parse(argsRaw);
+      if (Array.isArray(parsed)) args = parsed.map((x) => String(x));
+    } catch {
+      args = argsRaw.split(/\s+/).filter(Boolean);
+    }
+  }
+  return { mode: 'stdio', command, args };
+}
+
+async function askYesNo(askFn, question, defaultValue = false) {
+  const hint = defaultValue ? 'Y/n' : 'y/N';
+  const defStr = defaultValue ? 'y' : 'n';
+  const raw = String(await askFn(`${question} (${hint})`, defStr))
+    .trim()
+    .toLowerCase();
+  if (raw === 'y' || raw === 'yes') return true;
+  if (raw === 'n' || raw === 'no') return false;
+  return defaultValue;
+}
+
+/** Returns true when the user typed a token that abandons the custom MCP sub-flow (TTY or piped). */
+function isCustomMcpCancelLine(s) {
+  return /^(cancel|skip|q|abort|0)$/i.test(String(s || '').trim());
+}
+
+/** Prompts for one custom MCP (stdio or streamable URL). Returns null if the user skips or cancels. */
+async function promptCustomMcp(chooseFn, askFn, _askRequiredFn) {
+  const optUrl = 'Streamable URL (HTTPS)';
+  const optStdio = 'stdio — local command';
+  const optSkip = 'Skip — do not add a custom MCP';
+  const kind = await chooseFn('Custom MCP transport?', [optUrl, optStdio, optSkip]);
+  if (kind === optSkip) {
+    console.log(chalk.dim('Skipping custom MCP.'));
+    return null;
+  }
+  if (kind === optUrl) {
+    for (;;) {
+      const raw = await askFn('MCP server URL (https://…) — or type cancel to skip', undefined);
+      const s = String(raw || '').trim();
+      if (isCustomMcpCancelLine(s)) {
+        console.log(chalk.dim('Skipping custom MCP.'));
+        return null;
+      }
+      if (/^https?:\/\//i.test(s)) {
+        return { mode: 'url', url: s };
+      }
+      console.log('  Invalid — URL must start with http:// or https://. Type cancel to skip.');
+    }
+  }
+  if (kind === optStdio) {
+    for (;;) {
+      const raw = await askFn('Command (e.g. npx) — or type cancel to skip', 'npx');
+      const cmd = String(raw || '').trim();
+      if (isCustomMcpCancelLine(cmd)) {
+        console.log(chalk.dim('Skipping custom MCP.'));
+        return null;
+      }
+      if (cmd.length > 0) {
+        const argsLine = await askFn('Args (space-separated)', '');
+        const args = String(argsLine || '')
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean);
+        return { mode: 'stdio', command: cmd, args };
+      }
+      console.log('  Invalid — empty command. Type cancel to skip.');
+    }
+  }
+  console.log(chalk.yellow('⚠'), 'Unexpected transport choice — skipping custom MCP.');
+  return null;
+}
+
+/**
+ * v2 interactive install: Taskmaster / LLM credentials come from the environment only (no provider prompts).
+ * Invoked after `promptUser()` returns, before `mergeMcpJson`, so `taskmaster-ai` MCP env is populated.
+ */
+function applyTaskmasterProviderFromEnvironment(answers) {
+  const anthropic = String(process.env.ANTHROPIC_API_KEY || '').trim();
+  if (anthropic.startsWith('sk-ant-')) {
+    answers.provider = 'anthropic';
+    answers.taskmasterEnv = { ANTHROPIC_API_KEY: anthropic };
+    return;
+  }
+  const oai = String(process.env.OPENAI_API_KEY || '').trim();
+  const ob = String(process.env.OPENAI_BASE_URL || '').trim();
+  if (oai === 'lm-studio') {
+    answers.provider = 'lmstudio';
+    answers.taskmasterEnv = {
+      OPENAI_API_KEY: 'lm-studio',
+      OPENAI_BASE_URL: ob ? normalizeLmStudioV1BaseUrl(ob) : lmStudioBaseUrlFromEnv(),
+    };
+    return;
+  }
+  if (ob && oai && !oai.startsWith('sk-')) {
+    answers.provider = 'other';
+    answers.taskmasterEnv = {
+      OPENAI_BASE_URL: normalizeLmStudioV1BaseUrl(ob),
+      OPENAI_API_KEY: oai,
+    };
+    return;
+  }
+  if (oai.startsWith('sk-')) {
+    answers.provider = 'openai';
+    answers.taskmasterEnv = { OPENAI_API_KEY: oai };
+    return;
+  }
+  answers.provider = 'lmstudio';
+  answers.taskmasterEnv = {
+    OPENAI_API_KEY: 'lm-studio',
+    OPENAI_BASE_URL: ob ? normalizeLmStudioV1BaseUrl(ob) : lmStudioBaseUrlFromEnv(),
+  };
+}
+
+/** v2: seven core questions + optional custom MCP (D-009 §2.3). Taskmaster: `applyTaskmasterProviderFromEnvironment` after return. */
 async function promptUser() {
   let chooseFn = choose;
   let askFn = ask;
@@ -3344,41 +2353,17 @@ async function promptUser() {
     askRequiredFn = b.askRequired;
   }
 
-  const providerLabel = await chooseFn('Which model provider are you using?', [
-    'LM Studio',
-    'Anthropic',
-    'OpenAI',
-    'Other',
-  ]);
-  const provider = providerKeyFromLabel(providerLabel);
+  const projectName = await askRequiredFn(
+    'Project name',
+    undefined,
+    (v) => String(v || '').trim().length > 0
+  );
 
-  let taskmasterEnv = {};
-
-  if (provider === 'lmstudio') {
-    let url = await askFn('LM Studio base URL', lmStudioBaseUrlFromEnv());
-    url = normalizeLmStudioV1BaseUrl(String(url).trim() || lmStudioBaseUrlFromEnv());
-    taskmasterEnv = {
-      OPENAI_API_KEY: 'lm-studio',
-      OPENAI_BASE_URL: url,
-    };
-  } else if (provider === 'anthropic') {
-    const key = await askRequiredFn('Anthropic API key (sk-ant-...)', undefined, (v) =>
-      String(v || '').trim().startsWith('sk-ant-')
-    );
-    taskmasterEnv = { ANTHROPIC_API_KEY: String(key).trim() };
-  } else if (provider === 'openai') {
-    const key = await askRequiredFn('OpenAI API key (sk-...)', undefined, (v) =>
-      String(v || '').trim().startsWith('sk-')
-    );
-    taskmasterEnv = { OPENAI_API_KEY: String(key).trim() };
-  } else {
-    const apiBaseUrl = await askRequiredFn('API base URL', undefined, (v) => String(v || '').trim().length > 0);
-    const apiKey = await askRequiredFn('API key', undefined, (v) => String(v || '').trim().length > 0);
-    taskmasterEnv = {
-      OPENAI_BASE_URL: String(apiBaseUrl).trim(),
-      OPENAI_API_KEY: String(apiKey).trim(),
-    };
-  }
+  const purpose = await askRequiredFn(
+    'What are you building? (one sentence — seeds NORTH_STAR / PRD)',
+    undefined,
+    (v) => String(v || '').trim().length > 0
+  );
 
   let github;
   const resolvedGh = resolveGithubTokenFromUserEnvironment();
@@ -3388,7 +2373,9 @@ async function promptUser() {
       chalk.green('✓'),
       'Reusing GitHub token from',
       chalk.dim(resolvedGh.source + '.'),
-      chalk.dim('To enter a new token: unset GITHUB_PERSONAL_ACCESS_TOKEN / GITHUB_TOKEN and remove github from ~/.cursor/mcp.json (or clear its env).')
+      chalk.dim(
+        'To enter a new token: unset GITHUB_PERSONAL_ACCESS_TOKEN / GITHUB_TOKEN and clear github env in ~/.cursor/mcp.json.'
+      )
     );
   } else {
     github = await askRequiredFn(
@@ -3402,115 +2389,65 @@ async function promptUser() {
     process.exit(1);
   }
 
-  const repoKindLabel = await chooseFn('New greenfield project, or existing codebase?', [
-    'New project (you describe goals and stack)',
-    'Existing codebase (infer NORTH_STAR from the repo via repomix + your model)',
-  ]);
-  const repoKind = repoKindLabel.startsWith('Existing') ? 'existing' : 'new';
+  const selectedOptionals = [];
+  let customMcp = null;
+  let supabaseProjectRef = '';
 
-  let projectName;
-  let purpose;
-  let stack;
-  let modules;
-  let sacred;
-  let outOfScope;
-  let dod;
-  let northStarDraftMd = null;
-
-  if (repoKind === 'new') {
-    projectName = await askRequiredFn('Project name', undefined, (v) => String(v || '').trim().length > 0);
-    purpose = await askRequiredFn(
-      'One-sentence project purpose',
+  if (await askYesNo(askFn, 'Enable Playwright MCP for browser or UI work?', false)) {
+    selectedOptionals.push('playwright');
+  }
+  if (await askYesNo(askFn, 'Enable Semgrep MCP for security scanning?', false)) {
+    selectedOptionals.push('semgrep');
+  }
+  if (await askYesNo(askFn, 'Use Supabase MCP?', false)) {
+    selectedOptionals.push('supabase');
+    const ref = await askRequiredFn(
+      'Supabase project ref (from dashboard Project Settings → General)',
       undefined,
-      (v) => String(v || '').trim().length > 0
+      (v) => String(v || '').trim().length > 4
     );
-    stack = await askRequiredFn(
-      'Tech stack (e.g. Python, FastAPI, SQLite)',
-      undefined,
-      (v) => String(v || '').trim().length > 0
-    );
-    modules = await askRequiredFn(
-      'Top 3-5 modules/subsystems (comma-separated)',
-      undefined,
-      (v) => String(v || '').trim().length > 0
-    );
-
-    const sacredDefault = 'no cloud, no global state, always deterministic';
-    sacred = await askFn('Sacred constraints (comma-separated)', sacredDefault);
-
-    outOfScope = await askRequiredFn(
-      'What is explicitly out of scope for v1',
-      undefined,
-      (v) => String(v || '').trim().length > 0
-    );
-    dod = await askRequiredFn(
-      'Definition of done for first working version',
-      undefined,
-      (v) => String(v || '').trim().length > 0
-    );
-  } else {
-    const cwd = process.cwd();
-    projectName = path.basename(path.resolve(cwd)) || 'Project';
-    console.log(
-      chalk.dim(`Project name (folder): ${projectName}`),
-      chalk.dim('— edit NORTH_STAR.md if you want a different display name.')
-    );
-    const humanFocus = await askFn(
-      'Optional one-line focus (e.g. stabilize CI, onboard to HexCurse). Leave empty to infer from code only.',
-      ''
-    );
-    const sacredDefaultExisting = 'no secrets in git; one directive per session';
-    sacred = await askFn('Sacred constraints (comma-separated)', sacredDefaultExisting);
-
-    console.log(chalk.bold('\nPacking repository (npx repomix --compress)…'));
-    const snapshot = runRepomixCompressSnapshot(cwd);
-    console.log(chalk.dim(`Snapshot length: ${snapshot.length} characters`));
-    console.log(
-      chalk.bold('Drafting NORTH_STAR.md'),
-      chalk.dim('via your chosen provider (same API as Taskmaster)…')
-    );
-    try {
-      const draft = await generateNorthStarFromExistingRepo({
-        provider,
-        taskmasterEnv,
-        snapshot,
-        humanFocus: String(humanFocus || '').trim(),
-        projectName: String(projectName).trim(),
-      });
-      northStarDraftMd = draft.northStarMd;
-      purpose = draft.purpose;
-      stack = draft.stack;
-      modules = draft.modules;
-      outOfScope = draft.outOfScope;
-      dod = draft.dod;
-      console.log(chalk.green('✓'), 'NORTH_STAR draft ready (you can refine it after Cursor restart).');
-    } catch (e) {
-      console.error(chalk.red('Auto NORTH_STAR generation failed:'), e.message);
-      console.log(
-        chalk.yellow('Falling back to template NORTH_STAR.md — fill it manually, then use ONE_PROMPT or --run-hexcurse.')
+    supabaseProjectRef = String(ref).trim();
+    process.env.SUPABASE_PROJECT_REF = supabaseProjectRef;
+  }
+  if (await askYesNo(askFn, 'Enable LightRAG MCP for deep codebase memory? (requires Python / uv)', false)) {
+    selectedOptionals.push('lightrag');
+    if (!pythonPipAvailableForUv) {
+      console.warn(
+        chalk.yellow('⚠'),
+        'Python/pip was not detected earlier — LightRAG may not run until Python and `uv` are installed.'
       );
-      northStarDraftMd = null;
-      purpose = `Existing codebase (${projectName}); define purpose in NORTH_STAR.md`;
-      stack = 'TBD — confirm from repository';
-      modules = 'TBD — list in NORTH_STAR.md after review';
-      outOfScope = 'TBD — confirm with human';
-      dod = 'NORTH_STAR filled; task-master parse-prd succeeds';
     }
   }
+
+  if (await askYesNo(askFn, 'Add a custom MCP server?', false)) {
+    customMcp = await promptCustomMcp(chooseFn, askFn, askRequiredFn);
+    if (customMcp) {
+      selectedOptionals.push('custom');
+    }
+  }
+
+  const stack = 'TBD — set in NORTH_STAR.md and ARCHITECTURE.md';
+  const modules = 'TBD — list in NORTH_STAR.md';
+  const sacred = 'no secrets in git; one directive per session';
+  const outOfScope = 'TBD — confirm with human';
+  const dod = 'Taskmaster parse-prd succeeds; SESSION_START.md exists';
 
   return {
     projectName: String(projectName).trim(),
     purpose: String(purpose).trim(),
-    stack: String(stack).trim(),
-    modules: String(modules).trim(),
-    sacred: String(sacred).trim(),
-    outOfScope: String(outOfScope).trim(),
-    dod: String(dod).trim(),
-    provider,
-    taskmasterEnv,
+    stack,
+    modules,
+    sacred,
+    outOfScope,
+    dod,
+    provider: '',
+    taskmasterEnv: {},
     github: String(github).trim(),
-    repoKind,
-    northStarDraftMd,
+    repoKind: 'new',
+    northStarDraftMd: null,
+    selectedOptionals,
+    customMcp,
+    supabaseProjectRef,
   };
 }
 
@@ -3518,128 +2455,65 @@ async function promptUser() {
 function pathsManifestObject(installerMeta) {
   const h = HEXCURSE_ROOT;
   const base = {
-    version: 1,
-    schema: 'hexcurse-paths-v1',
+    version: 2,
+    schema: 'hexcurse-paths-v2',
     description:
-      'HexCurse governance pack — canonical paths relative to repository root. Read this file to locate agents, directives, rules, and prompts.',
-    packRoot: h,
+      'Governance pack — canonical paths relative to repository root.',
     paths: {
-      agents: `${h}/AGENTS.md`,
-      directives: `${h}/DIRECTIVES.md`,
-      architecture: `${h}/docs/ARCHITECTURE.md`,
-      archPrompt: `${h}/docs/ARCH_PROMPT.md`,
-      sessionStartPrompt: `${h}/SESSION_START_PROMPT.md`,
-      sessionLog: `${h}/SESSION_LOG.md`,
-      pathsManifest: `${h}/PATHS.json`,
-      packReadme: `${h}/README.md`,
-      rulesCanonicalDir: `${h}/rules`,
-      baseMdcCanonical: `${h}/rules/base.mdc`,
-      mcpUsageMdcCanonical: `${h}/rules/mcp-usage.mdc`,
-      governanceMdcCanonical: `${h}/rules/governance.mdc`,
-      rulesCursorDir: '.cursor/rules',
-      baseMdcActive: '.cursor/rules/base.mdc',
-      mcpUsageMdcActive: '.cursor/rules/mcp-usage.mdc',
-      governanceMdcActive: '.cursor/rules/governance.mdc',
-      taskmasterRoot: '.taskmaster',
-      prd: '.taskmaster/docs/prd.txt',
-      agentParsePromptCache: '.taskmaster/agent-parse-prompt.txt',
-      serenaMemories: '.serena/memories',
-      rootAgentsPointer: 'AGENTS.md',
-      continualLearningGuide: `${h}/docs/CONTINUAL_LEARNING.md`,
-      mcpCoordination: `${h}/docs/MCP_COORDINATION.md`,
-      governanceParity: `${h}/docs/GOVERNANCE_PARITY.md`,
-      memoryTaxonomy: `${h}/docs/MEMORY_TAXONOMY.md`,
-      continualLearningIndex: '.cursor/hooks/state/continual-learning-index.json',
-      continualLearningHookState: '.cursor/hooks/state/continual-learning.json',
-      skillPromotionQueue: '.cursor/hooks/state/skill-promotion-queue.json',
-      cursorSkillsDir: '.cursor/skills',
-      rollingContext: `${h}/docs/ROLLING_CONTEXT.md`,
       northStar: `${h}/NORTH_STAR.md`,
-      cursorQuickStart: `${h}/CURSOR.md`,
-      oneShotPrompt: `${h}/ONE_PROMPT.md`,
-      headlessKickoffPrompt: `${h}/HEADLESS_KICKOFF.txt`,
-      cursorHeadlessModelDefault: 'composer-2',
-      installerPathFile: '.cursor/hexcurse-installer.path',
-      securityMdcCanonical: `${h}/rules/security.mdc`,
-      securityMdcActive: '.cursor/rules/security.mdc',
-      adrMdcCanonical: `${h}/rules/adr.mdc`,
-      adrMdcActive: '.cursor/rules/adr.mdc',
-      memoryMgmtMdcCanonical: `${h}/rules/memory-management.mdc`,
-      memoryMgmtMdcActive: '.cursor/rules/memory-management.mdc',
-      debuggingMdcCanonical: `${h}/rules/debugging.mdc`,
-      debuggingMdcActive: '.cursor/rules/debugging.mdc',
-      multiAgentMdcCanonical: `${h}/rules/multi-agent.mdc`,
-      multiAgentMdcActive: '.cursor/rules/multi-agent.mdc',
-      linearSyncMdcCanonical: `${h}/rules/linear-sync.mdc`,
-      linearSyncMdcActive: '.cursor/rules/linear-sync.mdc',
-      supabaseProjectRef: process.env.SUPABASE_PROJECT_REF || 'dpivknupklbxjbrcntes',
-      mcpTokenBudget: `${h}/docs/MCP_TOKEN_BUDGET.md`,
-      multiAgentDoc: `${h}/docs/MULTI_AGENT.md`,
-      adrLog: `${h}/docs/ADR_LOG.md`,
-      agentHandoffs: `${h}/docs/AGENT_HANDOFFS.md`,
+      agents: `${h}/AGENTS.md`,
+      sessionStart: `${h}/SESSION_START.md`,
+      onePrompt: `${h}/ONE_PROMPT.md`,
+      rulesDir: `${h}/rules`,
+      activeRulesDir: '.cursor/rules',
+      skillsDir: '.cursor/skills',
+      taskmasterPrd: '.taskmaster/docs/prd.txt',
+      taskmasterTasks: '.taskmaster/tasks/tasks.json',
+      taskmasterConfig: '.taskmaster/config.json',
+      agentParseCache: '.taskmaster/agent-parse-prompt.txt',
+      installerPath: '.cursor/hexcurse-installer.path',
+      rootAgentsPointer: 'AGENTS.md',
+      adrLog: `${h}/ADR_LOG.md`,
     },
   };
   if (installerMeta && installerMeta.installerVersion) {
     base.installer = {
-      name: String(installerMeta.installerName || 'cursor-governance'),
+      name: String(installerMeta.installerName || 'hexcurse'),
       version: String(installerMeta.installerVersion),
       generatedAt: String(installerMeta.generatedAt || new Date().toISOString()),
     };
+    if (installerMeta.installerNpmPackage) {
+      base.installer.npmPackage = String(installerMeta.installerNpmPackage);
+    }
   }
   return base;
 }
 
 function hexcurseReadmeMd(projectName) {
-  return `# HexCurse governance pack — ${projectName}
+  return `# Governance pack — ${projectName}
 
-All **HexCurse** artifacts for AI-assisted development in this repository live in **${HEXCURSE_ROOT}/** so tools and humans have one place to look.
+AI workflow files for this repository live in **${HEXCURSE_ROOT}/**.
 
-## Minimal workflow (NORTH STAR → one Cursor message)
+## After install
 
-1. Edit **\`NORTH_STAR.md\`** in this folder with your full product idea.
-2. **Either** run **[Cursor headless CLI](https://cursor.com/docs/cli/headless)** with **\`agent -p --model composer-2 --trust --workspace .\`** and **[HEADLESS_KICKOFF.txt](./HEADLESS_KICKOFF.txt)** (see **[ONE_PROMPT.md](./ONE_PROMPT.md)** for bash/PowerShell one-liners), **or** open **[ONE_PROMPT.md](./ONE_PROMPT.md)** → copy the **in-IDE** **fenced** block → paste as the **entire** first message in a **new Agent** chat. The agent runs **\`setup.js --run-hexcurse\`** (path from **\`.cursor/hexcurse-installer.path\`**) and then full session start.
+1. Restart Cursor; fix any red MCP servers.
+2. Fill **\`NORTH_STAR.md\`**, then use **\`ONE_PROMPT.md\`** or paste **\`SESSION_START.md\`** in a new Agent chat.
+3. Generate or refresh tasks: \`node path/to/cursor-governance/setup.js --parse-prd-via-agent\` (see **\`.cursor/hexcurse-installer.path\`** for \`path/to\`).
 
-## Right after install — you are almost done
+## Entry points
 
-The installer already wrote rules, Taskmaster state, MCP merge hints, **\`ONE_PROMPT.md\`**, and **\`.cursor/hexcurse-installer.path\`**. Do this once per machine/repo:
-
-1. **Restart Cursor** and open **this** repository folder (so \`.cursor/rules\` and MCP config reload).
-2. **Cursor → Settings → MCP** — fix any **red** servers (tokens/paths); optional: **Settings → Rules** → paste bullets from \`.cursor/rules/process-gates.mdc\`.
-3. **New Agent chat** → either **[ONE_PROMPT.md](./ONE_PROMPT.md)** (after **\`./NORTH_STAR.md\`**) **or** **[SESSION_START_PROMPT.md](./SESSION_START_PROMPT.md)** → paste as **message 1**.
-
-Then you are **ready to work** under HexCurse (Taskmaster + MCP ritual). Health check from repo root: \`node path/to/cursor-governance/setup.js --doctor\`.
-
-## Human entry points
 | Artifact | Path |
 |----------|------|
-| Agent rules (session flow, MCP) | [AGENTS.md](./AGENTS.md) |
-| Directive chain | [DIRECTIVES.md](./DIRECTIVES.md) |
+| Agent rules | [AGENTS.md](./AGENTS.md) |
+| Directives | [DIRECTIVES.md](./DIRECTIVES.md) |
 | Architecture | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) |
-| Paste at new Cursor chat | [SESSION_START_PROMPT.md](./SESSION_START_PROMPT.md) |
-| Session audit log | [SESSION_LOG.md](./SESSION_LOG.md) |
-| Architect / planning chats | [docs/ARCH_PROMPT.md](./docs/ARCH_PROMPT.md) |
-| MCP stack coordination | [docs/MCP_COORDINATION.md](./docs/MCP_COORDINATION.md) |
-| Memory taxonomy (buckets) | [docs/MEMORY_TAXONOMY.md](./docs/MEMORY_TAXONOMY.md) |
-| Rolling context / rollups | [docs/ROLLING_CONTEXT.md](./docs/ROLLING_CONTEXT.md) |
+| Session start | [SESSION_START.md](./SESSION_START.md) |
 | Cursor quick-start | [CURSOR.md](./CURSOR.md) |
-| Cursor skills (procedural) | [../.cursor/skills/README.md](../.cursor/skills/README.md) |
-| North star → PRD / tasks | [NORTH_STAR.md](./NORTH_STAR.md) + [ONE_PROMPT.md](./ONE_PROMPT.md) / [HEADLESS_KICKOFF.txt](./HEADLESS_KICKOFF.txt) (headless \`agent -p --model composer-2\`) or \`node path/to/setup.js --run-hexcurse\` |
+| Skills | [../.cursor/skills/README.md](../.cursor/skills/README.md) |
+| North star | [NORTH_STAR.md](./NORTH_STAR.md) |
+| MCP token notes | [docs/MCP_TOKEN_BUDGET.md](./docs/MCP_TOKEN_BUDGET.md) |
 
-## Agent-first reminder
-Governance is active when **Cursor agents** are primed each chat: paste **[SESSION_START_PROMPT.md](./SESSION_START_PROMPT.md)** (or \`@\` the files it lists). Rules in \`.cursor/rules/\` load automatically but do not replace that sequence.
-
-## Tools and automation
-**[PATHS.json](./PATHS.json)** lists the same paths as JSON (repo-root–relative). Use it from hooks, CLIs, or MCP helpers that need to open governance files.
-
-**Cursor** loads \`alwaysApply\` rules from **\`.cursor/rules/**\`. Those files are written to match **\`${HEXCURSE_ROOT}/rules/**\`** at install time. If you edit rules by hand, keep both copies aligned (or re-run the installer on a fresh clone).
-
-Taskmaster uses **\`.taskmaster/**\` at the repository root. Serena memories default to **\`.serena/memories/**\` at the repository root.
-
-**Continual learning:** See **[docs/CONTINUAL_LEARNING.md](./docs/CONTINUAL_LEARNING.md)** — incremental transcript index under \`.cursor/hooks/state/\` (seeded at install, gitignored), **agents-memory-updater** flow, and when to touch **Learned Workspace Facts** in AGENTS.md.
-
-**MCP coordination:** See **[docs/MCP_COORDINATION.md](./docs/MCP_COORDINATION.md)** — how every MCP fits session start, implementation, and close (with **mcp-usage.mdc** as binding spec).
-
-**Memory taxonomy & skills:** **[docs/MEMORY_TAXONOMY.md](./docs/MEMORY_TAXONOMY.md)** (this pack) and **\`.cursor/skills/README.md\`**. Deterministic log rollup → **docs/ROLLING_CONTEXT.md**: \`node path/to/cursor-governance/setup.js --learning-rollup\`.
+**[PATHS.json](./PATHS.json)** lists stable paths for tooling. Rules mirror **\`${HEXCURSE_ROOT}/rules/**\` → **\`.cursor/rules/**\`. Taskmaster uses **\`.taskmaster/**\**.
 `;
 }
 
@@ -3661,7 +2535,7 @@ Global governance rules: see root \`AGENTS.md\` → \`HEXCURSE/AGENTS.md\`.
 function rootAgentsPointerMd(projectName) {
   return `# AI agent rules — pointer
 
-**${projectName}** — full **HexCurse** governance lives in **${HEXCURSE_ROOT}/** (north star, Cursor quick-start, session log, and docs are **inside** that folder).
+**${projectName}** — full **HEXCURSE** governance lives in **${HEXCURSE_ROOT}/** (north star, Cursor quick-start, session log, and docs are **inside** that folder).
 
 | What | Where |
 |------|--------|
@@ -3669,34 +2543,38 @@ function rootAgentsPointerMd(projectName) {
 | North star / PRD bridge | [${HEXCURSE_ROOT}/NORTH_STAR.md](${HEXCURSE_ROOT}/NORTH_STAR.md) |
 | Cursor quick-start | [${HEXCURSE_ROOT}/CURSOR.md](${HEXCURSE_ROOT}/CURSOR.md) |
 | Path manifest (for tools) | [${HEXCURSE_ROOT}/PATHS.json](${HEXCURSE_ROOT}/PATHS.json) |
-| Session start paste | [${HEXCURSE_ROOT}/SESSION_START_PROMPT.md](${HEXCURSE_ROOT}/SESSION_START_PROMPT.md) |
+| Session start paste | [${HEXCURSE_ROOT}/SESSION_START.md](${HEXCURSE_ROOT}/SESSION_START.md) |
 
-Open **${HEXCURSE_ROOT}/SESSION_START_PROMPT.md** and paste its block into a new Cursor chat (it \`@\`-mentions paths under \`${HEXCURSE_ROOT}/\`).
+Open **${HEXCURSE_ROOT}/SESSION_START.md** and paste its block into a new Cursor chat (it \`@\`-mentions paths under \`${HEXCURSE_ROOT}/\`).
 `;
 }
 
-/** Writes identical rule content to HEXCURSE/rules and .cursor/rules; skip both if canonical file exists. */
-async function writeGovernanceRules(cwd, basename, content, written, skipped) {
+/** Writes identical rule content to HEXCURSE/rules and .cursor/rules; skip both if canonical exists unless refresh. */
+async function writeGovernanceRules(cwd, basename, content, written, skipped, refreshGovernance = false) {
   const relPack = path.join(HEXCURSE_ROOT, 'rules', basename);
   const relCursor = path.join('.cursor', 'rules', basename);
   const fullPack = path.join(cwd, relPack);
-  if (await fs.pathExists(fullPack)) {
+  const fullCursor = path.join(cwd, relCursor);
+  const hadPack = await fs.pathExists(fullPack);
+  if (!refreshGovernance && hadPack) {
     skipped.push(relPack);
     skipped.push(relCursor);
     return;
   }
-  const fullCursor = path.join(cwd, relCursor);
   await fs.ensureDir(path.dirname(fullPack));
   await fs.ensureDir(path.dirname(fullCursor));
   await fs.writeFile(fullPack, content, 'utf8');
   await fs.writeFile(fullCursor, content, 'utf8');
   written.push(relPack);
   written.push(relCursor);
+  const verb = refreshGovernance && hadPack ? 'Refreshed' : 'Wrote';
+  console.log(chalk.green(`✓ ${verb}`), relPack, chalk.dim('+ .cursor mirror'));
 }
 
-async function writeFileMaybeSkip(cwd, rel, content, written, skipped) {
+async function writeFileMaybeSkip(cwd, rel, content, written, skipped, refreshGovernance = false) {
   const full = path.join(cwd, rel);
-  if (await fs.pathExists(full)) {
+  const existed = await fs.pathExists(full);
+  if (!refreshGovernance && existed) {
     skipped.push(rel);
     console.warn(chalk.yellow(`⚠ SKIP (exists): ${rel}`));
     return;
@@ -3704,7 +2582,7 @@ async function writeFileMaybeSkip(cwd, rel, content, written, skipped) {
   await fs.ensureDir(path.dirname(full));
   await fs.writeFile(full, content, 'utf8');
   written.push(rel);
-  console.log(chalk.green(`✓ Wrote ${rel}`));
+  console.log(chalk.green(`✓ ${refreshGovernance && existed ? 'Refreshed' : 'Wrote'} ${rel}`));
 }
 
 /** Best-effort: index .cursor/skills with PAMPA when CLI is available (warn-only on failure). */
@@ -3762,6 +2640,7 @@ async function appendGitignoreLines(cwd) {
     '.cursor/hooks/state/',
     '.cursor/hexcurse-installer.path',
     '.env',
+    '.lightrag/',
   ];
   const gi = path.join(cwd, '.gitignore');
   let body = '';
@@ -3819,7 +2698,7 @@ async function writeLmStudioDotEnvIfMissing(cwd, answers) {
   const dotEnv = path.join(cwd, '.env');
   if (await fs.pathExists(dotEnv)) return;
   const url = resolvedLmStudioApiBaseUrl(answers);
-  const body = `# Written by cursor-governance install (LM Studio). Do not commit.\nOPENAI_API_KEY=lm-studio\nOPENAI_BASE_URL=${url}\n`;
+  const body = `# Written by HEXCURSE install (LM Studio). Do not commit.\nOPENAI_API_KEY=lm-studio\nOPENAI_BASE_URL=${url}\n`;
   await fs.writeFile(dotEnv, body, 'utf8');
   console.log(chalk.green('✓'), 'Wrote .env for LM Studio (OPENAI_* for task-master CLI)');
 }
@@ -3980,6 +2859,43 @@ function argvHasQuick(argv) {
   return argv.slice(2).some((a) => a === '--quick' || a === '-q');
 }
 
+/** True when install should overwrite existing HEXCURSE/* and mirrored rules. */
+function argvHasRefreshGovernance(argv) {
+  return argv.slice(2).some((a) => a === '--refresh-governance');
+}
+
+/** True for 1, true, yes (case-insensitive). */
+function envTruthy(v) {
+  const s = String(v || '').trim().toLowerCase();
+  return s === '1' || s === 'true' || s === 'yes';
+}
+
+/** True when HEXCURSE/PATHS.json already exists (prior install). */
+async function governancePackExists(cwd) {
+  return fs.pathExists(path.join(cwd, HEXCURSE_ROOT, 'PATHS.json'));
+}
+
+/**
+ * Interactive reinstall: offer to refresh templates when pack exists (TTY only).
+ * Quick / piped / explicit flag skip the prompt.
+ */
+async function resolveRefreshGovernance(cwd, useQuick, argv) {
+  if (argvHasRefreshGovernance(argv) || envTruthy(process.env.HEXCURSE_REFRESH_GOVERNANCE)) {
+    return true;
+  }
+  if (useQuick || !stdinIsTTY()) {
+    return false;
+  }
+  if (!(await governancePackExists(cwd))) {
+    return false;
+  }
+  return askYesNo(
+    ask,
+    'Overwrite existing governance files (HEXCURSE/* and mirrored .cursor/rules)? Custom edits there will be replaced.',
+    false
+  );
+}
+
 /** Builds install answers without prompts (for --quick). */
 function buildQuickInstallAnswers(cwd, preset) {
   const gh = resolveGithubTokenFromUserEnvironment();
@@ -4005,7 +2921,7 @@ function buildQuickInstallAnswers(cwd, preset) {
   ).trim();
   const outOfScope = String(process.env.HEXCURSE_OUT_OF_SCOPE || 'TBD — confirm with human').trim();
   const dod = String(
-    process.env.HEXCURSE_DOD || 'Taskmaster parse-prd succeeds; SESSION_START prompt exists'
+    process.env.HEXCURSE_DOD || 'Taskmaster parse-prd succeeds; SESSION_START.md exists'
   ).trim();
 
   let taskmasterEnv = {};
@@ -4054,6 +2970,8 @@ function buildQuickInstallAnswers(cwd, preset) {
     github: gh.token,
     repoKind,
     northStarDraftMd: null,
+    selectedOptionals: parseSelectedOptionalsFromEnv(),
+    customMcp: parseCustomMcpFromEnv(),
   };
 }
 
@@ -4074,8 +2992,8 @@ async function tryGitCommit(cwd) {
     return;
   }
   try {
-    execSync('git commit -m "chore: cursor-governance scaffold"', { cwd, shell: true, stdio: 'inherit' });
-    console.log(chalk.green('✓ git commit: chore: cursor-governance scaffold'));
+    execSync('git commit -m "chore: HEXCURSE scaffold"', { cwd, shell: true, stdio: 'inherit' });
+    console.log(chalk.green('✓ git commit: chore: HEXCURSE scaffold'));
   } catch (e) {
     console.warn(chalk.yellow('⚠ git commit failed (nothing to commit or user.name not set) — continuing.'));
   }
@@ -4097,25 +3015,12 @@ function printSummary(written, skipped, cwd, mcpResult, answers) {
   }
   console.log(
     chalk.yellow(
-      '\n⚠  MCP Token Budget: Each active server adds ~500–1000 tokens per tool to every request.\n' +
-        '   HexCurse now installs 17 servers. Disable project-specific servers in ~/.cursor/mcp.json\n' +
-        '   when not needed (e.g. disable gitmcp-adafruit-mpu6050 on non-hardware projects,\n' +
-        '   disable Supabase when working offline or on non-Supabase backends).\n' +
+      '\n⚠  MCP token budget: each active server adds ~500–1000 tokens of tool-description overhead per request.\n' +
+        '   v2 merges 4 core servers plus optionals you selected. Reinstall **never removes** existing `mcp.json` keys —\n' +
+        '   it only adds missing ones — so older 17-server configs stay until you delete keys manually.\n' +
         '   See HEXCURSE/docs/MCP_TOKEN_BUDGET.md for guidance.'
     )
   );
-  const pampaPath = resolvePampaGlobalPath();
-  if (!fs.existsSync(pampaPath)) {
-    console.log(
-      chalk.yellow(
-        '⚠  pampa: mcp-server.js not found at resolved path: ' +
-          pampaPath +
-          '\n' +
-          '   Install globally with: npm install -g pampa\n' +
-          '   Then re-run the installer to refresh the path in ~/.cursor/mcp.json'
-      )
-    );
-  }
   console.log('');
   console.log(chalk.bold('Files written:'));
   if (written.length === 0) {
@@ -4141,14 +3046,14 @@ function printSummary(written, skipped, cwd, mcpResult, answers) {
     String(answers.northStarDraftMd).trim().length > 150;
   if (draftedExisting) {
     console.log(
-      `  3. Review **HEXCURSE/NORTH_STAR.md** (installer drafted it from a repomix snapshot). Refine in Cursor using memory, repomix, and Serena MCPs, then open ${path.join(HEXCURSE_ROOT, 'ONE_PROMPT.md')} — paste the fenced block as your only first message in a new chat.`
+      `  3. Review **HEXCURSE/NORTH_STAR.md** (installer drafted it from a repomix snapshot). Refine in Cursor using memory, context7, and your merged MCPs, then open ${path.join(HEXCURSE_ROOT, 'ONE_PROMPT.md')} — paste the fenced block as your only first message in a new chat.`
     );
   } else {
     console.log(
       `  3. Fill HEXCURSE/NORTH_STAR.md, then open ${path.join(HEXCURSE_ROOT, 'ONE_PROMPT.md')} — paste the fenced block as your only first message in a new chat.`
     );
   }
-  console.log(chalk.dim(`  Or: open ${path.join(HEXCURSE_ROOT, 'SESSION_START_PROMPT.md')} for the daily session-start block.`));
+  console.log(chalk.dim(`  Or: open ${path.join(HEXCURSE_ROOT, 'SESSION_START.md')} for the daily session-start block.`));
   console.log(
     chalk.dim(
       '  Tip: quick install  node setup.js --quick --preset=lmstudio  |  existing repo: set HEXCURSE_REPO_KIND=existing'
@@ -4181,7 +3086,7 @@ async function runMultiAgentSetup(cwd) {
   if (!(await fs.pathExists(hexRoot))) {
     console.error(
       chalk.red('HEXCURSE/ pack not found.'),
-      chalk.dim('Run cursor-governance install in this repository root first.')
+      chalk.dim('Run HEXCURSE install in this repository root first.')
     );
     process.exit(1);
   }
@@ -4229,13 +3134,9 @@ async function syncRemoteRules(cwd, { dryRun = false } = {}) {
     'base.mdc',
     'mcp-usage.mdc',
     'process-gates.mdc',
-    'governance.mdc',
     'security.mdc',
     'adr.mdc',
-    'memory-management.mdc',
-    'debugging.mdc',
     'multi-agent.mdc',
-    'linear-sync.mdc',
   ];
   let updated = 0;
   let upToDate = 0;
@@ -4282,23 +3183,6 @@ async function syncRemoteRules(cwd, { dryRun = false } = {}) {
     updated += 1;
   }
 
-  if (failed === 0) {
-    const statePath = path.join(cwd, '.cursor', 'hooks', 'state', 'continual-learning.json');
-    const iso = new Date().toISOString();
-    let state = {};
-    if (fs.existsSync(statePath)) {
-      try {
-        state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-      } catch (_) {
-        state = {};
-      }
-    }
-    state.version = state.version || 2;
-    state.lastSyncAt = iso;
-    await fs.ensureDir(path.dirname(statePath));
-    await fs.writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
-  }
-
   console.log('');
   console.log(
     chalk.bold('Rules sync summary:'),
@@ -4309,6 +3193,244 @@ async function syncRemoteRules(cwd, { dryRun = false } = {}) {
   if (failed > 0) {
     process.exit(1);
   }
+}
+
+/** Migrates a v1 consumer install to v2: backs up HEXCURSE/ and .cursor/rules/, removes v1 artifacts, runs v2 install. */
+async function runMigrateV2(cwd) {
+  const pkg = readInstallerPackageJson();
+  console.log(chalk.bold(`HEXCURSE installer ${pkg.version}`), chalk.dim('— migrate-v2\n'));
+
+  const hexRoot = path.join(cwd, HEXCURSE_ROOT);
+  const pathsJsonPath = path.join(hexRoot, 'PATHS.json');
+
+  // Check this is actually a v1 install
+  if (!fs.existsSync(hexRoot)) {
+    console.log(chalk.yellow('No HEXCURSE/ folder found — nothing to migrate.'));
+    return;
+  }
+  if (fs.existsSync(pathsJsonPath)) {
+    try {
+      const j = JSON.parse(fs.readFileSync(pathsJsonPath, 'utf8'));
+      if (j.schema === 'hexcurse-paths-v2') {
+        console.log(chalk.green('✓'), 'Already on hexcurse-paths-v2 — no migration needed.');
+        return;
+      }
+    } catch (_) {}
+  }
+
+  // Backup HEXCURSE/
+  const backupHex = path.join(cwd, 'HEXCURSE.v1.backup');
+  console.log(chalk.cyan('→'), `Backing up HEXCURSE/ to HEXCURSE.v1.backup/`);
+  await fs.copy(hexRoot, backupHex, { overwrite: true });
+
+  // Backup .cursor/rules/
+  const rulesDir = path.join(cwd, '.cursor', 'rules');
+  const backupRules = path.join(cwd, '.cursor', 'rules.v1.backup');
+  if (fs.existsSync(rulesDir)) {
+    console.log(chalk.cyan('→'), 'Backing up .cursor/rules/ to .cursor/rules.v1.backup/');
+    await fs.copy(rulesDir, backupRules, { overwrite: true });
+  }
+
+  // Remove v1-specific files
+  const v1Removals = [
+    path.join(hexRoot, 'docs', 'SESSION_LOG.md'),
+    path.join(hexRoot, 'SESSION_LOG.md'),
+    path.join(hexRoot, 'docs', 'ROLLING_CONTEXT.md'),
+    path.join(hexRoot, 'docs', 'CONTINUAL_LEARNING.md'),
+    path.join(hexRoot, 'docs', 'GOVERNANCE_PARITY.md'),
+    path.join(hexRoot, 'docs', 'MCP_COORDINATION.md'),
+    path.join(hexRoot, 'docs', 'MEMORY_TAXONOMY.md'),
+    path.join(cwd, '.cursor', 'hooks', 'state', 'continual-learning.json'),
+    path.join(cwd, '.cursor', 'hooks', 'state', 'continual-learning-index.json'),
+    path.join(cwd, '.cursor', 'hooks', 'state', 'skill-promotion-queue.json'),
+  ];
+  for (const f of v1Removals) {
+    if (fs.existsSync(f)) {
+      await fs.remove(f);
+      console.log(chalk.dim('  removed:'), path.relative(cwd, f));
+    }
+  }
+
+  // Preserve NORTH_STAR content and sacred constraints
+  const northStarPath = path.join(hexRoot, 'NORTH_STAR.md');
+  const existingNorthStar = fs.existsSync(northStarPath)
+    ? await fs.readFile(northStarPath, 'utf8')
+    : null;
+
+  let sacredFromBase = '';
+  const baseMdcPath = path.join(cwd, '.cursor', 'rules', 'base.mdc');
+  if (fs.existsSync(baseMdcPath)) {
+    sacredFromBase = extractSacredCsvFromBaseMdc(await fs.readFile(baseMdcPath, 'utf8'));
+  }
+
+  // Preserve project name and purpose from existing AGENTS.md or PATHS.json
+  let projectName = 'my-project';
+  let purpose = 'TBD — fill in NORTH_STAR.md';
+  const agentsMdPath = path.join(hexRoot, 'AGENTS.md');
+  if (fs.existsSync(agentsMdPath)) {
+    projectName = extractProjectNameFromAgents(await fs.readFile(agentsMdPath, 'utf8')) || projectName;
+  }
+
+  console.log(chalk.cyan('→'), 'Running v2 install sequence with preserved project data…\n');
+
+  // Build minimal answers from preserved data
+  const answers = {
+    projectName,
+    purpose,
+    stack: 'TBD — confirm in NORTH_STAR.md',
+    modules: 'TBD',
+    sacred: sacredFromBase || 'no secrets in git; one directive per session',
+    outOfScope: 'TBD',
+    dod: 'Taskmaster parse-prd succeeds; SESSION_START.md exists',
+    provider: '',
+    taskmasterEnv: {},
+    github: process.env.GITHUB_PERSONAL_ACCESS_TOKEN || process.env.GITHUB_TOKEN || '',
+    repoKind: 'existing',
+    northStarDraftMd: existingNorthStar && isNorthStarSubstantive(existingNorthStar) ? existingNorthStar : null,
+    selectedOptionals: [],
+    customMcp: null,
+    supabaseProjectRef: process.env.SUPABASE_PROJECT_REF || '',
+  };
+
+  const installerPkg = readInstallerPackageJson();
+  const pathsMeta = {
+    installerName: 'hexcurse',
+    installerNpmPackage: installerPkg.name,
+    installerVersion: installerPkg.version,
+    generatedAt: new Date().toISOString(),
+  };
+
+  const written = [];
+  const skipped = [];
+  const refreshGovernance = true; // always overwrite on migration
+  const constraintsBullets = formatConstraintBullets(answers.sacred);
+
+  // Rewrite rules
+  await writeGovernanceRules(
+    cwd,
+    'base.mdc',
+    baseMdc(
+      answers.projectName.trim(),
+      answers.purpose.trim(),
+      constraintsBullets,
+      answers.stack.trim(),
+      answers.outOfScope.trim()
+    ),
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await writeGovernanceRules(cwd, 'mcp-usage.mdc', MCP_USAGE_TEMPLATE, written, skipped, refreshGovernance);
+  await writeGovernanceRules(cwd, 'process-gates.mdc', PROCESS_GATES_TEMPLATE, written, skipped, refreshGovernance);
+  await writeGovernanceRules(cwd, 'security.mdc', SECURITY_MDC_TEMPLATE, written, skipped, refreshGovernance);
+  await writeGovernanceRules(cwd, 'adr.mdc', ADR_MDC_TEMPLATE, written, skipped, refreshGovernance);
+
+  // Rewrite governance files
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'PATHS.json'),
+    `${JSON.stringify(pathsManifestObject(pathsMeta), null, 2)}\n`,
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'AGENTS.md'),
+    agentsMd(
+      answers.projectName.trim(),
+      answers.purpose.trim(),
+      answers.stack.trim(),
+      answers.sacred.trim()
+    ),
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'SESSION_START.md'),
+    sessionStartMd(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'ONE_PROMPT.md'),
+    readBundledOnePromptTemplate(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'ADR_LOG.md'),
+    adrLogStubMd(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'README.md'),
+    hexcurseReadmeMd(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+
+  // Restore NORTH_STAR if substantive
+  if (answers.northStarDraftMd) {
+    await fs.writeFile(northStarPath, answers.northStarDraftMd, 'utf8');
+    console.log(chalk.green('✓'), 'Preserved existing NORTH_STAR.md content.');
+  } else {
+    await writeFileMaybeSkip(
+      cwd,
+      path.join(HEXCURSE_ROOT, 'NORTH_STAR.md'),
+      readBundledNorthStarTemplate(answers.projectName.trim()),
+      written,
+      skipped,
+      refreshGovernance
+    );
+  }
+
+  await writeFileMaybeSkip(
+    cwd,
+    'AGENTS.md',
+    rootAgentsPointerMd(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+  await appendGitignoreLines(cwd);
+
+  console.log(chalk.green.bold('\n✓ Migration complete.'));
+  console.log(chalk.dim('  v1 backup:'), 'HEXCURSE.v1.backup/');
+  console.log(chalk.dim('  rules backup:'), '.cursor/rules.v1.backup/');
+  console.log(chalk.dim('  written:'), written.length, 'files');
+  console.log(chalk.dim('\nNext: fill HEXCURSE/NORTH_STAR.md, then run --doctor to verify.'));
+}
+
+/** Install LightRAG MCP when user selects it at install time. */
+async function installLightRAG(cwd) {
+  const python = findPython();
+  if (!python) {
+    console.warn(
+      chalk.yellow('⚠'),
+      'LightRAG requires Python 3.10+. Install Python and re-run install to activate it.'
+    );
+    return false;
+  }
+  try {
+    execSync('uvx install lightrag-mcp', { stdio: 'inherit', shell: true });
+  } catch (_) {
+    console.warn(chalk.yellow('⚠'), 'uvx install lightrag-mcp failed — install uv and retry.');
+    return false;
+  }
+  await fs.ensureDir(path.join(cwd, '.lightrag'));
+  console.log(chalk.green('✓'), 'LightRAG MCP installed. Index builds on first use.');
+  return true;
 }
 
 async function main() {
@@ -4341,24 +3463,16 @@ async function main() {
     await runRefreshRules(process.cwd());
     return;
   }
-  if (mode === 'learning-rollup') {
-    runLearningRollup(process.cwd(), parseLearningRollupSessions(process.argv));
-    return;
-  }
-  if (mode === 'preflight-cursor-agent') {
-    assertCursorAgentCliAuthenticated();
-    console.log(chalk.green('✓'), 'Cursor CLI: agent status OK');
-    return;
-  }
-  if (mode === 'run-hexcurse' || mode === 'run-hexcurse-raw') {
-    await runNorthStarBridge(process.cwd(), { raw: mode === 'run-hexcurse-raw' });
+  if (mode === 'migrate-v2') {
+    await runMigrateV2(process.cwd());
     return;
   }
 
   const cwd = process.cwd();
   const installerPkg = readInstallerPackageJson();
   const pathsMeta = {
-    installerName: installerPkg.name,
+    installerName: 'hexcurse',
+    installerNpmPackage: installerPkg.name,
     installerVersion: installerPkg.version,
     generatedAt: new Date().toISOString(),
   };
@@ -4379,20 +3493,36 @@ async function main() {
     }
   } else {
     answers = await promptUser();
+    applyTaskmasterProviderFromEnvironment(answers);
+    console.log(
+      chalk.dim(
+        `Taskmaster / LLM for this install: provider=${answers.provider} (from environment).`
+      )
+    );
   }
   const constraintsBullets = formatConstraintBullets(answers.sacred);
-  const todayDate = new Date().toISOString().slice(0, 10);
 
   installGlobals(platform);
 
+  // LightRAG: install uvx package when selected
+  if (Array.isArray(answers.selectedOptionals) && answers.selectedOptionals.includes('lightrag')) {
+    await installLightRAG(cwd);
+  }
+
   const cursorMcpPath = path.join(os.homedir(), '.cursor', 'mcp.json');
   console.log(chalk.bold(`\nMerging ${cursorMcpPath} …`));
-  const mcpResult = mergeMcpJson(answers.taskmasterEnv, answers.github);
+  const mcpResult = mergeMcpJson(answers);
 
   const written = [];
   const skipped = [];
+  const refreshGovernance = await resolveRefreshGovernance(cwd, useQuick, process.argv);
+  if (refreshGovernance) {
+    console.log(chalk.cyan('↻'), chalk.dim('Refreshing: overwriting existing governance files.'));
+  }
 
-  console.log(chalk.bold('\nWriting governance files into:'), cwd, chalk.dim(`(${HEXCURSE_ROOT}/ pack + .cursor/rules mirror)`));
+  console.log(chalk.bold('\nWriting governance files into:'), cwd);
+
+  // 1. Five lean rules
   await writeGovernanceRules(
     cwd,
     'base.mdc',
@@ -4404,76 +3534,100 @@ async function main() {
       answers.outOfScope.trim()
     ),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
-  await writeGovernanceRules(cwd, 'mcp-usage.mdc', MCP_USAGE_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'process-gates.mdc', PROCESS_GATES_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'governance.mdc', readBundledGovernanceMdc(), written, skipped);
-  await writeGovernanceRules(cwd, 'security.mdc', SECURITY_MDC_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'adr.mdc', ADR_MDC_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'memory-management.mdc', MEMORY_MANAGEMENT_MDC_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'debugging.mdc', DEBUGGING_MDC_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'multi-agent.mdc', MULTI_AGENT_MDC_TEMPLATE, written, skipped);
-  await writeGovernanceRules(cwd, 'linear-sync.mdc', LINEAR_SYNC_MDC_TEMPLATE, written, skipped);
+  await writeGovernanceRules(cwd, 'mcp-usage.mdc', MCP_USAGE_TEMPLATE, written, skipped, refreshGovernance);
+  await writeGovernanceRules(cwd, 'process-gates.mdc', PROCESS_GATES_TEMPLATE, written, skipped, refreshGovernance);
+  await writeGovernanceRules(cwd, 'security.mdc', SECURITY_MDC_TEMPLATE, written, skipped, refreshGovernance);
+  await writeGovernanceRules(cwd, 'adr.mdc', ADR_MDC_TEMPLATE, written, skipped, refreshGovernance);
+
+  // 2. Governance files — v2 minimal set (14 files)
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'PATHS.json'),
     `${JSON.stringify(pathsManifestObject(pathsMeta), null, 2)}\n`,
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
+
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'AGENTS.md'),
+    agentsMd(answers.projectName.trim(), answers.purpose.trim(), answers.stack.trim(), answers.sacred.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+
+  const northStarBody =
+    answers.northStarDraftMd && String(answers.northStarDraftMd).trim().length > 150
+      ? `${String(answers.northStarDraftMd).trim()}\n`
+      : readBundledNorthStarTemplate(answers.projectName.trim());
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'NORTH_STAR.md'),
+    northStarBody,
+    written,
+    skipped,
+    refreshGovernance
+  );
+
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'SESSION_START.md'),
+    sessionStartMd(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'ONE_PROMPT.md'),
+    readBundledOnePromptTemplate(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+
+  await writeFileMaybeSkip(
+    cwd,
+    path.join(HEXCURSE_ROOT, 'ADR_LOG.md'),
+    adrLogStubMd(answers.projectName.trim()),
+    written,
+    skipped,
+    refreshGovernance
+  );
+
   await writeFileMaybeSkip(
     cwd,
     path.join(HEXCURSE_ROOT, 'README.md'),
     hexcurseReadmeMd(answers.projectName.trim()),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
+
   await writeFileMaybeSkip(
     cwd,
-    path.join(HEXCURSE_ROOT, 'AGENTS.md'),
-    agentsMd(answers.projectName.trim()),
+    path.join('.cursor', 'skills', 'README.md'),
+    cursorSkillsReadmeMd(),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
+
   await writeFileMaybeSkip(
     cwd,
-    path.join(HEXCURSE_ROOT, 'DIRECTIVES.md'),
-    directivesMd(answers.projectName.trim()),
+    path.join('.cursor', 'skills', '_TEMPLATE_SKILL.md'),
+    readBundledTemplateSkillMd(),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'ARCHITECTURE.md'),
-    architectureMd(
-      answers.projectName.trim(),
-      answers.purpose.trim(),
-      answers.stack.trim(),
-      answers.outOfScope.trim(),
-      answers.dod.trim()
-    ),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'GOVERNANCE_PARITY.md'),
-    readBundledGovernanceParityTemplate(answers.projectName.trim()),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'SESSION_LOG.md'),
-    sessionLogMd(answers.projectName.trim(), todayDate),
-    written,
-    skipped
-  );
-  const prdNotesLead =
-    answers.repoKind === 'existing' && answers.northStarDraftMd
-      ? 'Existing-repo install path: PRD fields were extracted from an auto-drafted NORTH_STAR (repomix snapshot + your model). Refine HEXCURSE/NORTH_STAR.md in Cursor with MCPs as needed.'
-      : '';
+
   await writeFileMaybeSkip(
     cwd,
     path.join('.taskmaster', 'docs', 'prd.txt'),
@@ -4485,177 +3639,42 @@ async function main() {
       constraintsBullets,
       answers.outOfScope.trim(),
       answers.dod.trim(),
-      prdNotesLead
+      ''
     ),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
-  await writeFileMaybeSkip(cwd, path.join('.serena', 'memories', '.gitkeep'), '', written, skipped);
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'SESSION_START_PROMPT.md'),
-    sessionStartMd(answers.projectName.trim()),
-    written,
-    skipped
-  );
+
   await writeFileMaybeSkip(
     cwd,
     'AGENTS.md',
     rootAgentsPointerMd(answers.projectName.trim()),
     written,
-    skipped
+    skipped,
+    refreshGovernance
   );
-  if (answers.repoKind === 'existing') {
-    let rootEntries;
-    try {
-      rootEntries = fs.readdirSync(cwd, { withFileTypes: true });
-    } catch (_) {
-      rootEntries = [];
-    }
-    for (const ent of rootEntries) {
-      if (!ent.isDirectory()) continue;
-      const n = ent.name;
-      if (n === '.git' || n === 'node_modules' || n === HEXCURSE_ROOT || n.startsWith('.')) continue;
-      const subPkg = path.join(cwd, n, 'package.json');
-      if (fs.existsSync(subPkg)) {
-        await writeFileMaybeSkip(
-          cwd,
-          path.join(n, 'AGENTS.md'),
-          subAgentsPointerMd(answers.projectName.trim(), n),
-          written,
-          skipped
-        );
-      }
-    }
+
+  // Optional: LightRAG doc (only if selected)
+  if (Array.isArray(answers.selectedOptionals) && answers.selectedOptionals.includes('lightrag')) {
+    const lightragNote = `# LightRAG — ${answers.projectName.trim()}\n\nLightRAG indexes your codebase for semantic search.\nThe agent can query existing patterns before writing new code.\n\nIndex builds automatically on first use.\nRe-index after major refactors by restarting the LightRAG MCP server in Cursor settings.\n`;
+    await writeFileMaybeSkip(
+      cwd,
+      path.join(HEXCURSE_ROOT, 'LIGHTRAG.md'),
+      lightragNote,
+      written,
+      skipped,
+      refreshGovernance
+    );
   }
-  const northStarBody =
-    answers.northStarDraftMd && String(answers.northStarDraftMd).trim().length > 150
-      ? `${String(answers.northStarDraftMd).trim()}\n`
-      : readBundledNorthStarTemplate(answers.projectName.trim());
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'NORTH_STAR.md'),
-    northStarBody,
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'CURSOR.md'),
-    cursorPackMd(answers.projectName.trim()),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'CURSOR_MODES.md'),
-    cursorModesMd(),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'ARCH_PROMPT.md'),
-    readBundledArchPromptTemplate(),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'CONTINUAL_LEARNING.md'),
-    continualLearningMd(answers.projectName.trim()),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'MCP_COORDINATION.md'),
-    readBundledMcpCoordinationTemplate(),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'MCP_TOKEN_BUDGET.md'),
-    mcpTokenBudgetMd(),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'MULTI_AGENT.md'),
-    multiAgentMd(),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'ADR_LOG.md'),
-    adrLogStubMd(answers.projectName),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'AGENT_HANDOFFS.md'),
-    agentHandoffsStubMd(),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join('.cursor', 'hooks', 'state', 'continual-learning-index.json'),
-    continualLearningIndexSeedJson(),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join('.cursor', 'hooks', 'state', 'continual-learning.json'),
-    continualLearningHookStateSeedJson(),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join('.cursor', 'hooks', 'state', 'skill-promotion-queue.json'),
-    skillPromotionQueueSeedJson(),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'MEMORY_TAXONOMY.md'),
-    readBundledMemoryTaxonomyTemplate(),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join(HEXCURSE_ROOT, 'docs', 'ROLLING_CONTEXT.md'),
-    rollingContextStubMd(answers.projectName.trim()),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join('.cursor', 'skills', 'README.md'),
-    readBundledCursorSkillsReadmeTemplate(),
-    written,
-    skipped
-  );
-  await writeFileMaybeSkip(
-    cwd,
-    path.join('.cursor', 'skills', '_TEMPLATE_SKILL.md'),
-    readBundledTemplateSkillMd(),
-    written,
-    skipped
-  );
 
-  await tryIndexSkillsWithPampa(cwd);
+  // Optional: multi-agent docs (only if --multi-agent was run, not default install)
+  // These are written by runMultiAgentSetup(), not here.
 
+  // 3. Gitignore
   await appendGitignoreLines(cwd);
 
+  // 4. Taskmaster
   console.log(chalk.bold('\nTaskmaster …'));
   if (!runCmd(cwd, 'task-master init --yes', 'task-master init')) {
     console.warn(chalk.yellow('⚠ task-master init reported failure — continuing.'));
@@ -4665,27 +3684,40 @@ async function main() {
   await patchTaskmasterConfigForLmStudioContext(cwd, answers);
 
   const prdRel = path.join('.taskmaster', 'docs', 'prd.txt');
-  const tmEnv = taskmasterChildEnv(answers);
-  if (
-    !runCmd(cwd, `task-master parse-prd --force "${prdRel}"`, 'task-master parse-prd', tmEnv)
-  ) {
-    console.warn(chalk.yellow('⚠ task-master parse-prd reported failure — continuing.'));
-    console.warn(
-      chalk.dim(
-        '  Tip: start LM Studio (or set API keys), then run: task-master parse-prd --force .taskmaster/docs/prd.txt'
-      )
+  const prdAbs = path.join(cwd, prdRel);
+  const tasksJsonPath = path.join(cwd, '.taskmaster', 'tasks', 'tasks.json');
+  const parseMode = String(process.env.HEXCURSE_PARSE_PRD || 'cursor').trim().toLowerCase();
+  const tmEnvNonInteractive = { ...taskmasterChildEnv(answers), CI: '1' };
+
+  if (parseMode === 'skip') {
+    console.log(chalk.dim('Skipping PRD→tasks (HEXCURSE_PARSE_PRD=skip).'));
+  } else if (parseMode === 'taskmaster') {
+    const parseOk = runCmd(
+      cwd,
+      `task-master parse-prd --force -i "${prdRel}"`,
+      'task-master parse-prd',
+      tmEnvNonInteractive
     );
-    console.warn(
-      chalk.dim(
-        '  If parse-prd still fails, set HEXCURSE_LM_STUDIO_MAX_CONTEXT to your real context (e.g. 4096 or 8000) before install, or use a larger-context GGUF / cloud for parse-prd.'
-      )
-    );
+    if (!parseOk) console.warn(chalk.yellow('⚠ task-master parse-prd reported failure — continuing.'));
+  } else {
+    const parseOk = tryParsePrdWithCursorAgent(cwd, prdAbs, tasksJsonPath);
+    if (!parseOk && answers.provider === 'lmstudio') {
+      runCmd(
+        cwd,
+        `task-master parse-prd --force -i "${prdRel}"`,
+        'task-master parse-prd',
+        tmEnvNonInteractive
+      );
+    }
+    if (!parseOk) {
+      console.warn(chalk.yellow('⚠'), 'PRD→tasks not generated — run --parse-prd-via-agent after install.');
+    }
   }
   await seedPlaceholderTasksJsonIfMissing(cwd);
 
+  // 5. Finalize
   await writeInstallerPathFile(cwd);
   await writeOnePromptFile(cwd, answers.projectName.trim());
-  await writeHeadlessKickoffFile(cwd, answers.projectName.trim());
 
   console.log(chalk.bold('\nGit …'));
   await tryGitCommit(cwd);
@@ -4695,23 +3727,32 @@ async function main() {
 
 module.exports = main;
 
-/** Test harness: path resolution must stay consistent with install / doctor / bridge / rollup. */
+/** Test harness: path resolution must stay consistent with install / doctor. */
 main.hexcursePaths = {
   HEXCURSE_ROOT,
   pathNorthStarPack,
   resolveNorthStarPathForRead,
-  resolveSessionLogForRollup,
-  resolveRollingContextPathForRollup,
+};
+
+/** Test-only: v2 PATHS.json manifest shape. */
+main.hexcursePathsManifestTestHooks = {
+  pathsManifestObject,
 };
 
 /** Test-only: existing-repo NORTH_STAR draft (repomix snapshot + install-time LLM). See test/north-star-existing-repo.test.js */
 main.hexcurseInstallTestHooks = {
   generateNorthStarFromExistingRepo,
+  applyTaskmasterProviderFromEnvironment,
 };
 
 /** Test-only: quick-install answer shape. See test/hexcurse-pack.test.js */
 main.hexcurseQuickInstallTestHooks = {
   buildQuickInstallAnswers,
+};
+
+/** Test-only: v2 MCP merge shape. */
+main.hexcurseMcpTestHooks = {
+  buildMcpServers,
 };
 
 /** Test-only: sacred merge for --refresh-rules. See test/hexcurse-pack.test.js */
@@ -4723,6 +3764,8 @@ main.hexcurseRefreshRulesTestHooks = {
 main.hexcurseAgentParseHooks = {
   validateTaskmasterSchema,
   buildAgentParsePrompt,
+  parseTaskmasterJsonFromText,
+  tryParsePrdWithCursorAgent,
 };
 
 /** Test-only: Windows ConPTY heuristic. See test/hexcurse-pack.test.js */

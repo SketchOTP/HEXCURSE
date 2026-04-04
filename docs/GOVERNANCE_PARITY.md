@@ -13,8 +13,9 @@ This document states **what governance claims** versus **what is automated**, so
 ## What does *not* run by itself
 
 - **MCP tools** (memory, Taskmaster, jcodemunch, Serena, etc.) are **not** invoked by the filesystem or `alwaysApply` rules. The agent must call them; the human must keep MCP servers **green** in Cursor.
-- **Session start** (`docs/SESSION_START_PROMPT.md`) must be **pasted** (or `@` files) so the agent runs memory → Taskmaster → repomix → **jcodemunch** index/outline → sequential-thinking in order.
+- **Session start** (`docs/SESSION_START.md`) must be **pasted** (or `@` files) so the agent runs memory → Taskmaster → repomix → **jcodemunch** index/outline → sequential-thinking in order.
 - **Taskmaster** (`task-master` CLI) uses **HTTP** LLM providers (e.g. LM Studio via `OPENAI_*`). It is **not** the same process as [Cursor headless](https://cursor.com/docs/cli/headless) (`agent -p`).
+- **HEXCURSE install** (default): **PRD → tasks** uses **`agent -p`** (**`composer-1.5`**) first so **`task-master parse-prd`** does not call OpenAI/Anthropic unless **`HEXCURSE_PARSE_PRD=taskmaster`** or **`lmstudio`** fallback runs.
 - **`HEXCURSE_PREFLIGHT_CURSOR_AGENT=1`** only runs **`agent status`** before `parse-prd` in the north-star bridge; it does not replace Taskmaster’s LLM endpoint.
 
 ## What *is* automated in-repo
@@ -59,7 +60,7 @@ Only **loading** `.cursor/rules/*.mdc` is automatic when Cursor opens a chat; **
 ## Installer template parity (v1.6.1+)
 
 - **`cursor-governance/templates/AGENTS.md`** mirrors the repository root **`AGENTS.md`**. At install time, **`agentsMd()`** swaps the second-line title **`# HexCurse`** for the target project name.
-- **`cursor-governance/templates/SESSION_START_PROMPT.pack.md`** is emitted as **`HEXCURSE/SESSION_START_PROMPT.md`**. It tracks **`docs/SESSION_START_PROMPT.md`** (session ritual text) with **`@HEXCURSE/…`** paths and **`{{PROJECT_NAME}}`** for the one-line agent role. When you change ritual steps or semgrep wording, update **both** files (or regenerate the pack from `docs/` with the same transforms the installer uses).
+- **`cursor-governance/templates/SESSION_START.md`** is emitted as **`HEXCURSE/SESSION_START.md`**. It tracks **`docs/SESSION_START.md`** (source repo) with **`@HEXCURSE/…`** paths in the pack and **`{{PROJECT_NAME}}`** for the one-line agent role. When you change ritual steps or semgrep wording, update **both** files (or regenerate the pack from `docs/` with the same transforms the installer uses).
 
 ## Related
 

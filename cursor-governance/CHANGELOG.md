@@ -1,6 +1,54 @@
 # Changelog
 
-All notable changes to **cursor-governance** are documented here.
+All notable changes to **HEXCURSE** (npm package **`cursor-governance`**) are documented here.
+
+## [2.0.0] — 2026-04-04
+
+### Breaking Changes
+
+- Removed: SESSION_LOG.md, ROLLING_CONTEXT.md, continual-learning state files from install output
+- Removed CLI modes: `--learning-rollup`, `--run-hexcurse`, `--run-hexcurse-raw`, `--preflight-cursor-agent`
+- Removed MCP servers from default install: repomix, serena, gitmcp, jcodemunch, sequential-thinking, firecrawl, sentry, linear, pampa
+- Removed default rules: governance.mdc, debugging.mdc, memory-management.mdc, linear-sync.mdc, multi-agent.mdc (now --multi-agent only)
+- PATHS.json schema bumped to `hexcurse-paths-v2` — not backward compatible with v1 installs (run `--migrate-v2` to upgrade)
+- Install produces 14 files (was 30+)
+
+### Added
+
+- Interactive optional server picker — 5 yes/no questions (Playwright, Semgrep, Supabase, LightRAG, custom)
+- LightRAG MCP integration (`installLightRAG()`) — replaces manual session log machinery
+- `--migrate-v2` mode — backs up v1 install, rewrites to v2 schema, preserves NORTH_STAR and sacred constraints
+- Lean 5-rule governance set (all under 100 lines each)
+- Lean AGENTS.md template (under 150 lines, zero HexCurse-specific content)
+- Lean SESSION_START.md (one screen, under 40 lines)
+- Generic consumer templates — zero source-repo artifacts installed
+
+### Changed
+
+- Core MCP servers reduced to 4: github, context7, memory, taskmaster-ai
+- Install sequence reduced to 12 ordered steps, 14 files minimum
+- `--doctor` reduced to 11 required + 4 optional checks (was 30+)
+- PATHS.json v2: 14 keys (was 30+), `packRoot` removed
+- `installGlobals` no longer installs repomix globally
+- `promptUser()` reduced to 7 questions (was 24+), no provider-selection prompts
+- ONE_PROMPT.md moved into main write sequence (always written)
+- ADR_LOG.md written to HEXCURSE/ADR_LOG.md (not HEXCURSE/docs/)
+
+## [2.0.2] — 2026-04-03
+
+### Added
+
+- **`--refresh-governance`** and **`HEXCURSE_REFRESH_GOVERNANCE=1`**: overwrite existing **`HEXCURSE/*`** and mirrored **`.cursor/rules`** on reinstall. Interactive TTY installs prompt once when the pack already exists (default **No**).
+
+### Changed
+
+- **PRD → tasks** during install: default **`HEXCURSE_PARSE_PRD=cursor`** runs Cursor headless **`agent -p`** with **`composer-1.5`** (override with **`HEXCURSE_CURSOR_AGENT_MODEL`**) so **task-master** does not call OpenAI/Anthropic for parse-prd. Fallback: **`task-master parse-prd`** only for **`lmstudio`** preset if Cursor agent fails, or when **`HEXCURSE_PARSE_PRD=taskmaster`**. **`HEXCURSE_PARSE_PRD=skip`** skips generation. Task-master parse-prd runs with **`CI=1`** to reduce interactive prompts.
+
+## [2.0.1] — 2026-04-03
+
+### Changed
+
+- User-facing installer branding: **HEXCURSE** (banner, `--help`, doctor strings, `PATHS.json` installer metadata). Npm package name stays **`cursor-governance`** for registry continuity; **`hexcurse`** added as an additional **`bin`** alias (same entry as **`cursor-governance`**).
 
 ## [1.6.1] — 2026-04-03
 
@@ -9,7 +57,12 @@ All notable changes to **cursor-governance** are documented here.
 - `semgrep` MCP updated from deprecated uvx/stdio to Streamable HTTP endpoint `https://mcp.semgrep.ai/mcp` (#6)
 - Windows PowerShell: ConPTY detection for doctor + test hook (#14)
 - Linux: pampa path resolution (`mcp-server.js` / `src/mcp-server.js`), sudo fallback for npm global install (#15)
-- setup.js parity: bundled templates match source `AGENTS.md`, `SESSION_START_PROMPT.md`, and `.mdc` files (#9)
+- setup.js parity: bundled templates match source `AGENTS.md`, `SESSION_START.md`, and `.mdc` files (#9)
+
+### Changed
+
+- **`buildMcpServers()`** (v2): **4 core** MCPs (github, context7, memory, taskmaster-ai) + **5 optional** picks at install (playwright, semgrep streamable-http, supabase, lightrag, custom). Merge still **adds-only** — never removes existing **`~/.cursor/mcp.json`** keys.
+- Session-start pack: **`SESSION_START_PROMPT.pack.md`** → **`SESSION_START.md`**; install writes **`HEXCURSE/SESSION_START.md`**; **`PATHS.json`** key **`sessionStartPrompt`** → **`sessionStart`**. Legacy **`SESSION_START_PROMPT.md`** paths still satisfy **`--doctor`**.
 
 ### Added
 
@@ -61,7 +114,7 @@ All notable changes to **cursor-governance** are documented here.
 ### Changed
 
 - `AGENTS.md` — complete rewrite for 17-server / 10-rule world; SESSION START steps **4a–4e**; DURING IMPLEMENTATION tool triggers; SESSION CLOSE expanded; **Forbidden** / **Mandatory order** aligned with **`mcp-usage.mdc`**
-- `docs/SESSION_START_PROMPT.md` — rewrite with steps **4a–4e** and 10-rule activation notice
+- `docs/SESSION_START_PROMPT.md` — rewrite with steps **4a–4e** and 10-rule activation notice (file later renamed to **`SESSION_START.md`**)
 - `docs/MCP_COORDINATION.md` — full rewrite; 17-server table; invocation order by session phase; coordination patterns; **DEGRADED_MODE** tiers; token budget section
 - `CURSOR.md` — 10-rule reference, 17-server quick ref, **New in v1.5.x**
 - `.cursor/rules/process-gates.mdc` — Semgrep pre-commit gate, ADR gate, session-close checklist (**`PROCESS_GATES_TEMPLATE`** in **`setup.js`**)
@@ -266,7 +319,7 @@ All notable changes to **cursor-governance** are documented here.
 
 - **`NORTH_STAR.md`** template at repo root on install (**`templates/NORTH_STAR.md`**); **`PATHS.json`** key **`northStar`**.
 - **`--run-hexcurse`** / **`--run-hexcurse-raw`**: expand **NORTH_STAR.md** → **`.taskmaster/docs/prd.txt`** (OpenAI-compatible chat, same model/URL as Taskmaster main unless **`HEXCURSE_EXPAND_MODEL`** set), run **`task-master parse-prd`**, sync **`HEXCURSE/DIRECTIVES.md`** **`## 📋 Queued`** from **`tasks.json`**. Skips DIRECTIVES sync if no **`HEXCURSE/`** pack (e.g. HexCurse source repo).
-- **AGENTS.md** / **SESSION_START_PROMPT.md** templates: **run HEXCURSE** / STEP 0 bridge instructions; session start **`@NORTH_STAR.md`**.
+- **AGENTS.md** / **SESSION_START.md** templates: **run HEXCURSE** / STEP 0 bridge instructions; session start **`@NORTH_STAR.md`**.
 - **`--doctor`**: optional note when **`NORTH_STAR.md`** is missing.
 
 ## [1.2.3] — 2026-03-30

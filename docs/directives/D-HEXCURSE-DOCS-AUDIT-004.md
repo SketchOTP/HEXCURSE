@@ -271,9 +271,9 @@ git commit -m "feat: AGENTS.md full rewrite for 17-server 10-rule world + sync a
 
 ---
 
-## SECTION 3 — `docs/SESSION_START_PROMPT.md` Rewrite
+## SECTION 3 — `docs/SESSION_START.md` Rewrite
 
-**File:** `N:\HexCurse\docs\SESSION_START_PROMPT.md`  
+**File:** `N:\HexCurse\docs\SESSION_START.md`  
 **Also update:** `sessionStartMd()` in `cursor-governance/setup.js`
 
 This is the standalone document agents paste at the start of a session. It must be self-contained — an agent with only this document should know exactly what to do.
@@ -288,7 +288,7 @@ Rewrite to include:
 
 **STEP 3:** Load memory MCP. Retrieve memories tagged with current task domain. (unchanged concept, ensure memory server is named)
 
-**STEP 4a–4e:** Exact text from AGENTS.md SESSION START steps 4a through 4e. These must be identical — SESSION_START_PROMPT.md is a consumer-facing copy of the ritual, not a summary.
+**STEP 4a–4e:** Exact text from AGENTS.md SESSION START steps 4a through 4e. These must be identical — SESSION_START.md is a consumer-facing copy of the ritual, not a summary.
 
 **STEP 5:** Active rules notice — list all 10 `.mdc` files by name and describe when each activates:
 ```
@@ -319,8 +319,8 @@ After rewriting the file, update `sessionStartMd()` to match.
 
 **Commit checkpoint:**
 ```bash
-git add docs\SESSION_START_PROMPT.md cursor-governance/setup.js
-git commit -m "feat: SESSION_START_PROMPT.md rewrite with all steps 4a-4e and 10-rule notice"
+git add docs\SESSION_START.md cursor-governance/setup.js
+git commit -m "feat: SESSION_START.md rewrite with all steps 4a-4e and 10-rule notice"
 ```
 
 ---
@@ -419,7 +419,7 @@ git commit -m "feat: MCP_COORDINATION.md full rewrite for 17 servers with invoca
 
 ### 5.1 — Required additions
 
-Add a section **Active Governance Rules** that lists all 10 `.mdc` files with their trigger conditions (same content as SESSION_START_PROMPT.md STEP 5 — keep these identical).
+Add a section **Active Governance Rules** that lists all 10 `.mdc` files with their trigger conditions (same content as SESSION_START.md STEP 5 — keep these identical).
 
 Add a section **MCP Quick Reference** — single-line descriptions of all 17 servers, grouped as Always Active / Session-Conditional / Project-Specific.
 
@@ -727,7 +727,7 @@ Prepend to `cursor-governance/CHANGELOG.md`:
 - `AGENTS.md` — complete rewrite for 17-server / 10-rule world; SESSION START
   steps 4a–4e; full DURING IMPLEMENTATION tool triggers; SESSION CLOSE all 10 steps;
   expanded Forbidden behavior; MCP utilization order for all 17 servers
-- `docs/SESSION_START_PROMPT.md` — rewrite with all steps 4a–4e and 10-rule
+- `docs/SESSION_START.md` — rewrite with all steps 4a–4e and 10-rule
   activation notice
 - `docs/MCP_COORDINATION.md` — full rewrite; 17-server table; invocation order
   by session phase; 6 coordination patterns; DEGRADED_MODE for 17 servers;
@@ -751,7 +751,7 @@ Prepend to `cursor-governance/CHANGELOG.md`:
 - `docs/AGENT_HANDOFFS.md` — stub added to source repo
 - `docs/directives/` — directive files moved from root
 - `agentsMd()` sync — installed AGENTS.md now matches source exactly
-- `sessionStartMd()` sync — installed SESSION_START_PROMPT.md matches source
+- `sessionStartMd()` sync — installed SESSION_START.md matches source
 ```
 
 **Commit checkpoint:**
@@ -768,7 +768,7 @@ git commit -m "chore: bump to 1.5.8 — governance docs audit complete"
 |------|---------|---------------|
 | 1 | 1.1–1.3 Housekeeping | `chore: move directives to docs/directives/, add missing v1.5.x docs to source` |
 | 2 | 2 AGENTS.md + agentsMd() | `feat: AGENTS.md full rewrite for 17-server 10-rule world + sync agentsMd()` |
-| 3 | 3 SESSION_START_PROMPT.md + sessionStartMd() | `feat: SESSION_START_PROMPT.md rewrite with all steps 4a-4e and 10-rule notice` |
+| 3 | 3 SESSION_START.md + sessionStartMd() | `feat: SESSION_START.md rewrite with all steps 4a-4e and 10-rule notice` |
 | 4 | 4 MCP_COORDINATION.md | `feat: MCP_COORDINATION.md full rewrite for 17 servers with invocation order and coordination patterns` |
 | 5 | 5 CURSOR.md + cursorPackMd() | `feat: CURSOR.md add 10-rule reference, 17-server quick ref, v1.5.x summary` |
 | 6 | 6 process-gates.mdc + PROCESS_GATES_TEMPLATE | `feat: process-gates.mdc add semgrep gate, ADR gate, session-close checklist` |
@@ -806,7 +806,7 @@ $env:HEXCURSE_DOCTOR_CI='1'; node cursor-governance/setup.js --doctor
 - [ ] `docs/directives/` contains all three prior directive files
 - [ ] `docs/MCP_TOKEN_BUDGET.md`, `MULTI_AGENT.md`, `ADR_LOG.md`, `AGENT_HANDOFFS.md` present in source `docs/`
 - [ ] `AGENTS.md` references all 17 servers with trigger conditions and all 10 rules with load conditions
-- [ ] `docs/SESSION_START_PROMPT.md` contains steps 4a–4e and 10-rule activation notice
+- [ ] `docs/SESSION_START.md` contains steps 4a–4e and 10-rule activation notice
 - [ ] `docs/MCP_COORDINATION.md` contains 17-server table, invocation order, coordination patterns, DEGRADED_MODE
 - [ ] `CURSOR.md` references all 10 rules and all 17 servers
 - [ ] `process-gates.mdc` contains Semgrep gate, ADR gate, session-close checklist

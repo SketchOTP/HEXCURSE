@@ -6,8 +6,8 @@ This document is the **human-readable map** of how Cursor MCP servers and CLIs w
 
 | Layout | Where governance docs live | Session-start paste |
 |--------|----------------------------|---------------------|
-| **Source** (this HexCurse repo) | Repo root + **`docs/`** | **`docs/SESSION_START_PROMPT.md`** |
-| **Install pack** (other projects after `setup.js`) | **`HEXCURSE/`** | **`HEXCURSE/SESSION_START_PROMPT.md`** (`PATHS.json` lists paths) |
+| **Source** (this HexCurse repo) | Repo root + **`docs/`** | **`docs/SESSION_START.md`** |
+| **Install pack** (other projects after `setup.js`) | **`HEXCURSE/`** | **`HEXCURSE/SESSION_START.md`** (`PATHS.json` → **`paths.sessionStart`**) |
 
 The **ritual and MCP stack are the same**; only path prefixes change.
 
@@ -56,7 +56,7 @@ Canonical merge order and wiring: **`buildMcpServers()`** in **`cursor-governanc
 
 ## Invocation order within a session
 
-Align with **`AGENTS.md`** / **`docs/SESSION_START_PROMPT.md`** (pack: **`HEXCURSE/…`**).
+Align with **`AGENTS.md`** / **`docs/SESSION_START.md`** (pack: **`HEXCURSE/…`**).
 
 ### SESSION START (typical order)
 
@@ -180,7 +180,7 @@ Full notes: **`docs/MCP_TOKEN_BUDGET.md`** (pack: **`HEXCURSE/docs/MCP_TOKEN_BUD
 In **`HEXCURSE/`** pack repos, the same filenames live under **`HEXCURSE/`** (see **`HEXCURSE/PATHS.json`**).
 
 - **`AGENTS.md`** (pack: **`HEXCURSE/AGENTS.md`**) — Session start/close checklists and Learned Workspace Facts.
-- **Session-start paste** — **`docs/SESSION_START_PROMPT.md`** or **`HEXCURSE/SESSION_START_PROMPT.md`**.
+- **Session-start paste** — **`docs/SESSION_START.md`** or **`HEXCURSE/SESSION_START.md`**.
 - **`docs/CONTINUAL_LEARNING.md`** (pack: **`HEXCURSE/docs/...`**) — Transcript mining and RULE 9.
 - **`docs/CURSOR_MODES.md`** (pack: **`HEXCURSE/docs/...`**) — Agent vs Architect vs Ask.
 - **`docs/ARCHITECTURE.md`** (pack: **`HEXCURSE/docs/...`**) — System map and dependency table.
