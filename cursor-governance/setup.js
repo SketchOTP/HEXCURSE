@@ -3734,6 +3734,11 @@ main.hexcursePaths = {
   resolveNorthStarPathForRead,
 };
 
+/** Test-only: v2 PATHS.json manifest shape. */
+main.hexcursePathsManifestTestHooks = {
+  pathsManifestObject,
+};
+
 /** Test-only: existing-repo NORTH_STAR draft (repomix snapshot + install-time LLM). See test/north-star-existing-repo.test.js */
 main.hexcurseInstallTestHooks = {
   generateNorthStarFromExistingRepo,

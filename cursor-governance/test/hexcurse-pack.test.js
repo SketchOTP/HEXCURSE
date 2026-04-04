@@ -14,6 +14,7 @@ const { execFileSync, execSync } = require('child_process');
 
 const setupMain = require('../setup.js');
 const { HEXCURSE_ROOT, pathNorthStarPack, resolveNorthStarPathForRead } = setupMain.hexcursePaths;
+const { pathsManifestObject } = setupMain.hexcursePathsManifestTestHooks;
 
 const {
   validateTaskmasterSchema,
@@ -383,6 +384,55 @@ function testApplyTaskmasterProviderAnthropicFromEnv() {
   }
 }
 
+function testPathsManifestV2Schema() {
+  const manifest = pathsManifestObject({
+    installerName: 'hexcurse',
+    installerVersion: '2.0.0',
+    installerNpmPackage: 'cursor-governance',
+    generatedAt: new Date().toISOString(),
+  });
+  assert.strictEqual(manifest.schema, 'hexcurse-paths-v2');
+  assert.strictEqual(manifest.version, 2);
+  assert.ok(manifest.paths && typeof manifest.paths === 'object');
+  const expectedKeys = [
+    'northStar',
+    'agents',
+    'sessionStart',
+    'onePrompt',
+    'rulesDir',
+    'activeRulesDir',
+    'skillsDir',
+    'taskmasterPrd',
+    'taskmasterTasks',
+    'taskmasterConfig',
+    'agentParseCache',
+    'installerPath',
+    'rootAgentsPointer',
+    'adrLog',
+  ];
+  for (const key of expectedKeys) {
+    assert.ok(key in manifest.paths, `paths missing key: ${key}`);
+  }
+  assert.ok(!('packRoot' in manifest), 'packRoot should not be present in v2');
+  assert.ok(!('directives' in manifest.paths), 'directives should not be in v2 paths');
+  assert.ok(!('architecture' in manifest.paths), 'architecture should not be in v2 paths');
+  assert.ok(manifest.installer && manifest.installer.version === '2.0.0');
+}
+
+function testMigrateV2ModeRecognized() {
+  const cwd = mkTmp();
+  // --migrate-v2 on a directory with no HEXCURSE/ should exit 0 with "nothing to migrate"
+  const result = execFileSync(process.execPath, [setupJs, '--migrate-v2'], {
+    cwd,
+    stdio: 'pipe',
+    encoding: 'utf8',
+  });
+  assert.ok(
+    result.includes('nothing to migrate') || result.includes('migrate'),
+    `Expected migrate-v2 output, got: ${result}`
+  );
+}
+
 function run() {
   const tests = [
     ['pathNorthStarPack', testPathNorthStarPack],
@@ -390,6 +440,8 @@ function run() {
     ['resolveNorthStar legacy only', testResolveNorthStarLegacyOnly],
     ['resolveNorthStar prefers pack', testResolveNorthStarPrefersPackOverLegacy],
     ['extract sacred CSV includes trailing bullets', testExtractSacredIncludesTrailingBullets],
+    ['pathsManifestObject v2 schema shape', testPathsManifestV2Schema],
+    ['--migrate-v2 mode recognized', testMigrateV2ModeRecognized],
     ['sync-rules requires HEXCURSE_RULES_REMOTE_URL', testSyncRulesRequiresRemoteUrl],
     ['MCP npm packages core v2 exist', testMcpNpmPackagesCoreMcpExist],
     ['buildMcpServers core-only keys', testBuildMcpServersCoreOnly],
