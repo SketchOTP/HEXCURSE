@@ -2,7 +2,7 @@
 
 All notable changes to **HEXCURSE** (npm package **`cursor-governance`**) are documented here.
 
-## [2.0.0] — 2025-04-04
+## [2.0.0] — 2026-04-04
 
 ### Breaking Changes
 
