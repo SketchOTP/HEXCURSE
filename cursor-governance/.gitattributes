@@ -1,0 +1,2 @@
+# npm CLI bins: shebang must end with LF only (CRLF breaks /usr/bin/env on Unix publish).
+bin/*.js text eol=lf
