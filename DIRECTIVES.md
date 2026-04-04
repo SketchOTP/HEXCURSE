@@ -17,6 +17,7 @@
 - D-HEXCURSE-PRODUCT-STACK-005: Part B closed — `docs/TASK_GRAPH_SNAPSHOT.md`, cursor-governance **v1.5.9**, tasks #3/#4/#8 done ✓ 2026-04-03
 - D-HEXCURSE-AGENT-PARSE-006 (Taskmaster #16): `--parse-prd-via-agent` in `setup.js` — PRD → agent prompt, `--apply` writes `tasks.json`, doctor stub check, PATHS `agentParsePromptCache` — cursor-governance **v1.6.0** ✓ 2026-04-03
 - D-HEXCURSE-OMNIBUS-007 (Taskmaster **#5, #6, #9–#15**): Semgrep Streamable HTTP, memory seed, installer parity, session ritual audit, Windows ConPTY + Linux Pampa/npm fallback, continual learning validation, skill promotion guide, token efficiency protocol — cursor-governance **v1.6.1** ✓ 2026-04-03 **1431f90**
+- D-HEXCURSE-V2-REVAMP-009: HexCurse **v2.0.0** — lean install, 4 core MCPs, optional picker, `--migrate-v2`, PATHS `hexcurse-paths-v2`, doctor slim-down, LightRAG, CHANGELOG — ✓ **2026-04-04** — Complete — v2.0.0 tagged and pushed. 21 tests passing. 14-file install, 6s runtime.
 
 ---
 
